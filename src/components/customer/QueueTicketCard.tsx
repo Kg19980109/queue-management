@@ -10,71 +10,96 @@ export function QueueTicketCard({ status }: QueueTicketCardProps) {
 
   // Calculate rough wait estimate based on position (e.g. ~5-8 mins per waiting party)
   const estWaitMins = isWaiting && status.position ? Math.max(5, (status.position - 1) * 7) : null;
+  
+  const displayNum = status.displayNumber || `Q-${status.entryId.substring(0, 4).toUpperCase()}`;
 
   return (
-    <div className="relative bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 overflow-hidden">
-      {/* Decorative Ticket Accents */}
-      <div className="absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-950 border border-slate-800" />
-      <div className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-slate-950 border border-slate-800" />
+    <div className="w-full px-1">
+      <div className="relative bg-[#111827] border border-white/5 rounded-[32px] p-6 shadow-2xl flex flex-col items-center justify-center overflow-hidden">
+        
+        {/* Glow Effects */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-      {/* Ticket Header */}
-      <div className="text-center space-y-1">
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400">
-          Official Digital Ticket
-        </span>
-        <h2 className="text-lg font-bold text-white tracking-tight">
-          {status.restaurantName}
+        {/* Central Circular Pass */}
+        <div className="relative z-10 w-48 h-48 rounded-full flex flex-col items-center justify-center border border-white/10 mt-2 mb-6">
+           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-500/10 to-emerald-500/5"></div>
+           <svg className="absolute inset-0 w-full h-full rotate-[-90deg]">
+             <circle cx="96" cy="96" r="94" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="2" />
+             <circle cx="96" cy="96" r="94" fill="none" stroke="url(#gradient)" strokeWidth="4" strokeDasharray="590" strokeDashoffset="150" strokeLinecap="round" />
+             <defs>
+               <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                 <stop offset="0%" stopColor="#3B82F6" />
+                 <stop offset="100%" stopColor="#10B981" />
+               </linearGradient>
+             </defs>
+           </svg>
+           
+           <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-[0.2em] mt-2">Your Pass</span>
+           <span className="text-5xl font-black text-white tracking-tighter my-1">#{displayNum}</span>
+           <div className="flex items-center gap-1.5 bg-emerald-950/50 border border-emerald-500/30 rounded-full px-2.5 py-0.5 mt-1">
+             <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+             <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">VIP Guest</span>
+           </div>
+        </div>
+
+        {/* Status Text */}
+        <h2 className="text-2xl font-black text-white tracking-tight relative z-10 mb-2">
+          {status.peopleAhead !== null && status.peopleAhead > 0 ? `${status.peopleAhead} Groups Ahead` : "You're Next!"}
         </h2>
-      </div>
+        <p className="text-xs text-slate-400 text-center leading-relaxed max-w-[280px] relative z-10 mb-6">
+          You are next in sequence for premium seating. Table T4 is undergoing luxury setup.
+        </p>
 
-      {/* Prominent Queue Display Number */}
-      <div className="text-center bg-slate-950/80 border border-slate-800/80 rounded-2xl py-6 px-4 space-y-1">
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
-          Your Queue Number
-        </span>
-        <div className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 tracking-tight font-mono">
-          {status.displayNumber || `Q-${status.entryId.substring(0, 4).toUpperCase()}`}
-        </div>
-      </div>
-
-      {/* Position & Stats Grid */}
-      {isWaiting && status.position !== null && (
-        <div className="grid grid-cols-2 gap-3 text-center">
-          <div className="bg-slate-950/50 border border-slate-800/60 p-3.5 rounded-2xl space-y-0.5">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-              Position
-            </span>
-            <div className="text-2xl font-black text-amber-400">#{status.position}</div>
-            <span className="text-[10px] text-slate-500 block">in line</span>
-          </div>
-
-          <div className="bg-slate-950/50 border border-slate-800/60 p-3.5 rounded-2xl space-y-0.5">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-              People Ahead
-            </span>
-            <div className="text-2xl font-black text-white">{status.peopleAhead ?? 0}</div>
-            <span className="text-[10px] text-slate-500 block">
-              {status.peopleAhead === 1 ? 'party' : 'parties'} ahead
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Customer Information Footer */}
-      <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs text-slate-400 px-1">
-        <div>
-          <span className="font-semibold text-white">{status.customerName}</span>
-          <span className="text-slate-500 block">
-            Party of {status.partySize} ({status.partySize === 1 ? 'guest' : 'guests'})
-          </span>
+        {/* Time / Table Status Row */}
+        <div className="flex items-center gap-3 relative z-10 w-full justify-center mb-8">
+           <div className="bg-[#1A2234] border border-white/5 rounded-full px-4 py-2 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[14px] text-slate-400">schedule</span>
+              <span className="text-xs font-bold text-slate-300">~{estWaitMins || '?'} mins wait</span>
+           </div>
+           <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-full px-4 py-2 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+              <span className="text-xs font-bold text-emerald-400">Table T4 Prepping</span>
+           </div>
         </div>
 
-        {estWaitMins && (
-          <div className="text-right">
-            <span className="text-amber-400 font-bold">~{estWaitMins} mins</span>
-            <span className="text-slate-500 block">Est. Wait Time</span>
-          </div>
-        )}
+        {/* Queue Progression */}
+        <div className="w-full relative z-10 mb-6">
+           <div className="flex items-center justify-between mb-2">
+             <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Queue Progression</span>
+             <span className="text-[10px] text-slate-500 font-bold">Stage 3 of 4</span>
+           </div>
+           
+           {/* Progress Bars */}
+           <div className="grid grid-cols-4 gap-1.5 mb-2">
+             <div className="h-1.5 rounded-full bg-blue-500"></div>
+             <div className="h-1.5 rounded-full bg-blue-500"></div>
+             <div className="h-1.5 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse"></div>
+             <div className="h-1.5 rounded-full bg-white/10"></div>
+           </div>
+           
+           {/* Labels */}
+           <div className="grid grid-cols-4 gap-1.5">
+             <span className="text-[9px] font-bold text-slate-300">Checked In</span>
+             <span className="text-[9px] font-bold text-slate-300">Assigned #{displayNum}</span>
+             <span className="text-[9px] font-bold text-purple-400">Setting T4</span>
+             <span className="text-[9px] font-bold text-slate-600">Host Call</span>
+           </div>
+        </div>
+
+        {/* Actions */}
+        <div className="grid grid-cols-2 gap-3 w-full relative z-10">
+           <button className="bg-[#1A2234] hover:bg-[#232D42] border border-white/5 rounded-2xl py-3.5 flex items-center justify-center gap-2 transition-colors">
+              <span className="material-symbols-outlined text-[16px] text-slate-400">update</span>
+              <span className="text-sm font-bold text-slate-300">+10m Delay</span>
+           </button>
+           <button className="bg-[#1A2234] hover:bg-red-950/30 hover:border-red-500/30 border border-white/5 rounded-2xl py-3.5 flex items-center justify-center gap-2 transition-colors group">
+              <span className="material-symbols-outlined text-[16px] text-slate-400 group-hover:text-red-400">logout</span>
+              <span className="text-sm font-bold text-slate-300 group-hover:text-red-400">Leave Queue</span>
+           </button>
+        </div>
+
       </div>
     </div>
   );

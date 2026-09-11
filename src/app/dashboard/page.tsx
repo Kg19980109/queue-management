@@ -1,237 +1,215 @@
 import React from 'react';
 import Link from 'next/link';
+import { DashboardClient } from '@/components/dashboard/DashboardClient';
 import { RestaurantAdminService } from '@/lib/services/restaurant-admin-service';
+import { QueueService } from '@/lib/services/queue-service';
+import { TableService } from '@/lib/services/table-service';
+import { OrderService } from '@/lib/services/order-service';
+
+function getWaitTimeMins(joinedAt: string) {
+  const diffMs = new Date().getTime() - new Date(joinedAt).getTime();
+  return Math.max(0, Math.floor(diffMs / 60000));
+}
 
 export default async function RestaurantAdminDashboardPage() {
   const { restaurant } = await RestaurantAdminService.getRestaurantDashboardStats();
+  const restaurantId = restaurant.id;
+
+  // Fetch real data concurrently
+  const [activeQueue, tablesRes, activeOrders] = await Promise.all([
+    QueueService.getActiveQueue(restaurantId),
+    TableService.listTables({ restaurantId }),
+    OrderService.listDashboardOrders(restaurantId, 'ALL'),
+  ]);
+
+  // --- KPI 1: Active Queue ---
+  const activeQueueCount = activeQueue.length;
+  const activeQueueGuests = activeQueue.reduce((acc, q) => acc + q.party_size, 0);
+  
+  let avgWaitTime = 0;
+  if (activeQueue.length > 0) {
+    const totalWait = activeQueue.reduce((acc, q) => acc + getWaitTimeMins(q.joined_at), 0);
+    avgWaitTime = Math.floor(totalWait / activeQueue.length);
+  }
+
+  const calledCount = activeQueue.filter(q => q.status === 'CALLED').length;
+
+  // --- KPI 2: Floor Occupancy ---
+  const tablesTotal = tablesRes.stats.total;
+  const tablesReady = tablesRes.stats.available;
+  const tablesOccupied = tablesRes.stats.occupied;
+  const occupancyPercent = tablesTotal > 0 ? Math.round((tablesOccupied / tablesTotal) * 100) : 0;
+
+  // --- KPI 3: Guests Seated ---
+  const guestsSeated = tablesRes.tables.filter(t => t.status === 'OCCUPIED').reduce((acc, t) => acc + t.capacity, 0);
+  const partiesSeated = tablesOccupied;
+  const tableCapacityMax = tablesRes.tables.reduce((acc, t) => acc + t.capacity, 0);
+
+  // --- KPI 4: Pre-Order Inflow ---
+  const preOrders = activeOrders.filter(o => o.status !== 'SERVED' && o.status !== 'CANCELLED');
+  const preOrderRevenue = preOrders.reduce((acc, o) => acc + o.total, 0);
+  const ticketAvg = preOrders.length > 0 ? Math.round(preOrderRevenue / preOrders.length) : 0;
+
+  // --- Live Queue Feed Data ---
+  const feedEntries = activeQueue.slice(0, 5); // Show top 5
 
   return (
-    <div className="flex flex-col w-full">
-      {/* Subtle Ambient Glow Canvas */}
-      <div className="relative w-full px-space-xl py-space-lg flex flex-col gap-space-xl overflow-hidden">
-        <div className="absolute -top-32 right-1/4 w-96 h-96 rounded-full bg-primary-container/5 blur-3xl pointer-events-none"></div>
-        <div className="absolute top-80 right-10 w-72 h-72 rounded-full bg-secondary-container/5 blur-3xl pointer-events-none"></div>
-        
-        {/* Top Bar: Greeting, Peak Status, Quick Station Switcher */}
-        <section className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-space-md">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary font-bold">Shift Telemetry • Night Service</span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-label-sm font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
-                Peak Dinner Service
-              </span>
-            </div>
-            <h1 className="font-headline-xl text-headline-xl text-on-surface tracking-tight">Good evening, {restaurant.name || 'Spice Garden'} 👋</h1>
-            <p className="font-body-md text-body-md text-on-surface-variant">Here is your live floor and queue performance for tonight’s dinner service.</p>
+    <div className="flex flex-col w-full text-slate-300 font-sans p-8 gap-8">
+      
+      {/* Top Section: Greeting and Quick Action */}
+      <section className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6 relative z-10">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+            <span className="text-primary border border-primary/20 bg-primary/10 px-2 py-0.5 rounded-full">Shift Telemetry</span>
+            <span>• Night Service •</span>
+            <span className="text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Normal Service</span>
           </div>
-          
-          {/* Quick Action Capsule */}
-          <div className="flex items-center gap-space-sm bg-surface-container-lowest p-1.5 rounded-xl shadow-sm">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface">
-              <span className="material-symbols-outlined text-[18px] text-tertiary">pace</span>
-              <span className="font-body-sm text-body-sm font-medium">Turnover Velocity:</span>
-              <span className="font-label-md text-label-md font-bold text-on-surface">~38m</span>
-            </div>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-container hover:bg-primary text-on-primary-container font-headline-sm text-body-sm font-semibold transition-all transform active:scale-95 shadow-sm" type="button">
-              <span className="material-symbols-outlined text-[18px]">add</span>
-              <span>Add Walk-In</span>
-            </button>
+          <div className="relative pb-2 w-full max-w-3xl">
+            <h1 className="text-3xl lg:text-4xl leading-none font-black text-white tracking-widest uppercase font-headline-xl">
+              Good evening, Love Cafe Rathindra
+            </h1>
           </div>
-        </section>
-
-        {/* 4 High-Precision KPI Metric Tiles */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-gutter">
-          {/* KPI 1: Active Queue */}
-          <div className="relative bg-surface-container-lowest p-space-lg rounded-xl shadow-sm hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-primary rounded-t-xl"></div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary-fixed flex items-center justify-center text-on-primary-fixed">
-                  <span className="material-symbols-outlined text-[20px]">groups</span>
-                </div>
-                <span className="font-label-md text-label-md uppercase text-on-surface-variant">Active Queue</span>
-              </div>
-              <span className="font-label-sm text-label-sm font-semibold px-2 py-0.5 rounded-full bg-surface-container-high text-primary">+4 in last 15m</span>
-            </div>
-            <div className="mt-4 flex items-baseline gap-2">
-              <span className="font-ticket-display text-ticket-display text-on-surface">12</span>
-              <span className="font-headline-sm text-body-lg text-on-surface-variant font-medium">Groups</span>
-              <span className="font-body-sm text-body-sm text-on-surface-variant font-normal">(34 Guests)</span>
-            </div>
-            <div className="mt-3 pt-3 flex items-center justify-between text-on-surface-variant">
-              <span className="font-body-sm text-body-sm">Avg Wait Time:</span>
-              <span className="font-label-md text-label-md font-bold text-on-surface">22 mins</span>
-            </div>
-          </div>
-
-          {/* KPI 2: Floor Occupancy */}
-          <div className="relative bg-surface-container-lowest p-space-lg rounded-xl shadow-sm hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-tertiary rounded-t-xl"></div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed">
-                  <span className="material-symbols-outlined text-[20px]">table_restaurant</span>
-                </div>
-                <span className="font-label-md text-label-md uppercase text-on-surface-variant">Floor Occupancy</span>
-              </div>
-              <span className="font-label-sm text-label-sm font-semibold px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed">4 Tables Ready</span>
-            </div>
-            <div className="mt-4 flex items-baseline gap-2">
-              <span className="font-ticket-display text-ticket-display text-on-surface">86%</span>
-              <span className="font-body-sm text-body-sm text-on-surface-variant">24 of 28 Tables Full</span>
-            </div>
-            <div className="mt-3 w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
-              <div className="bg-tertiary h-full rounded-full" style={{ width: '86%' }}></div>
-            </div>
-          </div>
-
-          {/* KPI 3: Seated Tonight */}
-          <div className="relative bg-surface-container-lowest p-space-lg rounded-xl shadow-sm hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-secondary rounded-t-xl"></div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed">
-                  <span className="material-symbols-outlined text-[20px]">restaurant</span>
-                </div>
-                <span className="font-label-md text-label-md uppercase text-on-surface-variant">Guests Seated</span>
-              </div>
-              <span className="font-label-sm text-label-sm font-bold text-tertiary flex items-center gap-0.5">
-                <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
-                18% vs Thu
-              </span>
-            </div>
-            <div className="mt-4 flex items-baseline gap-2">
-              <span className="font-ticket-display text-ticket-display text-on-surface">142</span>
-              <span className="font-headline-sm text-body-lg text-on-surface-variant font-medium">Guests</span>
-              <span className="font-body-sm text-body-sm text-on-surface-variant">(48 Parties)</span>
-            </div>
-            <div className="mt-3 pt-3 flex items-center justify-between text-on-surface-variant">
-              <span className="font-body-sm text-body-sm">Peak Inflow:</span>
-              <span className="font-label-md text-label-md font-semibold text-on-surface">7:45 PM – 8:15 PM</span>
-            </div>
-          </div>
-
-          {/* KPI 4: Pre-Order Revenue */}
-          <div className="relative bg-surface-container-lowest p-space-lg rounded-xl shadow-sm hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-primary-container rounded-t-xl"></div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary-fixed-dim flex items-center justify-center text-on-primary-fixed">
-                  <span className="material-symbols-outlined text-[20px]">payments</span>
-                </div>
-                <span className="font-label-md text-label-md uppercase text-on-surface-variant">Pre-Order Inflow</span>
-              </div>
-              <span className="font-label-sm text-label-sm font-semibold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface">28 Orders</span>
-            </div>
-            <div className="mt-4 flex items-baseline gap-2">
-              <span className="font-ticket-display text-ticket-display text-on-surface tracking-tight">₹34,850</span>
-              <span className="font-body-sm text-body-sm text-on-surface-variant">while waiting</span>
-            </div>
-            <div className="mt-3 pt-3 flex items-center justify-between text-on-surface-variant">
-              <span className="font-body-sm text-body-sm">Ticket Avg:</span>
-              <span className="font-label-md text-label-md font-bold text-primary">₹640 / order</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Operational Split View */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
-          
-          {/* LEFT COLUMN: Live Queue Stream */}
-          <section className="lg:col-span-7 flex flex-col gap-space-lg">
-            <div className="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col gap-space-md">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-headline-sm text-headline-sm text-on-surface">Live Queue Feed</span>
-                  <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
-                  <span className="font-label-sm text-label-sm text-on-surface-variant">Real-time Stream</span>
-                </div>
-                <Link href="/dashboard/queue" className="font-headline-sm text-body-sm font-semibold text-primary hover:text-on-primary-fixed-variant flex items-center gap-1 transition-colors">
-                  <span>View All 12</span>
-                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                </Link>
-              </div>
-
-              {/* Queue Cards Stack */}
-              <div className="flex flex-col gap-space-sm" id="queue-stream">
-                <div className="group relative bg-surface-container-lowest hover:bg-surface-container-low p-space-md rounded-xl transition-all shadow-sm hover:shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
-                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-tertiary rounded-l-xl"></div>
-                  <div className="flex items-start sm:items-center gap-space-md pl-2">
-                    <div className="flex flex-col items-start">
-                      <span className="font-ticket-display text-ticket-display text-on-surface tracking-tight">#A12</span>
-                      <span className="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-tertiary-fixed text-on-tertiary-fixed font-semibold mt-0.5">CALLED</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="font-headline-sm text-headline-sm text-on-surface font-semibold">Rahul Mehta</span>
-                        <span className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-0.5">
-                          <span className="material-symbols-outlined text-[16px]">person</span> 4 guests
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <span className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[14px] text-tertiary">schedule</span>
-                          Waited 24m
-                        </span>
-                        <span className="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface font-medium">Pre-Order Paid</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="group relative bg-surface-container-lowest hover:bg-surface-container-low p-space-md rounded-xl transition-all shadow-sm hover:shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
-                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary rounded-l-xl"></div>
-                  <div className="flex items-start sm:items-center gap-space-md pl-2">
-                    <div className="flex flex-col items-start">
-                      <span className="font-ticket-display text-ticket-display text-on-surface tracking-tight">#A13</span>
-                      <span className="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-semibold mt-0.5">NEXT UP</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="font-headline-sm text-headline-sm text-on-surface font-semibold">Priya Sharma</span>
-                        <span className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-0.5">
-                          <span className="material-symbols-outlined text-[16px]">person</span> 2 guests
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <span className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[14px] text-primary">schedule</span>
-                          Waited 18m
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* RIGHT COLUMN: Real-time Floor Matrix & Alerts */}
-          <section className="lg:col-span-5 flex flex-col gap-space-lg">
-            <div className="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col gap-space-md">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="font-headline-sm text-headline-sm text-on-surface">Floor Status</span>
-                  <span className="font-body-sm text-body-sm text-on-surface-variant">28 Total Tables</span>
-                </div>
-                <span className="font-label-sm text-label-sm px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface font-bold">24 Occupied</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                <div className="p-2.5 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex flex-col items-center justify-center shadow-sm">
-                  <span className="font-ticket-display text-headline-sm font-bold">T2</span>
-                  <span className="font-label-sm text-label-sm">Ready</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-error-container text-on-error-container flex flex-col items-center justify-center shadow-sm">
-                  <span className="font-ticket-display text-headline-sm font-bold">T7</span>
-                  <span className="font-label-sm text-label-sm">Cleaning</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
+          <p className="text-slate-400 text-sm font-medium">Here is your live floor and queue performance for tonight&apos;s dinner service.</p>
         </div>
-      </div>
+        
+        {/* Quick Action Block */}
+        <div className="flex items-center gap-4">
+          <span className="text-3xl">👋</span>
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col items-end justify-center px-4 py-2 rounded-xl bg-[#111827] border border-white/5 text-slate-300">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1"><span className="material-symbols-outlined text-[12px] text-emerald-400">bolt</span> Turnover Velocity:</span>
+              <span className="text-sm font-bold text-white">~{restaurant.avg_service_time_mins || 15}m</span>
+            </div>
+            <Link href="/dashboard/queue" className="flex flex-col items-center justify-center px-6 py-2 rounded-xl bg-primary hover:bg-blue-500 transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)] border border-blue-400/30 text-white font-bold text-sm">
+              <span className="text-xs font-normal opacity-70 mb-0.5">+</span>
+              Add Walk-In
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 4 Command OS KPI Cards */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
+        
+        {/* KPI 1: Active Queue */}
+        <div className="bg-[#111827] p-5 rounded-2xl border border-white/5 flex flex-col justify-between shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full blur-2xl pointer-events-none"></div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full border border-primary/20 flex items-center justify-center text-primary bg-primary/5">
+                <span className="material-symbols-outlined text-[16px]">groups</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 leading-tight">Active</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 leading-tight">Queue</span>
+              </div>
+            </div>
+            <div className="px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-[10px] font-bold">
+              {calledCount} Called
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-4xl font-black text-white font-headline-xl">{activeQueueCount}</span>
+            <span className="text-sm font-bold text-white">Groups</span>
+            <span className="text-[11px] text-slate-500">({activeQueueGuests} Guests)</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] font-medium text-slate-400 border-t border-white/5 pt-3">
+            <span>Avg Wait Time:</span>
+            <span className="text-white font-mono font-bold">{avgWaitTime} mins</span>
+          </div>
+        </div>
+
+        {/* KPI 2: Floor Occupancy */}
+        <div className="bg-[#111827] p-5 rounded-2xl border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)] flex flex-col justify-between relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-bl-full blur-2xl pointer-events-none"></div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full border border-emerald-500/20 flex items-center justify-center text-emerald-400 bg-emerald-500/5">
+                <span className="material-symbols-outlined text-[16px]">grid_view</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 leading-tight">Floor</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 leading-tight">Occupancy</span>
+              </div>
+            </div>
+            <div className="px-2 py-0.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">
+              {tablesReady} Tables Ready
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-4xl font-black text-emerald-400 font-headline-xl">{occupancyPercent}%</span>
+            <div className="flex flex-col text-[11px] text-slate-400 leading-tight ml-1">
+              <span>{tablesOccupied} of {tablesTotal} Tables</span>
+              <span>Full</span>
+            </div>
+          </div>
+          <div className="w-full bg-[#1A2333] h-1.5 rounded-full mt-2 mb-1">
+             <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${occupancyPercent}%` }}></div>
+          </div>
+        </div>
+
+        {/* KPI 3: Guests Seated */}
+        <div className="bg-[#111827] p-5 rounded-2xl border border-white/5 flex flex-col justify-between shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-bl-full blur-2xl pointer-events-none"></div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full border border-purple-500/20 flex items-center justify-center text-purple-400 bg-purple-500/5">
+                <span className="material-symbols-outlined text-[16px]">monetization_on</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 leading-tight">Guests</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 leading-tight">Seated</span>
+              </div>
+            </div>
+            <div className="px-2 py-0.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-400 text-[10px] font-bold">
+              Est. Active
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-4xl font-black text-white font-headline-xl">{guestsSeated}</span>
+            <span className="text-sm font-bold text-white">Guests</span>
+            <span className="text-[11px] text-slate-500">({partiesSeated} Parties)</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] font-medium text-slate-400 border-t border-white/5 pt-3">
+            <span>Table Capacity:</span>
+            <span className="text-white font-mono font-bold">{tableCapacityMax} Max</span>
+          </div>
+        </div>
+
+        {/* KPI 4: Pre-Order Inflow */}
+        <div className="bg-[#111827] p-5 rounded-2xl border border-amber-500/20 flex flex-col justify-between shadow-[0_0_15px_rgba(245,158,11,0.05)] relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-bl-full blur-2xl pointer-events-none"></div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full border border-amber-500/20 flex items-center justify-center text-amber-500 bg-amber-500/5">
+                <span className="material-symbols-outlined text-[16px]">lock</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 leading-tight">Pre-Order</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 leading-tight">Inflow</span>
+              </div>
+            </div>
+            <div className="px-2 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-500 text-[10px] font-bold">
+              {preOrders.length} Orders
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-3xl font-black text-amber-500 font-headline-xl tracking-tight">{restaurant.currency === 'USD' ? '$' : '₹'}{preOrderRevenue.toLocaleString()}</span>
+            <span className="text-[11px] text-slate-400">active value</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] font-medium text-slate-400 border-t border-white/5 pt-3">
+            <span>Ticket Avg:</span>
+            <span className="text-white font-mono font-bold">{restaurant.currency === 'USD' ? '$' : '₹'}{ticketAvg.toLocaleString()} / order</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Main Split Content */}
+      <DashboardClient 
+        feedEntries={feedEntries}
+        tablesRes={tablesRes}
+        activeQueueCount={activeQueueCount}
+      />
     </div>
   );
 }

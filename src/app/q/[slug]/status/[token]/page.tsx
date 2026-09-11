@@ -1,12 +1,12 @@
 import React from 'react';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
 import { QueueService } from '@/lib/services/queue-service';
-import { RestaurantHeader } from '@/components/customer/RestaurantHeader';
 import { QueueTicketCard } from '@/components/customer/QueueTicketCard';
-import { QueueStatusBanner } from '@/components/customer/QueueStatusBanner';
-import { CancelQueueDialog } from '@/components/customer/CancelQueueDialog';
-import { MenuPreviewSection } from '@/components/customer/MenuPreviewSection';
-import { CustomerNotificationBanner } from '@/components/notifications/CustomerNotificationBanner';
+import { PublicMobileHeader } from '@/components/customer/PublicMobileHeader';
+import { PartyPreferencesCard } from '@/components/customer/PartyPreferencesCard';
+import { KitchenPreOrderCard } from '@/components/customer/KitchenPreOrderCard';
+import { ComplimentaryPourCard } from '@/components/customer/ComplimentaryPourCard';
+import { PublicBottomNav } from '@/components/customer/PublicBottomNav';
 import { StatusAutoRefresh } from './StatusAutoRefresh';
 import type { Metadata } from 'next';
 
@@ -39,8 +39,8 @@ export default async function CustomerQueueStatusPage({
   const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(slug);
   if (!restaurant) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
+      <div className="min-h-screen bg-[#0A0E17] text-white flex items-center justify-center p-6">
+        <div className="bg-[#111827] border border-white/5 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
           <div className="text-4xl">🔍</div>
           <h1 className="text-xl font-bold text-white">Restaurant Not Found</h1>
           <p className="text-xs text-slate-400 leading-relaxed">
@@ -55,8 +55,8 @@ export default async function CustomerQueueStatusPage({
   const status = await QueueService.getQueueStatusByToken(token);
   if (!status) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
+      <div className="min-h-screen bg-[#0A0E17] text-white flex items-center justify-center p-6">
+        <div className="bg-[#111827] border border-white/5 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
           <div className="text-4xl">🎟️</div>
           <h1 className="text-xl font-bold text-white">Ticket Expired / Invalid</h1>
           <p className="text-xs text-slate-400 leading-relaxed">
@@ -67,11 +67,11 @@ export default async function CustomerQueueStatusPage({
     );
   }
 
-  // 3. TENANT ISOLATION CHECK: Verify token belongs to the resolved restaurant
+  // 3. TENANT ISOLATION CHECK
   if (status.restaurantId !== restaurant.id) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
+      <div className="min-h-screen bg-[#0A0E17] text-white flex items-center justify-center p-6">
+        <div className="bg-[#111827] border border-white/5 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
           <div className="text-4xl">🛡️</div>
           <h1 className="text-xl font-bold text-rose-400">Access Denied</h1>
           <p className="text-xs text-slate-400 leading-relaxed">
@@ -83,59 +83,45 @@ export default async function CustomerQueueStatusPage({
   }
 
   const isTerminal = ['SEATED', 'CANCELLED', 'NO_SHOW', 'EXPIRED'].includes(status.status);
-  const menuCategories = await PublicRestaurantService.getPublicMenuPreview(restaurant.id);
+  
+  // Calculate wait mins
+  const isWaiting = status.status === 'WAITING';
+  const estWaitMins = isWaiting && status.position ? Math.max(5, (status.position - 1) * 7) : null;
+  const displayNum = status.displayNumber || `A${status.entryId.substring(0, 2).toUpperCase()}`;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 px-4 py-8 flex flex-col justify-between selection:bg-emerald-500 selection:text-slate-950">
-      {/* Live Polling Auto-Refresh */}
+    <main className="min-h-screen bg-[#0A0E17] text-white flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950 pb-32">
       <StatusAutoRefresh intervalMs={10000} />
 
-      <div className="w-full max-w-md mx-auto space-y-6">
-        {/* Real-time In-App Notification Banner */}
-        <CustomerNotificationBanner token={token} />
+      <div className="w-full max-w-md mx-auto">
+        {/* Top Header & Tab Navigation */}
+        <PublicMobileHeader 
+           restaurantName={restaurant.name} 
+           queueNumber={displayNum}
+           estWaitMins={estWaitMins}
+        />
 
-        {/* Restaurant Header */}
-        <RestaurantHeader restaurant={restaurant} />
+        {/* Hero Digital Pass */}
+        <div className="px-3">
+           <QueueTicketCard status={status} />
+        </div>
 
-        {/* Live Status Banner */}
-        <QueueStatusBanner status={status} />
-
-        {/* Hero Queue Ticket Card */}
-        <QueueTicketCard status={status} />
-
-        {/* Customer Cancel Spot Action */}
         {!isTerminal && (
-          <CancelQueueDialog token={token} restaurantSlug={slug} />
-        )}
-
-        {/* Order Food CTA */}
-        {!isTerminal && (
-          <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
-            <div className="text-3xl">🍔</div>
-            <div>
-              <h3 className="text-lg font-bold text-white tracking-tight">Order Food While You Wait</h3>
-              <p className="text-xs text-slate-400 mt-1">Skip the ordering line inside. Place your food order now and we&apos;ll prepare it once you&apos;re seated!</p>
-            </div>
-            <a 
-              href={`/q/${slug}/menu?qtoken=${token}`}
-              className="inline-block w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-xl shadow-emerald-600/20 transition-all"
-            >
-              Browse Menu & Order →
-            </a>
+          <div className="px-3">
+             <PartyPreferencesCard 
+               customerName={status.customerName} 
+               phone={null} 
+             />
+             <KitchenPreOrderCard queueNumber={displayNum} />
+             <ComplimentaryPourCard />
           </div>
         )}
-
-        {/* Menu Preview Section */}
-        <MenuPreviewSection categories={menuCategories} />
       </div>
 
-      {/* Footer */}
-      <footer className="w-full max-w-md mx-auto text-center pt-8 pb-4">
-        <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
-          <span>Powered by</span>
-          <span className="text-emerald-400 font-bold tracking-tight">QueueFlow</span>
-        </div>
-      </footer>
+      {/* Fixed Bottom Nav & Action Bar */}
+      {!isTerminal && (
+        <PublicBottomNav queueNumber={displayNum} estWaitMins={estWaitMins} />
+      )}
     </main>
   );
 }

@@ -45,7 +45,7 @@ export function SeatCustomerModal({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+        className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold shadow-md transition-all cursor-pointer"
       >
         Seat Party
       </button>
