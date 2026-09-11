@@ -8,7 +8,7 @@ export default async function RestaurantQRPage() {
   // Construct the absolute URL for the QR code
   // Assuming the app is hosted on the Vercel URL or fallback to localhost in dev
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-  const host = process.env.NEXT_PUBLIC_SITE_URL || 'localhost:3000';
+  const host = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || 'localhost:3000';
   const qrUrl = `${protocol}://${host}/q/${restaurant.slug}`;
 
   return (
