@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/db/supabase/admin';
+import { CacheService, CacheKeys } from '@/lib/cache';
 
 export interface PublicRestaurantInfo {
   id: string;
@@ -24,35 +25,41 @@ export class PublicRestaurantService {
   static async getPublicRestaurantBySlug(slug: string): Promise<PublicRestaurantInfo | null> {
     if (!slug) return null;
 
-    const supabase = createAdminClient();
+    return CacheService.getOrSet(
+      CacheKeys.publicRestaurant(slug),
+      async () => {
+        const supabase = createAdminClient();
 
-    const { data: restaurant, error } = await supabase
-      .from('restaurants')
-      .select('id, name, slug, description, phone, address, city, logo_url, queue_enabled, max_queue_capacity, min_party_size, max_party_size, call_timeout_minutes, status')
-      .eq('slug', slug.trim().toLowerCase())
-      .eq('status', 'ACTIVE')
-      .maybeSingle();
+        const { data: restaurant, error } = await supabase
+          .from('restaurants')
+          .select('id, name, slug, description, phone, address, city, logo_url, queue_enabled, max_queue_capacity, min_party_size, max_party_size, call_timeout_minutes, status')
+          .eq('slug', slug.trim().toLowerCase())
+          .eq('status', 'ACTIVE')
+          .maybeSingle();
 
-    if (error || !restaurant) {
-      return null;
-    }
+        if (error || !restaurant) {
+          return null;
+        }
 
-    return {
-      id: restaurant.id,
-      name: restaurant.name,
-      slug: restaurant.slug,
-      description: restaurant.description,
-      phone: restaurant.phone,
-      address: restaurant.address,
-      city: restaurant.city,
-      logoUrl: restaurant.logo_url,
-      queueEnabled: restaurant.queue_enabled,
-      maxQueueCapacity: restaurant.max_queue_capacity,
-      minPartySize: restaurant.min_party_size,
-      maxPartySize: restaurant.max_party_size,
-      callTimeoutMinutes: restaurant.call_timeout_minutes,
-      status: restaurant.status,
-    };
+        return {
+          id: restaurant.id,
+          name: restaurant.name,
+          slug: restaurant.slug,
+          description: restaurant.description,
+          phone: restaurant.phone,
+          address: restaurant.address,
+          city: restaurant.city,
+          logoUrl: restaurant.logo_url,
+          queueEnabled: restaurant.queue_enabled,
+          maxQueueCapacity: restaurant.max_queue_capacity,
+          minPartySize: restaurant.min_party_size,
+          maxPartySize: restaurant.max_party_size,
+          callTimeoutMinutes: restaurant.call_timeout_minutes,
+          status: restaurant.status,
+        };
+      },
+      300 // 5 minutes TTL
+    );
   }
 
   /**

@@ -200,6 +200,16 @@ export default async function RestaurantDetailPage({
                 className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none"
               />
             </div>
+            <div>
+              <label className="block text-[11px] text-slate-400">Initial Password *</label>
+              <input
+                type="text"
+                name="password"
+                required
+                placeholder="password123"
+                className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none"
+              />
+            </div>
             <button
               type="submit"
               className="w-full rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"

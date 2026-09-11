@@ -12,6 +12,7 @@ import {
 } from '@/lib/errors';
 import { logger } from '@/lib/logging/logger';
 import { z } from 'zod';
+import { CacheService, CacheKeys } from '@/lib/cache';
 
 export const updateRestaurantProfileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -165,23 +166,24 @@ export class RestaurantAdminService {
       .from('restaurants')
       .update(updatePayload)
       .eq('id', restaurantId)
-      .select()
+      .select('slug')
       .single();
 
-    if (error || !updated) {
-      throw new DomainError('Failed to update restaurant profile');
+    if (error) {
+      throw new DomainError(`Failed to update restaurant profile: ${error.message}`);
     }
 
+    const updatedRestaurant = updated;
+    await CacheService.invalidate(CacheKeys.publicRestaurant(updatedRestaurant.slug));
+
     await this.logAuditAction(
-      'restaurant_profile_updated',
+      'profile_updated',
       'restaurant',
       restaurantId,
       restaurantId,
       userId,
       updatePayload
     );
-
-    return updated;
   }
 
   /**

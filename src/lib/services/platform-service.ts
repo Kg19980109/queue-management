@@ -12,6 +12,7 @@ import {
 import { logger } from '@/lib/logging/logger';
 import { z } from 'zod';
 import type { RestaurantStatus } from '@/types/database.types';
+import { CacheService, CacheKeys } from '@/lib/cache';
 
 // Zod Validation Schemas
 export const createRestaurantSchema = z.object({
@@ -37,6 +38,7 @@ export const assignAdminSchema = z.object({
   restaurantId: z.string().uuid('Invalid restaurant ID'),
   email: z.string().email('Invalid email address'),
   displayName: z.string().min(2, 'Display name must be at least 2 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
 });
 
 export type CreateRestaurantInput = z.infer<typeof createRestaurantSchema>;
@@ -362,9 +364,14 @@ export class PlatformService {
       .select()
       .single();
 
-    if (error || !updated) {
-      throw new DomainError('Failed to update restaurant record');
+    if (error) {
+      throw new DomainError(`Failed to update restaurant: ${error.message}`);
     }
+
+    const updatedRestaurant = updated;
+
+    // Invalidate the public customer-facing cache
+    await CacheService.invalidate(CacheKeys.publicRestaurant(updatedRestaurant.slug));
 
     await this.logAuditAction(
       'restaurant_updated',
@@ -469,7 +476,7 @@ export class PlatformService {
       });
     }
 
-    const { restaurantId, email, displayName } = parseResult.data;
+    const { restaurantId, email, displayName, password } = parseResult.data;
     const adminClient = createAdminClient();
 
     // Verify restaurant exists
@@ -477,15 +484,15 @@ export class PlatformService {
       .from('restaurants')
       .select('id, name')
       .eq('id', restaurantId)
-      .single();
+      .maybeSingle();
 
     if (!restaurant) {
       throw new NotFoundError(`Restaurant ${restaurantId} not found`);
     }
 
-    // Check if auth user exists, or create via admin client
     let targetUserId: string;
 
+    // Check if user exists
     const { data: existingUser } = await adminClient
       .from('user_profiles')
       .select('id')
@@ -498,6 +505,7 @@ export class PlatformService {
       // Create user via Supabase Auth Admin API
       const { data: authUser, error: authErr } = await adminClient.auth.admin.createUser({
         email: email.toLowerCase().trim(),
+        password: password || 'password123',
         email_confirm: true,
         user_metadata: {
           role: 'RESTAURANT_ADMIN',

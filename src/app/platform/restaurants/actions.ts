@@ -81,11 +81,13 @@ export async function assignAdminAction(restaurantId: string, _prevState: unknow
   try {
     const email = formData.get('email') as string;
     const displayName = formData.get('displayName') as string;
+    const password = formData.get('password') as string;
 
     await PlatformService.assignRestaurantAdmin({
       restaurantId,
       email,
       displayName,
+      password: password || undefined,
     });
 
     redirect(`/platform/restaurants/${restaurantId}`);
