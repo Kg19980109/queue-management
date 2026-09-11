@@ -51,33 +51,47 @@ export default async function PublicRestaurantQueuePage({
   const menuCategories = await PublicRestaurantService.getPublicMenuPreview(restaurant.id);
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 px-4 py-8 flex flex-col justify-between selection:bg-emerald-500 selection:text-slate-950">
-      <div className="w-full max-w-md mx-auto space-y-6">
+    <main className="min-h-screen relative overflow-hidden bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-100">
+      
+      {/* Background glow effects */}
+      <div className="absolute top-0 inset-x-0 h-[500px] bg-gradient-to-b from-emerald-900/20 via-slate-900/5 to-transparent pointer-events-none -z-10" />
+      <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-emerald-500/10 blur-[120px] pointer-events-none -z-10" />
+      <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-[120px] pointer-events-none -z-10" />
+
+      <div className="w-full max-w-md mx-auto space-y-6 px-4 py-8 z-10 relative">
         {/* Header */}
-        <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
+        <div className="animate-fade-in-up stagger-1">
+          <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
+        </div>
 
         {/* Queue Open vs Closed Content */}
-        {restaurant.queueEnabled ? (
-          <QueueJoinForm restaurant={restaurant} />
-        ) : (
-          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-8 text-center space-y-3 shadow-2xl">
-            <div className="text-4xl">🛑</div>
-            <h2 className="text-lg font-bold text-white">Queue is Currently Closed</h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              {restaurant.name} is not accepting new queue entries right now. Please check back later or ask the host stand.
-            </p>
-          </div>
-        )}
+        <div className="animate-fade-in-up stagger-2">
+          {restaurant.queueEnabled ? (
+            <div className="glass-panel rounded-3xl p-6 sm:p-8">
+              <QueueJoinForm restaurant={restaurant} />
+            </div>
+          ) : (
+            <div className="glass-panel rounded-3xl p-8 text-center space-y-3">
+              <div className="text-5xl mb-4">🛑</div>
+              <h2 className="text-xl font-bold text-white tracking-tight">Queue is Currently Closed</h2>
+              <p className="text-sm text-slate-400 leading-relaxed max-w-[250px] mx-auto">
+                {restaurant.name} is not accepting new queue entries right now. Please check back later or ask the host stand.
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Secondary Menu Preview */}
-        <MenuPreviewSection categories={menuCategories} />
+        <div className="animate-fade-in-up stagger-3">
+          <MenuPreviewSection categories={menuCategories} />
+        </div>
       </div>
 
       {/* Powered by QueueFlow Footer */}
-      <footer className="w-full max-w-md mx-auto text-center pt-8 pb-4">
-        <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
+      <footer className="w-full max-w-md mx-auto text-center pt-8 pb-6 animate-fade-in-up stagger-3">
+        <div className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
           <span>Powered by</span>
-          <span className="text-emerald-400 font-bold tracking-tight">QueueFlow</span>
+          <span className="text-emerald-400 font-bold tracking-tight glow-text">QueueFlow</span>
         </div>
       </footer>
     </main>

@@ -88,7 +88,7 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
             required
             placeholder="e.g. Rahul Sharma"
             disabled={isPending}
-            className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+            className="w-full bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/80 focus:bg-slate-900/80 transition-all duration-300 shadow-inner"
           />
         </div>
 
@@ -103,7 +103,7 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
             name="customerPhone"
             placeholder="e.g. 98765 43210"
             disabled={isPending}
-            className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-white text-sm placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+            className="w-full bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/80 focus:bg-slate-900/80 transition-all duration-300 shadow-inner"
           />
           <span className="text-[10px] text-slate-500 block">
             Used to keep your place in line and prevent duplicate joins.
@@ -114,7 +114,7 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
         <button
           type="submit"
           disabled={isPending}
-          className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-base rounded-2xl transition-all shadow-xl shadow-emerald-500/20 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full py-4 mt-2 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-base rounded-2xl transition-all duration-300 glow-bg hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isPending ? (
             <>

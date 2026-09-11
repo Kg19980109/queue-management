@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { TableService, VALID_TABLE_TRANSITIONS } from '@/lib/services/table-service';
 import { ZoneService } from '@/lib/services/zone-service';
+import { VisualTableCard } from '@/components/dashboard/VisualTableCard';
 import {
   createTableFormAction,
   bulkCreateTableFormAction,
@@ -252,97 +253,22 @@ export default async function TablesPage({
       </form>
 
       {/* Table Cards Grid */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
+      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-inner">
         {tables.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-500">
             No active tables found matching the current search filters.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {tables.map((table: { id: string; tableNumber: string; capacity: number; zoneName: string; status: TableStatus }) => {
-              const allowedTransitions = VALID_TABLE_TRANSITIONS[table.status as TableStatus] || [];
-
-              const statusColor =
-                table.status === 'AVAILABLE'
-                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                  : table.status === 'OCCUPIED'
-                  ? 'border-blue-500/40 bg-blue-500/10 text-blue-400'
-                  : table.status === 'CLEANING'
-                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
-                  : table.status === 'RESERVED'
-                  ? 'border-purple-500/40 bg-purple-500/10 text-purple-400'
-                  : 'border-slate-700 bg-slate-800/40 text-slate-400';
-
-              return (
-                <div
-                  key={table.id}
-                  className="rounded-xl border border-slate-800 bg-slate-950 p-4 flex flex-col justify-between space-y-3 hover:border-slate-700 transition-colors"
-                >
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-white text-lg">{table.tableNumber}</span>
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border ${statusColor}`}>
-                        {table.status}
-                      </span>
-                    </div>
-
-                    <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
-                      <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-[11px] text-slate-300">
-                        Cap: {table.capacity}
-                      </span>
-                      <span className="text-[11px] text-slate-500 truncate">{table.zoneName}</span>
-                    </div>
-                  </div>
-
-                  {/* Action Controls */}
-                  <div className="pt-3 border-t border-slate-900 space-y-2">
-                    {/* Status Transitions */}
-                    {canManageStatus && allowedTransitions.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {allowedTransitions.map((target: TableStatus) => {
-                          const transitionAction = updateTableStatusAction.bind(null, table.id, target, table.status);
-                          const btnColor =
-                            target === 'AVAILABLE'
-                              ? 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                              : target === 'OCCUPIED'
-                              ? 'border-blue-500/30 text-blue-400 hover:bg-blue-500/20'
-                              : target === 'CLEANING'
-                              ? 'border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
-                              : target === 'RESERVED'
-                              ? 'border-purple-500/30 text-purple-400 hover:bg-purple-500/20'
-                              : 'border-slate-700 text-slate-400 hover:bg-slate-800';
-
-                          return (
-                            <form key={target} action={transitionAction} className="inline-block">
-                              <button
-                                type="submit"
-                                className={`rounded border bg-slate-900 px-2 py-0.5 text-[10px] font-semibold transition-colors ${btnColor}`}
-                              >
-                                &rarr; {target}
-                              </button>
-                            </form>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Archive Table */}
-                    {(canDelete || canUpdate) && (
-                      <div className="text-right pt-1">
-                        <form action={archiveTableAction.bind(null, table.id)} className="inline-block">
-                          <button
-                            type="submit"
-                            className="text-[10px] font-semibold text-red-400/80 hover:text-red-400 hover:underline"
-                          >
-                            Archive Table
-                          </button>
-                        </form>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {tables.map((table: any) => (
+              <VisualTableCard
+                key={table.id}
+                table={table}
+                canManageStatus={canManageStatus}
+                canDelete={canDelete}
+                canUpdate={canUpdate}
+              />
+            ))}
           </div>
         )}
 
