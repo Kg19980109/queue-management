@@ -17,7 +17,7 @@ import type { TableStatus } from '@/types/database.types';
 
 export const VALID_TABLE_TRANSITIONS: Record<TableStatus, TableStatus[]> = {
   AVAILABLE: ['OCCUPIED', 'RESERVED', 'OUT_OF_SERVICE'],
-  OCCUPIED: ['CLEANING', 'OUT_OF_SERVICE'],
+  OCCUPIED: ['CLEANING', 'AVAILABLE', 'OUT_OF_SERVICE'],
   CLEANING: ['AVAILABLE', 'OUT_OF_SERVICE'],
   RESERVED: ['OCCUPIED', 'AVAILABLE', 'OUT_OF_SERVICE'],
   OUT_OF_SERVICE: ['AVAILABLE'],
