@@ -174,24 +174,24 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                   <div className="flex items-center gap-2 self-end sm:self-auto w-full sm:w-auto justify-end border-t border-white/5 sm:border-t-0 pt-3 sm:pt-0 mt-1 sm:mt-0">
                     {isCalled ? (
                       <>
-                        <button onClick={() => handleSeatClick(entry.id)} className="px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-sm transition-colors flex items-center gap-1.5">
+                        <button onClick={() => handleSeatClick(entry.id)} className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-sm transition-colors flex items-center justify-center gap-1.5">
                           <span className="material-symbols-outlined text-[16px]">check</span> Seat Guest
                         </button>
-                        <button onClick={() => handleRecall(entry.id)} className="px-4 py-2 rounded-xl bg-[#1A2333] hover:bg-white/10 text-slate-300 border border-white/5 font-bold text-sm transition-colors">
+                        <button onClick={() => handleRecall(entry.id)} className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#1A2333] hover:bg-white/10 text-slate-300 border border-white/5 font-bold text-sm transition-colors text-center">
                           Recall
                         </button>
                       </>
                     ) : (
                       <>
-                          <button onClick={() => handleSeatClick(entry.id)} className="px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-sm transition-colors flex items-center gap-1.5">
+                          <button onClick={() => handleSeatClick(entry.id)} className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-sm transition-colors flex items-center justify-center gap-1.5">
                           <span className="material-symbols-outlined text-[16px]">check</span> Seat Guest
                         </button>
-                        <button onClick={() => handleRecall(entry.id)} className="px-4 py-2 rounded-xl bg-[#1A2333] hover:bg-white/10 text-slate-300 border border-white/5 font-bold text-sm transition-colors">
+                        <button onClick={() => handleRecall(entry.id)} className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#1A2333] hover:bg-white/10 text-slate-300 border border-white/5 font-bold text-sm transition-colors text-center">
                           Call Again
                         </button>
                       </>
                     )}
-                    <button onClick={() => handleCancel(entry.id)} className="w-9 h-9 rounded-full bg-[#1A2333] hover:bg-white/10 border border-white/5 text-slate-400 flex items-center justify-center transition-colors">
+                    <button onClick={() => handleCancel(entry.id)} className="w-10 sm:w-9 h-10 sm:h-9 shrink-0 rounded-full bg-[#1A2333] hover:bg-white/10 border border-white/5 text-slate-400 flex items-center justify-center transition-colors">
                       <span className="material-symbols-outlined text-[18px]">close</span>
                     </button>
                   </div>
@@ -233,7 +233,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {tablesRes.tables.slice(0, 4).map((t) => {
               const isCleaning = t.status === 'CLEANING';
               const isOccupied = t.status === 'OCCUPIED';

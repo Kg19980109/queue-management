@@ -65,20 +65,20 @@ export default async function RestaurantAdminDashboardPage() {
             <span className="text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Normal Service</span>
           </div>
           <div className="relative pb-2 w-full max-w-3xl">
-            <h1 className="text-3xl lg:text-4xl leading-none font-black text-white tracking-widest uppercase font-headline-xl">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl leading-none font-black text-white tracking-widest uppercase font-headline-xl">
               Good evening, Love Cafe Rathindra
             </h1>
           </div>
-          <p className="text-slate-400 text-sm font-medium">Here is your live floor and queue performance for tonight&apos;s dinner service.</p>
+          <p className="text-slate-400 text-xs sm:text-sm font-medium">Here is your live floor and queue performance for tonight&apos;s dinner service.</p>
         </div>
         
         {/* Quick Action Block */}
-        <div className="flex items-center gap-4">
-          <span className="text-3xl">👋</span>
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col items-end justify-center px-4 py-2 rounded-xl bg-[#111827] border border-white/5 text-slate-300">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1"><span className="material-symbols-outlined text-[12px] text-emerald-400">bolt</span> Turnover Velocity:</span>
-              <span className="text-sm font-bold text-white">~{restaurant.avg_service_time_mins || 15}m</span>
+        <div className="flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
+          <span className="text-2xl sm:text-3xl hidden sm:inline">👋</span>
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <div className="flex-1 sm:flex-none flex flex-col items-end justify-center px-4 py-2 rounded-xl bg-[#111827] border border-white/5 text-slate-300">
+              <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1"><span className="material-symbols-outlined text-[10px] sm:text-[12px] text-emerald-400">bolt</span> Turnover:</span>
+              <span className="text-xs sm:text-sm font-bold text-white">~{restaurant.avg_service_time_mins || 15}m</span>
             </div>
             <Link href="/dashboard/queue" className="flex flex-col items-center justify-center px-6 py-2 rounded-xl bg-primary hover:bg-blue-500 transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)] border border-blue-400/30 text-white font-bold text-sm">
               <span className="text-xs font-normal opacity-70 mb-0.5">+</span>

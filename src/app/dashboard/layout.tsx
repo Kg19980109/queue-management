@@ -142,10 +142,10 @@ export default async function RestaurantDashboardLayout({
         </div>
       </aside>
 
-      <div className="pl-0 md:pl-64 flex flex-col min-h-screen bg-[#0A0E17] pb-16 md:pb-0">
+      <div className="pl-0 md:pl-64 flex flex-col min-h-screen bg-[#0A0E17] pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
         <header className="fixed top-0 left-0 md:left-64 right-0 h-16 bg-[#0A0E17]/80 backdrop-blur-md border-b border-white/5 z-40 text-slate-300">
-          <div className="h-16 w-full px-4 md:px-8 flex items-center justify-between">
-            <div className="flex items-center gap-6">
+          <div className="h-16 w-full px-2 sm:px-4 md:px-8 flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-6">
               {/* Live Sync Pill */}
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -212,7 +212,7 @@ export default async function RestaurantDashboardLayout({
         </main>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#0A0E17]/90 backdrop-blur-lg border-t border-white/5 z-50 flex items-center justify-around px-2 pb-safe">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 min-h-[4rem] h-[calc(4rem+env(safe-area-inset-bottom))] bg-[#0A0E17]/90 backdrop-blur-lg border-t border-white/5 z-50 flex items-start pt-2 justify-around px-2 pb-[env(safe-area-inset-bottom)]">
           <Link href="/dashboard" className="flex flex-col items-center justify-center w-16 h-full text-slate-400 hover:text-white">
             <span className="material-symbols-outlined text-[20px]">grid_view</span>
             <span className="text-[10px] font-medium mt-1">Home</span>
