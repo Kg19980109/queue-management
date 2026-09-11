@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { createServerClient } from '@/lib/db/supabase/server';
 import { AuthenticationError } from '@/lib/errors';
 import type { User, Session } from '@supabase/supabase-js';
@@ -21,9 +22,11 @@ export async function getSession(): Promise<Session | null> {
 
 /**
  * Retrieve currently authenticated user from Supabase server client.
- * Uses `getUser()` to validate token authenticity with Supabase server.
+ * Wrapped with React cache() so the Supabase auth.getUser() network call is
+ * deduplicated — no matter how many services call this in one request, the
+ * DB is only hit once.
  */
-export async function getUser(): Promise<User | null> {
+export const getUser = cache(async (): Promise<User | null> => {
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -34,10 +37,11 @@ export async function getUser(): Promise<User | null> {
     return null;
   }
   return user;
-}
+});
 
 /**
  * Enforce authentication. Throws AuthenticationError if user is not logged in.
+ * Benefits from getUser() cache — no extra DB call if getUser() was already called.
  */
 export async function requireAuth(): Promise<User> {
   const user = await getUser();

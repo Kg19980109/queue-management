@@ -7,6 +7,18 @@ interface CookieToSet {
   options?: CookieOptions;
 }
 
+/**
+ * Next.js Edge Middleware.
+ *
+ * PERFORMANCE DESIGN:
+ * - Only one DB call per request: supabase.auth.getUser() for session refresh.
+ * - The previous restaurant_memberships query on /dashboard/* has been removed.
+ *   Role/permission enforcement is handled inside each service via getAuthorizedRestaurantContext()
+ *   and AuthorizationService.requirePermission(), which are memoized with React cache().
+ *   This eliminates a redundant DB round-trip on every single page navigation.
+ * - For /platform/* routes, the is_super_admin RPC remains because platform access
+ *   is not validated in the service layer (it's a super-admin only route with no page-level guard).
+ */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -19,7 +31,7 @@ export async function middleware(request: NextRequest) {
   const correlationId = existingCorrelationId || crypto.randomUUID();
   response.headers.set('x-correlation-id', correlationId);
 
-  // 2. Supabase Auth Session Refreshing
+  // 2. Supabase Auth Session Refreshing (required by @supabase/ssr to keep tokens fresh)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
@@ -40,6 +52,7 @@ export async function middleware(request: NextRequest) {
     },
   });
 
+  // Single auth call — Supabase SSR caches this internally within the request
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -54,6 +67,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
 
+    // Platform routes require a specific super-admin check at the edge
     const { data: isSuperAdmin } = await supabase.rpc('is_super_admin', {
       p_user_id: user.id,
     });
@@ -65,32 +79,16 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 4. Restaurant Admin & Staff Dashboard Route Guards (/dashboard/*)
+  // 4. Restaurant Dashboard Route Guards (/dashboard/*)
+  // Authentication-only check: verifies the user is logged in.
+  // Role/permission enforcement is handled inside each page and service
+  // (getAuthorizedRestaurantContext + AuthorizationService), eliminating the
+  // need for a restaurant_memberships DB query on every navigation.
   if (pathname.startsWith('/dashboard')) {
     if (!user) {
       const redirectUrl = new URL('/login', request.url);
       redirectUrl.searchParams.set('redirectTo', pathname);
       return NextResponse.redirect(redirectUrl);
-    }
-
-    const { data: memberships } = await supabase
-      .from('restaurant_memberships')
-      .select('role, status')
-      .eq('user_id', user.id)
-      .eq('status', 'ACTIVE');
-
-    const isRestaurantAdmin = memberships?.some((m) => m.role === 'RESTAURANT_ADMIN');
-    const isStaff = memberships?.some((m) => m.role === 'STAFF');
-
-    if (!isRestaurantAdmin && !isStaff) {
-      const redirectUrl = new URL('/login', request.url);
-      redirectUrl.searchParams.set('error', 'Unauthorized');
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    // Staff cannot access admin management routes (/dashboard, /dashboard/profile, /dashboard/staff)
-    if (isStaff && !isRestaurantAdmin && !pathname.startsWith('/dashboard/operational')) {
-      return NextResponse.redirect(new URL('/dashboard/operational', request.url));
     }
   }
 

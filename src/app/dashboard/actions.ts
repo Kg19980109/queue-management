@@ -69,7 +69,7 @@ export async function updateStaffStatusAction(targetUserId: string, newStatus: '
     }
     throw error instanceof Error ? error : new Error('Failed to update staff status.');
   }
-  redirect('/dashboard/staff');
+  revalidatePath('/dashboard/staff');
 }
 
 export async function createZoneFormAction(formData: FormData): Promise<void> {
@@ -87,7 +87,7 @@ export async function createZoneFormAction(formData: FormData): Promise<void> {
     }
     throw error instanceof Error ? error : new Error('Failed to create zone.');
   }
-  redirect('/dashboard/zones?created=true');
+  revalidatePath('/dashboard/zones');
 }
 
 export async function updateZoneStatusAction(zoneId: string, status: ZoneStatus): Promise<void> {
@@ -99,7 +99,7 @@ export async function updateZoneStatusAction(zoneId: string, status: ZoneStatus)
     }
     throw error instanceof Error ? error : new Error('Failed to update zone status.');
   }
-  redirect('/dashboard/zones');
+  revalidatePath('/dashboard/zones');
 }
 
 export async function createTableFormAction(formData: FormData): Promise<void> {
@@ -117,7 +117,7 @@ export async function createTableFormAction(formData: FormData): Promise<void> {
     }
     throw error instanceof Error ? error : new Error('Failed to create table.');
   }
-  redirect('/dashboard/tables?created=true');
+  revalidatePath('/dashboard/tables');
 }
 
 export async function bulkCreateTableFormAction(formData: FormData): Promise<void> {
@@ -137,7 +137,7 @@ export async function bulkCreateTableFormAction(formData: FormData): Promise<voi
     }
     throw error instanceof Error ? error : new Error('Failed bulk table creation.');
   }
-  redirect('/dashboard/tables?bulk=true');
+  revalidatePath('/dashboard/tables');
 }
 
 export async function updateTableStatusAction(
@@ -153,7 +153,7 @@ export async function updateTableStatusAction(
     }
     throw error instanceof Error ? error : new Error('Failed to update table status.');
   }
-  redirect('/dashboard/tables');
+  revalidatePath('/dashboard/tables');
 }
 
 export async function archiveTableAction(tableId: string): Promise<void> {
@@ -165,7 +165,7 @@ export async function archiveTableAction(tableId: string): Promise<void> {
     }
     throw error instanceof Error ? error : new Error('Failed to archive table.');
   }
-  redirect('/dashboard/tables');
+  revalidatePath('/dashboard/tables');
 }
 
 // --------------------------------------------------------------------------
@@ -187,7 +187,7 @@ export async function createCategoryFormAction(formData: FormData): Promise<void
     }
     throw error instanceof Error ? error : new Error('Failed to create menu category.');
   }
-  redirect('/dashboard/menu?categoryCreated=true');
+  revalidatePath('/dashboard/menu');
 }
 
 export async function updateCategoryStatusAction(categoryId: string, active: boolean): Promise<void> {
@@ -199,7 +199,7 @@ export async function updateCategoryStatusAction(categoryId: string, active: boo
     }
     throw error instanceof Error ? error : new Error('Failed to update category status.');
   }
-  redirect('/dashboard/menu');
+  revalidatePath('/dashboard/menu');
 }
 
 export async function createMenuItemFormAction(formData: FormData): Promise<void> {
@@ -221,7 +221,7 @@ export async function createMenuItemFormAction(formData: FormData): Promise<void
     }
     throw error instanceof Error ? error : new Error('Failed to create menu item.');
   }
-  redirect('/dashboard/menu?itemCreated=true');
+  revalidatePath('/dashboard/menu');
 }
 
 export async function updateMenuItemAvailabilityAction(itemId: string, available: boolean): Promise<void> {
@@ -233,7 +233,7 @@ export async function updateMenuItemAvailabilityAction(itemId: string, available
     }
     throw error instanceof Error ? error : new Error('Failed to update item availability.');
   }
-  redirect('/dashboard/menu');
+  revalidatePath('/dashboard/menu');
 }
 
 export async function archiveMenuItemAction(itemId: string): Promise<void> {
@@ -245,7 +245,7 @@ export async function archiveMenuItemAction(itemId: string): Promise<void> {
     }
     throw error instanceof Error ? error : new Error('Failed to archive menu item.');
   }
-  redirect('/dashboard/menu');
+  revalidatePath('/dashboard/menu');
 }
 
 export async function createInventoryItemFormAction(formData: FormData): Promise<void> {
@@ -265,7 +265,7 @@ export async function createInventoryItemFormAction(formData: FormData): Promise
     }
     throw error instanceof Error ? error : new Error('Failed to create inventory item.');
   }
-  redirect('/dashboard/inventory?created=true');
+  revalidatePath('/dashboard/inventory');
 }
 
 export async function archiveInventoryItemAction(itemId: string): Promise<void> {
@@ -277,7 +277,7 @@ export async function archiveInventoryItemAction(itemId: string): Promise<void> 
     }
     throw error instanceof Error ? error : new Error('Failed to archive inventory item.');
   }
-  redirect('/dashboard/inventory');
+  revalidatePath('/dashboard/inventory');
 }
 
 export async function adjustStockFormAction(formData: FormData): Promise<void> {
@@ -296,29 +296,29 @@ export async function adjustStockFormAction(formData: FormData): Promise<void> {
     }
     throw error instanceof Error ? error : new Error('Failed to adjust inventory stock.');
   }
-  redirect('/dashboard/inventory?adjusted=true');
+  revalidatePath('/dashboard/inventory');
 }
 
 export async function addIngredientFormAction(formData: FormData): Promise<void> {
   try {
-    const menuItemId = formData.get('menuItemId') as string;
     const input = {
-      menuItemId,
+      menuItemId: formData.get('menuItemId') as string,
       inventoryItemId: formData.get('inventoryItemId') as string,
       quantityRequired: parseFloat((formData.get('quantityRequired') as string) || '0'),
     };
 
     await RecipeService.addIngredient(input);
-    redirect(`/dashboard/menu?recipeUpdated=${menuItemId}`);
+
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
       throw error;
     }
     throw error instanceof Error ? error : new Error('Failed to link recipe ingredient.');
   }
+  revalidatePath('/dashboard/menu');
 }
 
-export async function removeIngredientAction(ingredientId: string, menuItemId: string): Promise<void> {
+export async function removeIngredientAction(ingredientId: string, _menuItemId: string): Promise<void> {
   try {
     await RecipeService.removeIngredient(ingredientId);
   } catch (error: unknown) {
@@ -327,8 +327,14 @@ export async function removeIngredientAction(ingredientId: string, menuItemId: s
     }
     throw error instanceof Error ? error : new Error('Failed to remove recipe ingredient.');
   }
-  redirect(`/dashboard/menu?recipeUpdated=${menuItemId}`);
+  revalidatePath('/dashboard/menu');
 }
+
+// --------------------------------------------------------------------------
+// QUEUE ACTIONS — use revalidatePath() instead of redirect() to avoid full
+// browser navigations. The page data refreshes in-place (no URL change, no
+// scroll-position reset, no loading bar flash).
+// --------------------------------------------------------------------------
 
 export async function updateQueueStatusAction(entryId: string, newStatus: QueueStatus, actorUserId?: string): Promise<void> {
   try {
@@ -339,7 +345,7 @@ export async function updateQueueStatusAction(entryId: string, newStatus: QueueS
     }
     throw error instanceof Error ? error : new Error('Failed to update queue entry status.');
   }
-  redirect('/dashboard/queue?updated=true');
+  revalidatePath('/dashboard/queue');
 }
 
 export async function toggleQueueOpenAction(restaurantId: string, open: boolean, actorUserId: string): Promise<void> {
@@ -351,7 +357,7 @@ export async function toggleQueueOpenAction(restaurantId: string, open: boolean,
     }
     throw error instanceof Error ? error : new Error('Failed to toggle queue state.');
   }
-  redirect('/dashboard/queue?toggled=true');
+  revalidatePath('/dashboard/queue');
 }
 
 export async function updateQueueSettingsFormAction(formData: FormData): Promise<void> {
@@ -372,7 +378,7 @@ export async function updateQueueSettingsFormAction(formData: FormData): Promise
     }
     throw error instanceof Error ? error : new Error('Failed to update queue settings.');
   }
-  redirect('/dashboard/queue?settingsUpdated=true');
+  revalidatePath('/dashboard/queue');
 }
 
 export async function seatQueueEntryAction(entryId: string, tableId: string, actorUserId?: string): Promise<void> {
@@ -384,7 +390,8 @@ export async function seatQueueEntryAction(entryId: string, tableId: string, act
     }
     throw error instanceof Error ? error : new Error('Failed to seat queue entry.');
   }
-  redirect('/dashboard/queue?seated=true');
+  revalidatePath('/dashboard/queue');
+  revalidatePath('/dashboard/tables');
 }
 
 export async function updateETASettingsFormAction(formData: FormData): Promise<void> {
@@ -405,7 +412,7 @@ export async function updateETASettingsFormAction(formData: FormData): Promise<v
     }
     throw error instanceof Error ? error : new Error('Failed to update ETA settings.');
   }
-  redirect('/dashboard/queue?etaUpdated=true');
+  revalidatePath('/dashboard/queue');
 }
 
 export async function createCustomerOrderAction(input: {

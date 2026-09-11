@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { createServerClient } from '@/lib/db/supabase/server';
 import { createAdminClient } from '@/lib/db/supabase/admin';
 import { requireAuth } from '@/lib/auth/session';
@@ -13,6 +14,7 @@ import {
 import { logger } from '@/lib/logging/logger';
 import { z } from 'zod';
 import { CacheService, CacheKeys } from '@/lib/cache';
+
 
 export const updateRestaurantProfileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -35,12 +37,13 @@ export const createStaffSchema = z.object({
 export type UpdateRestaurantProfileInput = z.infer<typeof updateRestaurantProfileSchema>;
 export type CreateStaffInput = z.infer<typeof createStaffSchema>;
 
-export class RestaurantAdminService {
-  /**
-   * Resolve authorized restaurant ID for current authenticated Restaurant Admin from DB.
-   * NEVER trust restaurant_id from client requests.
-   */
-  static async getAuthorizedRestaurantContext(): Promise<{ userId: string; restaurantId: string }> {
+/**
+ * Module-level cached implementation of getAuthorizedRestaurantContext.
+ * React cache() memoizes this per request — the membership DB query only fires once
+ * even if multiple services call getAuthorizedRestaurantContext() in the same action.
+ */
+const _getAuthorizedRestaurantContext = cache(
+  async (): Promise<{ userId: string; restaurantId: string }> => {
     const user = await requireAuth();
     const supabase = await createServerClient();
 
@@ -62,6 +65,20 @@ export class RestaurantAdminService {
       restaurantId: membership.restaurant_id,
     };
   }
+);
+
+export class RestaurantAdminService {
+
+  /**
+   * Resolve authorized restaurant ID for current authenticated Restaurant Admin from DB.
+   * NEVER trust restaurant_id from client requests.
+   *
+   * PERFORMANCE: Wrapped with React cache() via the module-level helper below.
+   * The membership DB query is executed at most once per server action/render,
+   * regardless of how many services call this method.
+   */
+  static getAuthorizedRestaurantContext = _getAuthorizedRestaurantContext;
+
 
   /**
    * Log an audit action safely.
