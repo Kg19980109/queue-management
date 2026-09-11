@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { signOutAction } from '@/app/login/actions';
 import { QueueService } from '@/lib/services/queue-service';
 import { RestaurantAdminService } from '@/lib/services/restaurant-admin-service';
+import MobileNavigation from '@/components/dashboard/MobileNavigation';
 
 export default async function RestaurantDashboardLayout({
   children,
@@ -212,29 +213,7 @@ export default async function RestaurantDashboardLayout({
         </main>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 min-h-[4rem] h-[calc(4rem+env(safe-area-inset-bottom))] bg-[#0A0E17]/90 backdrop-blur-lg border-t border-white/5 z-50 flex items-start pt-2 justify-around px-2 pb-[env(safe-area-inset-bottom)]">
-          <Link href="/dashboard" className="flex flex-col items-center justify-center w-16 h-full text-slate-400 hover:text-white">
-            <span className="material-symbols-outlined text-[20px]">grid_view</span>
-            <span className="text-[10px] font-medium mt-1">Home</span>
-          </Link>
-          <Link href="/dashboard/queue" className="flex flex-col items-center justify-center w-16 h-full text-slate-400 hover:text-white relative">
-            <span className="material-symbols-outlined text-[20px]">people</span>
-            <span className="text-[10px] font-medium mt-1">Queue</span>
-            {activeQueueCount > 0 && <span className="absolute top-2 right-4 w-2 h-2 bg-primary rounded-full"></span>}
-          </Link>
-          <Link href="/dashboard/orders" className="flex flex-col items-center justify-center w-16 h-full text-slate-400 hover:text-white">
-            <span className="material-symbols-outlined text-[20px]">receipt_long</span>
-            <span className="text-[10px] font-medium mt-1">Orders</span>
-          </Link>
-          <Link href="/dashboard/kitchen" className="flex flex-col items-center justify-center w-16 h-full text-slate-400 hover:text-white">
-            <span className="material-symbols-outlined text-[20px]">soup_kitchen</span>
-            <span className="text-[10px] font-medium mt-1">Kitchen</span>
-          </Link>
-          <Link href="/dashboard/menu" className="flex flex-col items-center justify-center w-16 h-full text-slate-400 hover:text-white">
-            <span className="material-symbols-outlined text-[20px]">menu</span>
-            <span className="text-[10px] font-medium mt-1">More</span>
-          </Link>
-        </nav>
+        <MobileNavigation activeQueueCount={activeQueueCount} />
       </div>
     </>
   );
