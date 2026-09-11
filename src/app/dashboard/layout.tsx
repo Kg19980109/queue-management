@@ -25,7 +25,7 @@ export default async function RestaurantDashboardLayout({
 
   return (
     <>
-      <aside className="fixed left-0 top-0 h-screen w-64 bg-[#0A0E17] border-r border-white/5 z-50 flex flex-col justify-between overflow-y-auto font-sans text-slate-300">
+      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-[#0A0E17] border-r border-white/5 z-50 flex-col justify-between overflow-y-auto font-sans text-slate-300">
         <div className="flex flex-col">
           {/* Logo Area */}
           <div className="h-20 px-6 flex flex-col justify-center border-b border-white/5">
@@ -142,22 +142,22 @@ export default async function RestaurantDashboardLayout({
         </div>
       </aside>
 
-      <div className="pl-64 flex flex-col min-h-screen bg-[#0A0E17]">
-        <header className="fixed top-0 left-64 right-0 h-16 bg-[#0A0E17]/80 backdrop-blur-md border-b border-white/5 z-40 text-slate-300">
-          <div className="h-16 w-full px-8 flex items-center justify-between">
+      <div className="pl-0 md:pl-64 flex flex-col min-h-screen bg-[#0A0E17] pb-16 md:pb-0">
+        <header className="fixed top-0 left-0 md:left-64 right-0 h-16 bg-[#0A0E17]/80 backdrop-blur-md border-b border-white/5 z-40 text-slate-300">
+          <div className="h-16 w-full px-4 md:px-8 flex items-center justify-between">
             <div className="flex items-center gap-6">
               {/* Live Sync Pill */}
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="font-mono text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Live Sync</span>
+                <span className="font-mono text-[10px] font-bold text-emerald-400 uppercase tracking-widest hidden sm:inline">Live Sync</span>
               </div>
               
               {/* Path Breadcrumbs */}
               <div className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-white/5 border border-white/5 text-sm">
                 <span className="material-symbols-outlined text-[16px] text-slate-400">storefront</span>
-                <span className="font-semibold text-white">{restaurant.name}</span>
-                <span className="text-slate-600">/</span>
-                <span className="text-slate-400">Host Station 1</span>
+                <span className="font-semibold text-white max-w-[100px] sm:max-w-none truncate">{restaurant.name}</span>
+                <span className="text-slate-600 hidden sm:inline">/</span>
+                <span className="text-slate-400 hidden sm:inline">Host Station 1</span>
               </div>
 
               {/* Search Bar */}
@@ -187,13 +187,13 @@ export default async function RestaurantDashboardLayout({
               </div>
 
               <Link href="/dashboard/queue">
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary hover:bg-blue-500 text-white text-sm font-bold shadow-[0_0_15px_rgba(37,99,235,0.4)] transition-all transform active:scale-95 border border-blue-400/50 group">
+                <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-primary hover:bg-blue-500 text-white text-sm font-bold shadow-[0_0_15px_rgba(37,99,235,0.4)] transition-all transform active:scale-95 border border-blue-400/50 group">
                   <span className="material-symbols-outlined text-[18px]">campaign</span>
-                  <div className="flex flex-col items-start leading-none">
+                  <div className="hidden sm:flex flex-col items-start leading-none">
                     <span>Call Next</span>
                     <span>Guest</span>
                   </div>
-                  <div className="hidden sm:flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded bg-black/20 text-[9px] font-mono text-blue-200 border border-black/10">
+                  <div className="hidden lg:flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded bg-black/20 text-[9px] font-mono text-blue-200 border border-black/10">
                     SPACE <span className="material-symbols-outlined text-[10px]">keyboard_return</span>
                   </div>
                 </button>
@@ -210,6 +210,31 @@ export default async function RestaurantDashboardLayout({
         <main className="w-full pt-16 flex-1 relative">
           {children}
         </main>
+
+        {/* Mobile Bottom Navigation */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#0A0E17]/90 backdrop-blur-lg border-t border-white/5 z-50 flex items-center justify-around px-2 pb-safe">
+          <Link href="/dashboard" className="flex flex-col items-center justify-center w-16 h-full text-slate-400 hover:text-white">
+            <span className="material-symbols-outlined text-[20px]">grid_view</span>
+            <span className="text-[10px] font-medium mt-1">Home</span>
+          </Link>
+          <Link href="/dashboard/queue" className="flex flex-col items-center justify-center w-16 h-full text-slate-400 hover:text-white relative">
+            <span className="material-symbols-outlined text-[20px]">people</span>
+            <span className="text-[10px] font-medium mt-1">Queue</span>
+            {activeQueueCount > 0 && <span className="absolute top-2 right-4 w-2 h-2 bg-primary rounded-full"></span>}
+          </Link>
+          <Link href="/dashboard/orders" className="flex flex-col items-center justify-center w-16 h-full text-slate-400 hover:text-white">
+            <span className="material-symbols-outlined text-[20px]">receipt_long</span>
+            <span className="text-[10px] font-medium mt-1">Orders</span>
+          </Link>
+          <Link href="/dashboard/kitchen" className="flex flex-col items-center justify-center w-16 h-full text-slate-400 hover:text-white">
+            <span className="material-symbols-outlined text-[20px]">soup_kitchen</span>
+            <span className="text-[10px] font-medium mt-1">Kitchen</span>
+          </Link>
+          <Link href="/dashboard/menu" className="flex flex-col items-center justify-center w-16 h-full text-slate-400 hover:text-white">
+            <span className="material-symbols-outlined text-[20px]">menu</span>
+            <span className="text-[10px] font-medium mt-1">More</span>
+          </Link>
+        </nav>
       </div>
     </>
   );

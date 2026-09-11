@@ -142,10 +142,10 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
               const pillColor = isCalled ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-white/5 border-white/10 text-white';
 
               return (
-                <div key={entry.id} className={`bg-[#111827] rounded-2xl border ${borderColor} p-4 flex items-center justify-between relative overflow-hidden group hover:border-white/20 transition-colors ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div key={entry.id} className={`bg-[#111827] rounded-2xl border ${borderColor} p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden group hover:border-white/20 transition-colors ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
                   {isCalled && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>}
                   
-                  <div className="flex items-center gap-6 pl-2">
+                  <div className="flex items-start sm:items-center gap-4 sm:gap-6 pl-2">
                     <div className="flex flex-col items-center">
                       <span className={`text-2xl font-black font-headline-xl ${isCalled ? 'text-emerald-400' : 'text-white'}`}>Q-{entry.display_number.replace('#', '')}</span>
                       <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${pillColor} mt-1`}>
@@ -153,7 +153,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                       </span>
                     </div>
                     
-                    <div className="w-px h-12 bg-white/10"></div>
+                    <div className="hidden sm:block w-px h-12 bg-white/10"></div>
                     
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2 mb-1">
@@ -161,7 +161,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                         {index === 0 && <span className="text-[9px] px-2 py-0.5 rounded bg-[#1A2333] border border-white/10 text-slate-300 font-medium">VIP Host Guest</span>}
                         {index === 1 && <span className="text-[9px] px-2 py-0.5 rounded bg-primary/20 border border-primary/30 text-primary font-medium">Pre-assigned T2</span>}
                       </div>
-                      <div className="flex items-center gap-4 text-xs font-medium text-slate-400">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-slate-400">
                         <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">person</span> {entry.party_size} guests</span>
                         <span className="w-1 h-1 rounded-full bg-slate-600"></span>
                         <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-amber-500">schedule</span> Waited {waitMins}m</span>
@@ -171,7 +171,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 self-end sm:self-auto w-full sm:w-auto justify-end border-t border-white/5 sm:border-t-0 pt-3 sm:pt-0 mt-1 sm:mt-0">
                     {isCalled ? (
                       <>
                         <button onClick={() => handleSeatClick(entry.id)} className="px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-sm transition-colors flex items-center gap-1.5">

@@ -54,7 +54,7 @@ export default async function RestaurantAdminDashboardPage() {
   const feedEntries = activeQueue.slice(0, 5); // Show top 5
 
   return (
-    <div className="flex flex-col w-full text-slate-300 font-sans p-8 gap-8">
+    <div className="flex flex-col w-full text-slate-300 font-sans p-4 md:p-8 gap-6 md:gap-8">
       
       {/* Top Section: Greeting and Quick Action */}
       <section className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6 relative z-10">

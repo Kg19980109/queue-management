@@ -72,7 +72,7 @@ export default async function StaffListPage({
       </form>
 
       {/* Staff Members Table */}
-      <div className="rounded-2xl border border-white/5 bg-[#111827] shadow-sm p-6">
+      <div className="rounded-2xl border border-white/5 bg-[#111827] shadow-sm p-4 sm:p-6">
         {result.staff.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-500">
             No staff members found.

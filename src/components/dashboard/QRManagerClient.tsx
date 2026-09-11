@@ -172,7 +172,7 @@ export function QRManagerClient({
           </div>
 
           {/* Export Action Row */}
-          <div className="flex items-center gap-3 bg-[#111827] border border-white/5 rounded-2xl p-2 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-[#111827] border border-white/5 rounded-2xl p-2 shadow-sm">
             <button onClick={handleDownloadPNG} className="flex-1 flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-[#1A2333] border border-white/10 hover:bg-white/10 text-white font-bold text-sm transition-colors shadow-md">
               <span className="material-symbols-outlined text-[18px]">download</span>
               Download PNG (2400px)
