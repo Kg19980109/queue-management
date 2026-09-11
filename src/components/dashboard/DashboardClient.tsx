@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { updateQueueStatusAction, seatQueueEntryAction, updateTableStatusAction } from '@/app/dashboard/actions';
 
 interface DashboardClientProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   feedEntries: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tablesRes: { tables: any[] };
   activeQueueCount: number;
 }
@@ -232,7 +234,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {tablesRes.tables.slice(0, 4).map((t, idx) => {
+            {tablesRes.tables.slice(0, 4).map((t) => {
               const isCleaning = t.status === 'CLEANING';
               const isOccupied = t.status === 'OCCUPIED';
               const isAvailable = t.status === 'AVAILABLE';

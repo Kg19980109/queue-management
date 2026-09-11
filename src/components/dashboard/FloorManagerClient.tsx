@@ -1,15 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import type { TableStatus } from '@/types/database.types';
 
 export function FloorManagerClient({
   tables,
   zones,
   stats,
-  restaurantName,
-  queueEntries,
 }: {
   tables: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
   zones: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -26,6 +22,7 @@ export function FloorManagerClient({
   const filteredTables = activeZone ? tables.filter(t => t.zoneId === activeZone) : tables;
 
   // Group by zone for the view
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const groupedTables = filteredTables.reduce<Record<string, any[]>>((acc, table) => {
     const zoneName = table.zoneName || 'Unassigned';
     if (!acc[zoneName]) acc[zoneName] = [];
@@ -110,7 +107,7 @@ export function FloorManagerClient({
             >
               All Zones
             </button>
-            {zones.map((z: any) => (
+            {zones.map((z: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
               <button
                 key={z.id}
                 onClick={() => setActiveZone(z.id)}
@@ -163,7 +160,7 @@ export function FloorManagerClient({
                <span>North Façade</span>
              </div>
 
-             {Object.entries(groupedTables).map(([zoneName, tableList]: [string, any[]], zoneIdx) => (
+             {Object.entries(groupedTables).map(([zoneName, tableList]: [string, any[]], zoneIdx) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                <div key={zoneName} className="flex flex-col gap-3 relative z-10 mt-4">
                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
                    <div className="flex items-center gap-2">

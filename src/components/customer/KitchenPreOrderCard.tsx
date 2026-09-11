@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function KitchenPreOrderCard({ queueNumber }: { queueNumber: string }) {
+export function KitchenPreOrderCard({}: { queueNumber: string }) {
   return (
     <div className="w-full flex flex-col gap-4 mt-8 px-1">
       <div className="flex items-center gap-3">

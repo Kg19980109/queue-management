@@ -1,4 +1,3 @@
-'use me client';
 'use client';
 
 import React, { useState, useActionState } from 'react';
