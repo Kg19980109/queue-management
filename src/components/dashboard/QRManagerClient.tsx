@@ -19,11 +19,11 @@ export function QRManagerClient({
 
   // Deriving the preview styles based on aesthetic
   const isDark = aesthetic === 'dark';
-  const previewOuterBg = isDark ? 'bg-[#0B101E]' : 'bg-surface-container-low';
-  const previewInnerBg = isDark ? 'bg-[#151B2B]' : 'bg-white';
-  const textColor = isDark ? 'text-white' : 'text-on-surface';
-  const subtextColor = isDark ? 'text-slate-400' : 'text-on-surface-variant';
-  const borderColor = isDark ? 'border-white/10' : 'border-outline-variant/50';
+  const previewOuterBg = isDark ? 'bg-[#0A0E17]' : 'bg-white/5';
+  const previewInnerBg = isDark ? 'bg-[#111827]' : 'bg-white/10 backdrop-blur-lg';
+  const textColor = isDark ? 'text-white' : 'text-slate-100';
+  const subtextColor = isDark ? 'text-slate-400' : 'text-slate-300';
+  const borderColor = isDark ? 'border-white/5' : 'border-white/20';
 
   const handleDownloadPNG = () => {
     // Basic implementation for downloading the QR part
@@ -42,27 +42,27 @@ export function QRManagerClient({
   };
 
   return (
-    <div className="flex flex-col w-full bg-surface-container-lowest min-h-screen text-on-surface antialiased p-space-xl gap-space-xl">
+    <div className="flex flex-col w-full bg-transparent min-h-screen text-white antialiased p-space-xl gap-space-xl relative z-10">
       
       {/* Header Section */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="font-headline-xl text-[28px] text-on-surface tracking-tight font-bold">QR Code Hub & Touchpoint Collateral</h1>
-            <span className="px-2 py-1 rounded bg-indigo-50 text-indigo-600 border border-indigo-100 text-[11px] font-extrabold uppercase tracking-widest">CMYK Print Ready</span>
+            <h1 className="font-headline-xl text-[28px] text-white tracking-tight font-bold">QR Code Hub & Touchpoint Collateral</h1>
+            <span className="px-2 py-1 rounded bg-blue-900/30 text-blue-400 border border-blue-500/30 text-[11px] font-extrabold uppercase tracking-widest">CMYK Print Ready</span>
           </div>
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container-high text-on-surface font-headline-sm text-sm transition-colors border border-outline-variant/50 shadow-sm">
+            <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1A2333] hover:bg-white/10 text-slate-300 font-headline-sm text-sm transition-colors border border-white/5 shadow-sm">
               <span className="material-symbols-outlined text-[18px]">download</span>
               <span>Bulk Export All (ZIP)</span>
             </button>
-            <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-headline-sm text-sm transition-colors shadow-sm">
+            <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-headline-sm text-sm transition-colors shadow-sm">
               <span className="material-symbols-outlined text-[18px]">add</span>
               <span>New Touchpoint QR</span>
             </button>
           </div>
         </div>
-        <p className="text-body-lg text-on-surface-variant max-w-3xl">
+        <p className="text-body-lg text-slate-400 max-w-3xl">
           Generate, customize, and track scan engagement across physical dining room touchpoints, host stands, table tents, and sidewalk displays.
         </p>
       </div>
@@ -74,29 +74,29 @@ export function QRManagerClient({
         <div className="lg:col-span-7 flex flex-col gap-6">
           
           {/* Tabs Navigation */}
-          <div className="flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-2 shadow-sm overflow-x-auto">
-            <button onClick={() => setActiveTab('host-stand')} className={`flex items-center justify-center flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${activeTab === 'host-stand' ? 'bg-[#0B101E] text-white shadow-md' : 'text-on-surface-variant hover:bg-surface-container-high'}`}>
+          <div className="flex items-center gap-2 bg-[#111827] border border-white/5 rounded-2xl p-2 shadow-sm overflow-x-auto">
+            <button onClick={() => setActiveTab('host-stand')} className={`flex items-center justify-center flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${activeTab === 'host-stand' ? 'bg-[#1A2333] border border-white/10 text-white shadow-md' : 'text-slate-400 hover:bg-white/5 border border-transparent'}`}>
               Host Stand Acrylic<br/><span className="text-[10px] font-medium opacity-70">(Selected)</span>
             </button>
-            <button onClick={() => setActiveTab('table-tents')} className={`flex items-center justify-center flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${activeTab === 'table-tents' ? 'bg-[#0B101E] text-white shadow-md' : 'text-on-surface-variant hover:bg-surface-container-high'}`}>
+            <button onClick={() => setActiveTab('table-tents')} className={`flex items-center justify-center flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${activeTab === 'table-tents' ? 'bg-[#1A2333] border border-white/10 text-white shadow-md' : 'text-slate-400 hover:bg-white/5 border border-transparent'}`}>
               Table Tents<br/><span className="text-[10px] font-medium opacity-70">(T1-T28)</span>
             </button>
-            <button onClick={() => setActiveTab('a-frame')} className={`flex items-center justify-center flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${activeTab === 'a-frame' ? 'bg-[#0B101E] text-white shadow-md' : 'text-on-surface-variant hover:bg-surface-container-high'}`}>
+            <button onClick={() => setActiveTab('a-frame')} className={`flex items-center justify-center flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${activeTab === 'a-frame' ? 'bg-[#1A2333] border border-white/10 text-white shadow-md' : 'text-slate-400 hover:bg-white/5 border border-transparent'}`}>
               Sidewalk A-<br/>Frame
             </button>
-            <button onClick={() => setActiveTab('coasters')} className={`flex items-center justify-center flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${activeTab === 'coasters' ? 'bg-[#0B101E] text-white shadow-md' : 'text-on-surface-variant hover:bg-surface-container-high'}`}>
+            <button onClick={() => setActiveTab('coasters')} className={`flex items-center justify-center flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all ${activeTab === 'coasters' ? 'bg-[#1A2333] border border-white/10 text-white shadow-md' : 'text-slate-400 hover:bg-white/5 border border-transparent'}`}>
               Bar<br/>Coasters
             </button>
-            <div className="flex items-center justify-center flex-1 py-3 px-4 border-l border-outline-variant/30">
+            <div className="flex items-center justify-center flex-1 py-3 px-4 border-l border-white/10">
                <div className="flex flex-col items-center gap-1">
-                 <span className="flex items-center gap-1 text-[10px] font-bold text-on-surface uppercase tracking-wider"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 300 DPI</span>
-                 <span className="text-[10px] text-on-surface-variant uppercase tracking-wider">Vector</span>
+                 <span className="flex items-center gap-1 text-[10px] font-bold text-white uppercase tracking-wider"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 300 DPI</span>
+                 <span className="text-[10px] text-slate-400 uppercase tracking-wider">Vector</span>
                </div>
             </div>
           </div>
 
           {/* Standee Preview Canvas */}
-          <div className={`relative w-full rounded-[32px] p-8 flex flex-col items-center transition-colors duration-500 ${previewOuterBg} shadow-inner min-h-[700px]`}>
+          <div className={`relative w-full rounded-[32px] border border-white/5 p-8 flex flex-col items-center transition-colors duration-500 ${previewOuterBg} shadow-sm min-h-[700px]`}>
             <div className="absolute top-6 border border-white/20 rounded-full px-4 py-1 text-[10px] font-bold text-white/50 uppercase tracking-widest bg-white/5 backdrop-blur-sm">
               Front Standee Collateral Preview
             </div>
@@ -123,14 +123,14 @@ export function QRManagerClient({
                </p>
 
                {/* The QR Code Container */}
-               <div className={`relative p-5 rounded-[24px] mb-8 ${isDark ? 'bg-white' : 'bg-surface-container-lowest border border-outline-variant/30 shadow-sm'}`}>
+               <div className={`relative p-5 rounded-[24px] mb-8 ${isDark ? 'bg-white' : 'bg-[#111827] border border-white/10 shadow-sm'}`}>
                  <QRCodeSVG 
                     value={qrUrl} 
                     size={200}
                     level={highContrast ? "H" : "M"}
                     includeMargin={false}
-                    bgColor="#ffffff"
-                    fgColor="#000000"
+                    bgColor={isDark ? "#ffffff" : "#111827"}
+                    fgColor={isDark ? "#000000" : "#ffffff"}
                  />
                  {/* Center Monogram (Optional) */}
                  {showMonogram && (
@@ -172,16 +172,16 @@ export function QRManagerClient({
           </div>
 
           {/* Export Action Row */}
-          <div className="flex items-center gap-3 bg-surface-container-lowest border border-outline-variant/30 rounded-2xl p-2 shadow-sm">
-            <button onClick={handleDownloadPNG} className="flex-1 flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-[#0B101E] hover:bg-black text-white font-bold text-sm transition-colors shadow-md">
+          <div className="flex items-center gap-3 bg-[#111827] border border-white/5 rounded-2xl p-2 shadow-sm">
+            <button onClick={handleDownloadPNG} className="flex-1 flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-[#1A2333] border border-white/10 hover:bg-white/10 text-white font-bold text-sm transition-colors shadow-md">
               <span className="material-symbols-outlined text-[18px]">download</span>
               Download PNG (2400px)
             </button>
-            <button className="flex-1 flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low text-on-surface font-bold text-sm transition-colors border border-outline-variant/50">
+            <button className="flex-1 flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-transparent hover:bg-white/5 text-slate-300 font-bold text-sm transition-colors border border-white/5">
               <span className="material-symbols-outlined text-[18px]">print</span>
               Print PDF (300 DPI)
             </button>
-            <button className="flex-1 flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low text-on-surface font-bold text-sm transition-colors border border-outline-variant/50">
+            <button className="flex-1 flex justify-center items-center gap-2 py-3 px-4 rounded-xl bg-transparent hover:bg-white/5 text-slate-300 font-bold text-sm transition-colors border border-white/5">
               Vector SVG
             </button>
           </div>
@@ -192,38 +192,38 @@ export function QRManagerClient({
         <div className="lg:col-span-5 flex flex-col gap-6">
           
           {/* Customization & Brand Styling Panel */}
-          <div className="bg-surface-container-lowest border border-outline-variant/50 rounded-2xl p-6 shadow-sm flex flex-col gap-8">
+          <div className="bg-[#111827] border border-white/5 rounded-2xl p-6 shadow-sm flex flex-col gap-8">
             <div className="flex items-center justify-between">
-              <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">Customization & Brand Styling</h3>
-              <button className="text-sm font-bold text-primary hover:underline">Reset Defaults</button>
+              <h3 className="font-headline-sm text-headline-sm font-bold text-white">Customization & Brand Styling</h3>
+              <button className="text-sm font-bold text-blue-400 hover:underline">Reset Defaults</button>
             </div>
 
             {/* Collateral Aesthetic */}
             <div className="flex flex-col gap-3">
-              <label className="text-[11px] font-extrabold text-on-surface-variant uppercase tracking-widest">Collateral Aesthetic</label>
+              <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-widest">Collateral Aesthetic</label>
               <div className="grid grid-cols-2 gap-3">
                 <button 
                   onClick={() => setAesthetic('dark')}
-                  className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${aesthetic === 'dark' ? 'border-primary bg-primary/5' : 'border-outline-variant/30 hover:border-outline-variant'}`}
+                  className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${aesthetic === 'dark' ? 'border-blue-500 bg-blue-500/10' : 'border-white/10 hover:border-white/20'}`}
                 >
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${aesthetic === 'dark' ? 'border-primary' : 'border-outline-variant'}`}>
-                    {aesthetic === 'dark' && <div className="w-2 h-2 bg-primary rounded-full"></div>}
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${aesthetic === 'dark' ? 'border-blue-500' : 'border-white/20'}`}>
+                    {aesthetic === 'dark' && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-bold text-sm text-on-surface">Fine Dining Dark</span>
-                    <span className="text-[11px] text-on-surface-variant">Slate & Amber Accent</span>
+                    <span className="font-bold text-sm text-white">Fine Dining Dark</span>
+                    <span className="text-[11px] text-slate-400">Slate & Amber Accent</span>
                   </div>
                 </button>
                 <button 
                   onClick={() => setAesthetic('light')}
-                  className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${aesthetic === 'light' ? 'border-primary bg-primary/5' : 'border-outline-variant/30 hover:border-outline-variant'}`}
+                  className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${aesthetic === 'light' ? 'border-blue-500 bg-blue-500/10' : 'border-white/10 hover:border-white/20'}`}
                 >
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${aesthetic === 'light' ? 'border-primary' : 'border-outline-variant'}`}>
-                    {aesthetic === 'light' && <div className="w-2 h-2 bg-primary rounded-full"></div>}
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${aesthetic === 'light' ? 'border-blue-500' : 'border-white/20'}`}>
+                    {aesthetic === 'light' && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-bold text-sm text-on-surface">Crisp Minimalist</span>
-                    <span className="text-[11px] text-on-surface-variant">Clean White Ceramic</span>
+                    <span className="font-bold text-sm text-white">Crisp Minimalist</span>
+                    <span className="text-[11px] text-slate-400">Clean White Ceramic</span>
                   </div>
                 </button>
               </div>
@@ -231,40 +231,40 @@ export function QRManagerClient({
 
             {/* Destination Smart Route */}
             <div className="flex flex-col gap-3">
-              <label className="text-[11px] font-extrabold text-on-surface-variant uppercase tracking-widest">Destination Smart Route</label>
+              <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-widest">Destination Smart Route</label>
               <div className="relative">
-                <select className="w-full appearance-none bg-surface-container-low border border-outline-variant/50 text-on-surface text-sm rounded-xl px-4 py-3.5 focus:outline-none focus:border-primary font-medium">
+                <select className="w-full appearance-none bg-[#0A0E17] border border-white/10 text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none focus:border-blue-500 font-medium">
                   <option>Smart Gateway: Waitlist + Pre-Order Menu</option>
                   <option>Direct to Pre-Order Menu Only</option>
                   <option>Static PDF Menu Link</option>
                 </select>
-                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
               </div>
             </div>
 
             {/* Primary Standee Title */}
             <div className="flex flex-col gap-3">
-              <label className="text-[11px] font-extrabold text-on-surface-variant uppercase tracking-widest">Primary Standee Title</label>
+              <label className="text-[11px] font-extrabold text-slate-500 uppercase tracking-widest">Primary Standee Title</label>
               <input 
                 type="text" 
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full bg-surface-container-lowest border border-outline-variant/50 text-on-surface text-sm rounded-xl px-4 py-3.5 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary font-medium"
+                className="w-full bg-[#0A0E17] border border-white/10 text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium"
               />
             </div>
 
-            <div className="h-px bg-outline-variant/30 w-full"></div>
+            <div className="h-px bg-white/5 w-full"></div>
 
             {/* Toggles */}
             <div className="flex flex-col gap-5">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-bold text-on-surface">Embed Restaurant Monogram</span>
-                  <span className="text-xs text-on-surface-variant">Places center crest over QR payload</span>
+                  <span className="text-sm font-bold text-white">Embed Restaurant Monogram</span>
+                  <span className="text-xs text-slate-400">Places center crest over QR payload</span>
                 </div>
                 <button 
                   onClick={() => setShowMonogram(!showMonogram)}
-                  className={`w-12 h-7 rounded-full transition-colors relative flex items-center px-1 ${showMonogram ? 'bg-primary' : 'bg-surface-container-highest'}`}
+                  className={`w-12 h-7 rounded-full transition-colors relative flex items-center px-1 ${showMonogram ? 'bg-blue-600' : 'bg-[#1A2333] border border-white/10'}`}
                 >
                   <div className={`w-5 h-5 rounded-full bg-white transition-transform ${showMonogram ? 'translate-x-5' : 'translate-x-0'}`}></div>
                 </button>
@@ -272,12 +272,12 @@ export function QRManagerClient({
 
               <div className="flex items-center justify-between">
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-bold text-on-surface">Show SMS Turn Buzzer Callout</span>
-                  <span className="text-xs text-on-surface-variant">Reassures guests they can wander around</span>
+                  <span className="text-sm font-bold text-white">Show SMS Turn Buzzer Callout</span>
+                  <span className="text-xs text-slate-400">Reassures guests they can wander around</span>
                 </div>
                 <button 
                   onClick={() => setShowSmsCallout(!showSmsCallout)}
-                  className={`w-12 h-7 rounded-full transition-colors relative flex items-center px-1 ${showSmsCallout ? 'bg-primary' : 'bg-surface-container-highest'}`}
+                  className={`w-12 h-7 rounded-full transition-colors relative flex items-center px-1 ${showSmsCallout ? 'bg-blue-600' : 'bg-[#1A2333] border border-white/10'}`}
                 >
                   <div className={`w-5 h-5 rounded-full bg-white transition-transform ${showSmsCallout ? 'translate-x-5' : 'translate-x-0'}`}></div>
                 </button>
@@ -285,12 +285,12 @@ export function QRManagerClient({
 
               <div className="flex items-center justify-between">
                 <div className="flex flex-col gap-1">
-                  <span className="text-sm font-bold text-on-surface">High-Contrast Error Correction (Level H)</span>
-                  <span className="text-xs text-on-surface-variant">Guarantees scans in low candlelight dining rooms</span>
+                  <span className="text-sm font-bold text-white">High-Contrast Error Correction (Level H)</span>
+                  <span className="text-xs text-slate-400">Guarantees scans in low candlelight dining rooms</span>
                 </div>
                 <button 
                   onClick={() => setHighContrast(!highContrast)}
-                  className={`w-12 h-7 rounded-full transition-colors relative flex items-center px-1 ${highContrast ? 'bg-primary' : 'bg-surface-container-highest'}`}
+                  className={`w-12 h-7 rounded-full transition-colors relative flex items-center px-1 ${highContrast ? 'bg-blue-600' : 'bg-[#1A2333] border border-white/10'}`}
                 >
                   <div className={`w-5 h-5 rounded-full bg-white transition-transform ${highContrast ? 'translate-x-5' : 'translate-x-0'}`}></div>
                 </button>
@@ -300,7 +300,7 @@ export function QRManagerClient({
           </div>
 
           {/* Live Touchpoint Performance Widget */}
-          <div className="bg-[#0B101E] rounded-2xl p-6 shadow-xl flex flex-col gap-6 relative overflow-hidden text-white border border-white/5">
+          <div className="bg-[#111827] rounded-2xl p-6 shadow-sm flex flex-col gap-6 relative overflow-hidden text-white border border-white/5">
             <div className="flex items-center justify-between relative z-10">
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Live Touchpoint Performance</span>

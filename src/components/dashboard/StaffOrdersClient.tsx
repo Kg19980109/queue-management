@@ -96,15 +96,15 @@ function OrderCard({
 
   return (
     <div
-      className={`bg-slate-900/90 border rounded-3xl p-5 space-y-4 flex flex-col justify-between shadow-xl transition-all ${
+      className={`bg-[#111827] border rounded-2xl p-5 space-y-4 flex flex-col justify-between shadow-sm transition-all ${
         isPending
-          ? 'border-slate-600 opacity-90 scale-[0.99]'
-          : 'border-slate-800 hover:border-slate-700'
+          ? 'border-white/10 opacity-90 scale-[0.99]'
+          : 'border-white/5 hover:border-white/10'
       }`}
     >
       <div className="space-y-3">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="flex items-center justify-between border-b border-white/5 pb-3">
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono font-bold text-white text-sm">
@@ -151,7 +151,7 @@ function OrderCard({
       </div>
 
       {/* Total & FSM Actions */}
-      <div className="border-t border-slate-800 pt-3 space-y-3">
+      <div className="border-t border-white/5 pt-3 space-y-3">
         <div className="flex items-center justify-between text-xs">
           <span className="text-slate-400">Total ({order.itemCount} items)</span>
           <span className="font-mono font-bold text-amber-400 text-sm">
@@ -273,7 +273,7 @@ export function StaffOrdersClient({
               className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 statusFilter === st
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                  : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700'
+                  : 'bg-[#1A2333] text-slate-400 border border-white/5 hover:border-white/10 hover:bg-white/5'
               }`}
             >
               {st}
@@ -288,11 +288,11 @@ export function StaffOrdersClient({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search order # or customer..."
-            className="bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 w-full sm:w-60"
+            className="bg-[#0A0E17] border border-white/10 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 w-full sm:w-60"
           />
           <button
             type="submit"
-            className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition-colors"
+            className="px-3.5 py-1.5 bg-[#1A2333] hover:bg-white/10 border border-white/5 text-slate-300 text-xs font-bold rounded-xl transition-colors"
           >
             Search
           </button>
@@ -301,7 +301,7 @@ export function StaffOrdersClient({
 
       {/* Orders Grid */}
       {orders.length === 0 ? (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-12 text-center space-y-3">
+        <div className="bg-[#111827] border border-white/5 rounded-2xl p-12 text-center space-y-3 shadow-sm">
           <div className="text-4xl">📦</div>
           <h3 className="text-base font-bold text-white">No Orders Found</h3>
           <p className="text-xs text-slate-400">

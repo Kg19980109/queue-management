@@ -84,19 +84,19 @@ function KitchenTicket({
 
   return (
     <div
-      className={`bg-slate-900 border rounded-3xl p-5 space-y-4 flex flex-col justify-between shadow-2xl transition-all ${
+      className={`bg-[#111827] border rounded-2xl p-5 space-y-4 flex flex-col justify-between shadow-sm transition-all ${
         optimisticStatus === 'PREPARING'
-          ? 'border-amber-500/50 shadow-amber-500/10'
+          ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
           : optimisticStatus === 'READY'
-          ? 'border-emerald-500/50 shadow-emerald-500/10'
+          ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
           : isPending
-          ? 'border-slate-600 opacity-90 scale-[0.99]'
-          : 'border-slate-800'
+          ? 'border-white/10 opacity-90 scale-[0.99]'
+          : 'border-white/5'
       }`}
     >
       {/* Ticket Top */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="flex items-center justify-between border-b border-white/5 pb-3">
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono font-black text-white text-base">
@@ -133,7 +133,7 @@ function KitchenTicket({
           {order.items.map((item) => (
             <div
               key={item.id}
-              className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-3 flex items-start justify-between gap-3"
+              className="bg-[#0A0E17] border border-white/5 rounded-xl p-3 flex items-start justify-between gap-3"
             >
               <div>
                 <div className="font-bold text-white text-sm">
@@ -154,7 +154,7 @@ function KitchenTicket({
       </div>
 
       {/* Kitchen Action Buttons — only THIS ticket is disabled when pending */}
-      <div className="border-t border-slate-800 pt-3">
+      <div className="border-t border-white/5 pt-3">
         {optimisticStatus === 'PLACED' && (
           <button
             type="button"
@@ -234,7 +234,7 @@ export function KitchenDisplayClient({
   return (
     <div className="space-y-6">
       {orders.length === 0 ? (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-16 text-center space-y-3">
+        <div className="bg-[#111827] border border-white/5 rounded-2xl p-16 text-center space-y-3 shadow-sm">
           <div className="text-5xl">👨‍🍳</div>
           <h3 className="text-lg font-bold text-white">Kitchen Ticket Queue Clear</h3>
           <p className="text-xs text-slate-400">

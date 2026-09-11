@@ -50,13 +50,13 @@ export default async function StaffListPage({
           name="search"
           defaultValue={search}
           placeholder="Search staff name or email..."
-          className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-emerald-500 focus:outline-none sm:w-64"
+          className="w-full rounded-lg border border-white/10 bg-[#0A0E17] px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-emerald-500 focus:outline-none sm:w-64"
         />
 
         <select
           name="status"
           defaultValue={status}
-          className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-100 focus:border-emerald-500 focus:outline-none sm:w-40"
+          className="w-full rounded-lg border border-white/10 bg-[#0A0E17] px-3 py-2 text-xs text-slate-100 focus:border-emerald-500 focus:outline-none sm:w-40"
         >
           <option value="">All Statuses</option>
           <option value="ACTIVE">ACTIVE</option>
@@ -65,14 +65,14 @@ export default async function StaffListPage({
 
         <button
           type="submit"
-          className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+          className="rounded-lg border border-white/5 bg-[#1A2333] px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10"
         >
           Filter
         </button>
       </form>
 
       {/* Staff Members Table */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
+      <div className="rounded-2xl border border-white/5 bg-[#111827] shadow-sm p-6">
         {result.staff.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-500">
             No staff members found.
@@ -80,7 +80,7 @@ export default async function StaffListPage({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-800 text-slate-400 font-medium">
+              <thead className="border-b border-white/5 text-slate-400 font-medium">
                 <tr>
                   <th className="py-3 px-3">Name</th>
                   <th className="py-3 px-3">Email</th>
@@ -90,17 +90,17 @@ export default async function StaffListPage({
                   <th className="py-3 px-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              <tbody className="divide-y divide-white/5 text-slate-300">
                 {result.staff.map((member) => {
                   const deactivateAction = updateStaffStatusAction.bind(null, member.userId, 'INACTIVE');
                   const activateAction = updateStaffStatusAction.bind(null, member.userId, 'ACTIVE');
 
                   return (
-                    <tr key={member.id} className="hover:bg-slate-900/40">
+                    <tr key={member.id} className="hover:bg-white/5">
                       <td className="py-3.5 px-3 font-semibold text-white">{member.name}</td>
                       <td className="py-3.5 px-3 text-slate-400">{member.email}</td>
                       <td className="py-3.5 px-3">
-                        <span className="inline-flex items-center rounded border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-slate-300">
+                        <span className="inline-flex items-center rounded border border-white/5 bg-[#1A2333] px-2 py-0.5 text-[10px] font-mono text-slate-300">
                           {member.role}
                         </span>
                       </td>
@@ -157,7 +157,7 @@ export default async function StaffListPage({
 
         {/* Pagination Navigation */}
         {result.totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between border-t border-slate-800 pt-4 text-xs">
+          <div className="mt-6 flex items-center justify-between border-t border-white/5 pt-4 text-xs">
             <span className="text-slate-500">
               Page {result.page} of {result.totalPages} ({result.total} total)
             </span>
@@ -165,7 +165,7 @@ export default async function StaffListPage({
               {result.page > 1 && (
                 <Link
                   href={`/dashboard/staff?page=${result.page - 1}&search=${encodeURIComponent(search)}&status=${status}`}
-                  className="rounded border border-slate-800 bg-slate-900 px-3 py-1 text-slate-300 hover:bg-slate-800"
+                  className="rounded border border-white/10 bg-[#1A2333] px-3 py-1 text-slate-300 hover:bg-white/10"
                 >
                   Previous
                 </Link>
@@ -173,7 +173,7 @@ export default async function StaffListPage({
               {result.page < result.totalPages && (
                 <Link
                   href={`/dashboard/staff?page=${result.page + 1}&search=${encodeURIComponent(search)}&status=${status}`}
-                  className="rounded border border-slate-800 bg-slate-900 px-3 py-1 text-slate-300 hover:bg-slate-800"
+                  className="rounded border border-white/10 bg-[#1A2333] px-3 py-1 text-slate-300 hover:bg-white/10"
                 >
                   Next
                 </Link>
