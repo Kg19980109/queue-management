@@ -36,7 +36,7 @@ export function VisualTableCard({
   // Optimistic UI for instant status changes
   const [optimisticStatus, addOptimisticStatus] = useOptimistic(
     table.status,
-    (state, newStatus: TableStatus) => newStatus
+    (_state, newStatus: TableStatus) => newStatus
   );
 
   const allowedTransitions = VALID_TABLE_TRANSITIONS[optimisticStatus] || [];

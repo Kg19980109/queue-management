@@ -1,13 +1,11 @@
 import React from 'react';
 import Link from 'next/link';
-import { TableService, VALID_TABLE_TRANSITIONS } from '@/lib/services/table-service';
+import { TableService } from '@/lib/services/table-service';
 import { ZoneService } from '@/lib/services/zone-service';
 import { VisualTableCard } from '@/components/dashboard/VisualTableCard';
 import {
   createTableFormAction,
   bulkCreateTableFormAction,
-  updateTableStatusAction,
-  archiveTableAction,
 } from '../actions';
 import { can } from '@/lib/auth/ui-permissions';
 import { PERMISSIONS } from '@/lib/auth/permissions';
@@ -260,7 +258,7 @@ export default async function TablesPage({
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {tables.map((table: any) => (
+            {tables.map((table: { id: string; tableNumber: string; capacity: number; zoneName: string; status: TableStatus }) => (
               <VisualTableCard
                 key={table.id}
                 table={table}
