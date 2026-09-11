@@ -11,142 +11,154 @@ export default async function RestaurantDashboardLayout({
   const user = await getUser();
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-100">
-      {/* Background glow for Dashboard */}
-      <div className="fixed inset-0 bg-gradient-to-br from-emerald-900/10 via-transparent to-slate-900/10 pointer-events-none -z-10" />
-
-      {/* Sidebar Navigation */}
-      <aside className="w-64 flex-shrink-0 border-r border-white/5 glass-panel-subtle p-6 flex flex-col justify-between z-10 relative">
-        <div className="animate-fade-in-up stagger-1">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-lg glow-bg">
-              QF
+    <>
+      <aside className="fixed left-0 top-0 h-screen w-72 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between overflow-y-auto">
+        <div className="flex flex-col">
+          <div className="h-16 px-space-lg flex items-center justify-between">
+            <div className="flex items-center gap-space-sm">
+              <span className="material-symbols-outlined text-[24px] text-primary">restaurant</span>
+              <span className="font-headline-sm text-headline-sm text-on-surface">QueueFlow</span>
             </div>
-            <div>
-              <h2 className="font-bold text-white leading-tight">QueueFlow</h2>
-              <span className="text-xs font-semibold text-emerald-400">Restaurant Admin</span>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container-low">
+              <span className="w-2 h-2 rounded-full bg-tertiary-container animate-pulse"></span>
+              <span className="font-label-sm text-label-sm uppercase tracking-wider text-tertiary">Live Sync</span>
             </div>
           </div>
-
-          <nav className="space-y-1">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/dashboard/profile"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
-            >
-              Restaurant Profile
-            </Link>
-            <Link
-              href="/dashboard/settings/qr"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
-            >
-              QR Code Generator
-            </Link>
-            <Link
-              href="/dashboard/staff"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
-            >
-              Staff Management
-            </Link>
-
-            <Link
-              href="/dashboard/zones"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
-            >
-              Zones & Sections
-            </Link>
-            <Link
-              href="/dashboard/tables"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
-            >
-              Table Management
-            </Link>
-
-            <Link
-              href="/dashboard/menu"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
-            >
-              Menu Management
-            </Link>
-
-            <Link
-              href="/dashboard/inventory"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
-            >
-              Inventory Management
-            </Link>
-
-            <Link
-              href="/dashboard/queue"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-amber-500/80 hover:bg-amber-500/20 hover:text-amber-400 transition-all duration-300"
-            >
-              Queue Management
-            </Link>
-
-            <Link
-              href="/dashboard/orders"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 hover:bg-white/5 hover:text-white transition-all duration-300"
-            >
-              Order Management
-            </Link>
-
-            <Link
-              href="/dashboard/kitchen"
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-emerald-500/80 hover:bg-emerald-500/20 hover:text-emerald-400 transition-all duration-300"
-            >
-              🍳 Kitchen Display (KDS)
-            </Link>
-            {/* Coming Soon Modules */}
-            <div className="pt-4 pb-2 px-3 text-[10px] font-bold tracking-wider text-slate-500 uppercase">
-              Coming Soon
-            </div>
-
-            {[
-              'Payments',
-              'Notifications',
-              'Analytics',
-            ].map((moduleName) => (
-              <div
-                key={moduleName}
-                className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-600 cursor-not-allowed select-none"
-              >
-                <span>{moduleName}</span>
-                <span className="text-[9px] bg-slate-900 border border-slate-800 text-slate-500 px-1.5 py-0.5 rounded font-mono">
-                  Soon
-                </span>
-              </div>
-            ))}
-          </nav>
+          
+          <div className="px-space-md pt-space-sm">
+            <nav className="flex flex-col gap-1">
+              <Link href="/dashboard" className="flex items-center justify-between px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors">
+                <div className="flex items-center gap-space-sm">
+                  <span className="material-symbols-outlined text-[20px]">grid_view</span>
+                  <span className="font-body-md text-body-md">Dashboard</span>
+                </div>
+              </Link>
+              <Link href="/dashboard/queue" className="flex items-center justify-between px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors">
+                <div className="flex items-center gap-space-sm">
+                  <span className="material-symbols-outlined text-[20px]">hourglass_top</span>
+                  <span className="font-body-md text-body-md">Live Queue</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-primary text-on-primary font-label-sm text-label-sm font-bold">12</span>
+              </Link>
+              <Link href="/dashboard/tables" className="flex items-center justify-between px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors">
+                <div className="flex items-center gap-space-sm">
+                  <span className="material-symbols-outlined text-[20px]">table_restaurant</span>
+                  <span className="font-body-md text-body-md">Tables</span>
+                </div>
+              </Link>
+              <Link href="/dashboard/orders" className="flex items-center justify-between px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors">
+                <div className="flex items-center gap-space-sm">
+                  <span className="material-symbols-outlined text-[20px]">receipt_long</span>
+                  <span className="font-body-md text-body-md">Orders</span>
+                </div>
+              </Link>
+              <Link href="/dashboard/kitchen" className="flex items-center justify-between px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors">
+                <div className="flex items-center gap-space-sm">
+                  <span className="material-symbols-outlined text-[20px]">countertops</span>
+                  <span className="font-body-md text-body-md">Kitchen Display</span>
+                </div>
+              </Link>
+              <div className="h-px bg-outline-variant my-2 mx-4" />
+              <Link href="/dashboard/menu" className="flex items-center justify-between px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors">
+                <div className="flex items-center gap-space-sm">
+                  <span className="material-symbols-outlined text-[20px]">restaurant_menu</span>
+                  <span className="font-body-md text-body-md">Menu</span>
+                </div>
+              </Link>
+              <Link href="/dashboard/inventory" className="flex items-center justify-between px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors">
+                <div className="flex items-center gap-space-sm">
+                  <span className="material-symbols-outlined text-[20px]">inventory_2</span>
+                  <span className="font-body-md text-body-md">Inventory</span>
+                </div>
+              </Link>
+              <Link href="/dashboard/staff" className="flex items-center justify-between px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors">
+                <div className="flex items-center gap-space-sm">
+                  <span className="material-symbols-outlined text-[20px]">badge</span>
+                  <span className="font-body-md text-body-md">Staff</span>
+                </div>
+              </Link>
+              <Link href="/dashboard/settings/qr" className="flex items-center justify-between px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors">
+                <div className="flex items-center gap-space-sm">
+                  <span className="material-symbols-outlined text-[20px]">qr_code</span>
+                  <span className="font-body-md text-body-md">QR Codes</span>
+                </div>
+              </Link>
+            </nav>
+          </div>
         </div>
 
-        {/* User Account / Sign Out Footer */}
-        <div className="border-t border-white/5 pt-4 mt-6 animate-fade-in-up stagger-2">
-          <div className="mb-3 px-1">
-            <div className="truncate text-xs font-semibold text-slate-200">
-              {user?.email || 'Restaurant Admin'}
+        <div className="p-space-md flex flex-col gap-space-sm">
+          <div className="p-space-sm rounded-xl bg-surface-container-low flex items-center justify-between">
+            <div className="flex items-center gap-space-sm">
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                <span className="material-symbols-outlined text-on-primary text-[18px]">person</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="font-body-sm text-body-sm font-semibold text-on-surface truncate max-w-[120px]">
+                  {user?.email || 'Admin'}
+                </span>
+                <span className="font-body-sm text-[11px] text-on-surface-variant">Host Station 1</span>
+              </div>
             </div>
-            <div className="text-xs text-slate-500">Restaurant Manager</div>
+            <form action={signOutAction}>
+              <button title="Sign Out" type="submit" className="p-1 rounded-lg text-error hover:bg-error-container transition-colors">
+                <span className="material-symbols-outlined text-[18px]">logout</span>
+              </button>
+            </form>
           </div>
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              className="w-full flex items-center justify-center rounded-lg bg-rose-500/10 border border-rose-500/20 px-4 py-2.5 text-sm font-bold text-rose-400 hover:bg-rose-500/20 hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-lg shadow-rose-500/5"
-            >
-              Sign Out
-            </button>
-          </form>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto p-8 animate-fade-in-up stagger-1 z-10 relative">
-        <div className="max-w-5xl mx-auto">{children}</div>
-      </main>
-    </div>
+      <div className="pl-72 flex flex-col min-h-screen">
+        <header className="fixed top-0 left-72 right-0 h-16 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40">
+          <div className="h-16 w-full px-space-lg flex items-center justify-between">
+            <div className="flex items-center gap-space-lg">
+              <div className="flex items-center gap-2 text-on-surface-variant">
+                <span className="material-symbols-outlined text-[20px]">storefront</span>
+                <span className="font-body-md text-body-md font-medium text-on-surface">Spice Garden</span>
+                <span className="text-outline-variant font-label-md">/</span>
+                <span className="font-body-md text-body-md text-on-surface-variant">Host Station 1</span>
+              </div>
+              <div className="relative flex items-center hidden sm:flex">
+                <span className="material-symbols-outlined absolute left-3 text-[18px] text-on-surface-variant">search</span>
+                <input 
+                  type="text" 
+                  placeholder="Search guests, tickets, tables..." 
+                  className="w-72 pl-9 pr-14 py-1.5 rounded-lg bg-surface-container-low text-on-surface placeholder:text-on-surface-variant font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all" 
+                />
+                <kbd className="absolute right-2.5 px-1.5 py-0.5 rounded bg-surface-container-high font-label-sm text-label-sm text-on-surface-variant">⌘K</kbd>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-space-md">
+              <div className="hidden xl:flex items-center gap-3 px-space-md py-1.5 rounded-lg bg-surface-container-low">
+                <div className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px] text-primary">groups</span>
+                  <span className="font-body-sm text-body-sm text-on-surface font-semibold">12</span>
+                  <span className="font-body-sm text-body-sm text-on-surface-variant">(34 guests)</span>
+                </div>
+                <span className="w-1 h-3 bg-outline-variant rounded-full"></span>
+                <div className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px] text-tertiary">schedule</span>
+                  <span className="font-body-sm text-body-sm text-on-surface-variant">Avg Wait:</span>
+                  <span className="font-label-md text-label-md text-on-surface font-bold">~22m</span>
+                </div>
+              </div>
+
+              <Link href="/dashboard/queue">
+                <button className="flex items-center gap-space-xs px-space-md py-2 rounded-lg bg-primary-container hover:bg-primary text-on-primary-container font-headline-sm text-body-sm font-semibold shadow-sm transition-all transform active:scale-95">
+                  <span className="material-symbols-outlined text-[18px]">campaign</span>
+                  <span>Call Next Guest</span>
+                </button>
+              </Link>
+            </div>
+          </div>
+        </header>
+
+        <main className="w-full pt-16 flex-1 bg-background">
+          {children}
+        </main>
+      </div>
+    </>
   );
 }

@@ -25,7 +25,7 @@ export default async function QueueManagementPage({
   const { data: restaurant } = await supabase.from('restaurants').select('*').eq('id', restaurantId).single();
 
   if (!restaurant) {
-    return <div className="p-8 text-rose-400">No managed restaurant assigned.</div>;
+    return <div className="p-space-xl text-error">No managed restaurant assigned.</div>;
   }
 
   const entries = await QueueService.getAllQueueEntries(restaurant.id, statusFilter, searchTerm);
@@ -33,6 +33,7 @@ export default async function QueueManagementPage({
 
   const waitingCount = activeEntries.filter((e) => e.status === 'WAITING').length;
   const calledCount = activeEntries.filter((e) => e.status === 'CALLED' || e.status === 'NOTIFIED').length;
+  const totalGuests = activeEntries.reduce((sum, e) => sum + e.party_size, 0);
   const queueEnabled = restaurant.queue_enabled ?? true;
 
   // Pre-fetch seatable tables grouped by party size
@@ -47,446 +48,338 @@ export default async function QueueManagementPage({
   );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      {/* Header & Status Control */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-6 rounded-2xl">
-        <div>
+    <div className="flex flex-col w-full px-space-xl py-space-lg gap-space-lg">
+      {/* Top Command & Action Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white tracking-tight">Queue Operations & Seating</h1>
-            <span
-              className={`px-3 py-1 text-xs font-bold rounded-full ${
-                queueEnabled
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-              }`}
-            >
-              {queueEnabled ? 'QUEUE OPEN' : 'QUEUE CLOSED'}
-            </span>
+            <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">Live Queue Management</h1>
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${queueEnabled ? 'bg-tertiary-container/15 text-tertiary' : 'bg-error-container/15 text-error'}`}>
+              <span className={`w-2 h-2 rounded-full ${queueEnabled ? 'bg-tertiary animate-ping' : 'bg-error'}`}></span>
+              <span className="font-label-md text-label-md tracking-wider uppercase font-bold">
+                {queueEnabled ? `Queue Active • ${activeEntries.length} Groups • ${totalGuests} Guests` : 'Queue Closed'}
+              </span>
+            </div>
           </div>
-          <p className="text-slate-400 text-sm mt-1">
-            Manage live waiting line, call customers, estimate wait times, and seat parties at available tables.
-          </p>
+          <p className="font-body-md text-body-md text-on-surface-variant">Real-time floor flow, dining pacing engine, and instantaneous guest dispatch.</p>
         </div>
-
-        <div className="flex items-center gap-3">
+        
+        {/* Quick Action Controls */}
+        <div className="flex flex-wrap items-center gap-space-sm">
           <form action={toggleQueueOpenAction.bind(null, restaurant.id, !queueEnabled, userId)}>
             <button
               type="submit"
-              className={`px-4 py-2 text-sm font-semibold rounded-xl transition-colors shadow-lg ${
+              className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl shadow-sm font-headline-sm text-body-sm transition-colors cursor-pointer ${
                 queueEnabled
-                  ? 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/30'
-                  : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 font-bold'
+                  ? 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface'
+                  : 'bg-tertiary text-on-tertiary hover:bg-tertiary-container'
               }`}
             >
-              {queueEnabled ? 'Close Queue' : 'Open Queue'}
+              <span className="material-symbols-outlined text-[18px]">
+                {queueEnabled ? 'pause_circle' : 'play_circle'}
+              </span>
+              <span>{queueEnabled ? 'Pause Queue' : 'Open Queue'}</span>
             </button>
           </form>
+          <button className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-surface-container-lowest hover:bg-surface-container-high text-on-surface shadow-sm font-headline-sm text-body-sm transition-colors cursor-pointer">
+            <span className="material-symbols-outlined text-[18px] text-primary">person_add</span>
+            <span>Manual Add (+)</span>
+          </button>
         </div>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Total Active Waiting
-            </span>
-            <div className="text-3xl font-extrabold text-white mt-1">{waitingCount}</div>
+      {/* Real-time KPI Dynamic Ribbon */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-space-md">
+        {/* Metric 1 */}
+        <div className="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <span className="font-label-sm text-label-sm uppercase text-on-surface-variant tracking-wider font-semibold">Total Waiting</span>
+            <span className="material-symbols-outlined text-primary text-[20px]">groups</span>
           </div>
-          <div className="h-12 w-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-xl">
-            ⏳
+          <div className="my-2 flex items-baseline gap-2">
+            <span className="font-headline-lg text-headline-lg text-on-surface">{waitingCount}</span>
+            <span className="font-body-sm text-body-sm text-on-surface-variant">groups</span>
+          </div>
+        </div>
+        
+        {/* Metric 2 */}
+        <div className="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <span className="font-label-sm text-label-sm uppercase text-on-surface-variant tracking-wider font-semibold">Currently Called</span>
+            <span className="material-symbols-outlined text-secondary text-[20px]">contactless</span>
+          </div>
+          <div className="my-2 flex items-baseline gap-2">
+            <span className="font-headline-lg text-headline-lg text-secondary">{calledCount}</span>
+            <span className="font-body-sm text-body-sm text-on-surface-variant">paged to stand</span>
           </div>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Called / Notified
-            </span>
-            <div className="text-3xl font-extrabold text-blue-400 mt-1">{calledCount}</div>
+        {/* Metric 3 */}
+        <div className="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <span className="font-label-sm text-label-sm uppercase text-on-surface-variant tracking-wider font-semibold">Queue Capacity</span>
+            <span className="material-symbols-outlined text-tertiary text-[20px]">timer</span>
           </div>
-          <div className="h-12 w-12 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xl">
-            📢
+          <div className="my-2 flex items-baseline gap-2">
+            <span className="font-headline-lg text-headline-lg text-on-surface">{activeEntries.length}</span>
+            <span className="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface font-bold">/ {restaurant.max_queue_capacity ?? 100}</span>
           </div>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Queue Capacity
-            </span>
-            <div className="text-3xl font-extrabold text-slate-200 mt-1">
-              {waitingCount + calledCount} / {restaurant.max_queue_capacity ?? 100}
+        {/* Metric 4 */}
+        <div className="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <span className="font-label-sm text-label-sm uppercase text-on-surface-variant tracking-wider font-semibold">Avg Wait Time</span>
+            <span className="material-symbols-outlined text-tertiary-container text-[20px]">schedule</span>
+          </div>
+          <div className="my-2 flex items-baseline gap-2">
+            <span className="font-headline-lg text-headline-lg text-on-surface">~22<span className="font-body-md text-body-md text-on-surface-variant font-normal">m</span></span>
+            <span className="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-tertiary-container/15 text-tertiary font-bold">Healthy</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Search, Filter Badges, and Views Splitter */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-space-md p-space-sm rounded-2xl bg-surface-container-lowest shadow-sm">
+        {/* Filter Chips & Search Bar */}
+        <div className="flex flex-wrap items-center gap-2 flex-1">
+          <form method="GET" action="/dashboard/queue" className="relative min-w-[280px] flex-1 max-w-md">
+            <input type="hidden" name="status" value={statusFilter} />
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+            <input 
+              name="search"
+              defaultValue={searchTerm}
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-surface-container-low text-on-surface placeholder:text-on-surface-variant font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-lowest shadow-sm transition-all" 
+              placeholder="Search guest name, phone, or ticket #..." 
+              type="text"
+            />
+          </form>
+          <div className="flex items-center gap-1 overflow-x-auto py-1">
+            {[
+              { label: 'Active Queue', value: 'ACTIVE' },
+              { label: 'Waiting', value: 'WAITING' },
+              { label: 'Called', value: 'CALLED' },
+              { label: 'Terminal / History', value: 'TERMINAL' },
+              { label: 'All', value: 'ALL' },
+            ].map((tab) => (
+              <Link
+                key={tab.value}
+                href={`/dashboard/queue?status=${tab.value}${searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ''}`}
+                className={`px-3 py-1.5 rounded-lg font-headline-sm text-body-sm transition-colors whitespace-nowrap ${
+                  statusFilter === tab.value
+                    ? 'bg-primary text-on-primary font-semibold shadow-sm'
+                    : 'bg-surface-container-low hover:bg-surface-container-high text-on-surface'
+                }`}
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Workstation Layout: Queue Feed & Forms */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start">
+        
+        {/* Queue Feed Stream (8 Columns) */}
+        <div className="xl:col-span-8 flex flex-col gap-3">
+          {entries.length === 0 ? (
+            <div className="p-12 text-center text-on-surface-variant bg-surface-container-lowest rounded-2xl shadow-sm">
+              No queue entries found matching your filter criteria.
             </div>
-          </div>
-          <div className="h-12 w-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 font-bold text-xl">
-            📊
-          </div>
-        </div>
-      </div>
+          ) : (
+            entries.map((entry) => {
+              const isWaiting = entry.status === 'WAITING';
+              const isNotified = entry.status === 'NOTIFIED';
+              const isCalled = entry.status === 'CALLED';
+              const isTerminal = ['SEATED', 'CANCELLED', 'NO_SHOW', 'EXPIRED'].includes(entry.status);
 
-      {/* Queue Filter Bar & Search Input */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-800 pb-4">
-        <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-          {[
-            { label: 'Active Queue', value: 'ACTIVE' },
-            { label: 'Waiting', value: 'WAITING' },
-            { label: 'Notified', value: 'NOTIFIED' },
-            { label: 'Called', value: 'CALLED' },
-            { label: 'Seated', value: 'SEATED' },
-            { label: 'Terminal / History', value: 'TERMINAL' },
-            { label: 'All Entries', value: 'ALL' },
-          ].map((tab) => (
-            <Link
-              key={tab.value}
-              href={`/dashboard/queue?status=${tab.value}${searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ''}`}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                statusFilter === tab.value
-                  ? 'bg-emerald-500 text-slate-950 font-bold'
-                  : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              {tab.label}
-            </Link>
-          ))}
-        </div>
+              const seatableTables = seatableTablesMap.get(entry.party_size) || [];
 
-        {/* Search Bar */}
-        <form method="GET" action="/dashboard/queue" className="w-full sm:w-auto">
-          <input type="hidden" name="status" value={statusFilter} />
-          <input
-            type="text"
-            name="search"
-            defaultValue={searchTerm}
-            placeholder="Search Q-#, name, phone..."
-            className="w-full sm:w-64 bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-          />
-        </form>
-      </div>
-
-      {/* Queue Entries Table */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900">
-          <h2 className="font-bold text-white text-base">Queue Entries ({entries.length})</h2>
-        </div>
-
-        {entries.length === 0 ? (
-          <div className="p-12 text-center text-slate-500">
-            No queue entries found matching your filter criteria.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800 text-xs uppercase tracking-wider">
-                <tr>
-                  <th className="py-3.5 px-4"># / Display</th>
-                  <th className="py-3.5 px-4">Customer</th>
-                  <th className="py-3.5 px-4">Party Size</th>
-                  <th className="py-3.5 px-4">Joined At</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800 text-slate-300">
-                {entries.map((entry) => {
-                  const isWaiting = entry.status === 'WAITING';
-                  const isNotified = entry.status === 'NOTIFIED';
-                  const isCalled = entry.status === 'CALLED';
-                  const isSeated = entry.status === 'SEATED';
-                  const isTerminal = ['SEATED', 'CANCELLED', 'NO_SHOW', 'EXPIRED'].includes(entry.status);
-
-                  const seatableTables = seatableTablesMap.get(entry.party_size) || [];
-
-                  return (
-                    <tr key={entry.id} className="hover:bg-slate-800/40 transition-colors">
-                      <td className="py-4 px-4 font-mono font-bold text-white">
-                        {entry.display_number || `Q-${entry.queue_number}`}
-                      </td>
-                      <td className="py-4 px-4 font-medium text-white">
-                        {entry.customer_name}
-                        {entry.customer_phone && (
-                          <div className="text-xs text-slate-500 font-mono mt-0.5">
-                            {entry.customer_phone}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-                          👥 {entry.party_size} {entry.party_size === 1 ? 'person' : 'people'}
+              return (
+                <div key={entry.id} className="relative p-space-md rounded-2xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-all flex flex-col gap-3 overflow-hidden">
+                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                    isCalled ? 'bg-primary' : isNotified ? 'bg-secondary' : isWaiting ? 'bg-tertiary' : 'bg-outline-variant'
+                  }`}></div>
+                  
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pl-2">
+                    <div className="flex items-start md:items-center gap-4">
+                      {/* Ticket Monospace Display */}
+                      <div className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl flex-shrink-0 shadow-sm ${
+                        isCalled ? 'bg-primary text-on-primary' : isNotified ? 'bg-secondary text-on-secondary' : isWaiting ? 'bg-surface-container text-on-surface' : 'bg-surface-container-high text-on-surface-variant'
+                      }`}>
+                        <span className={`font-ticket-display text-ticket-display tracking-tight ${isWaiting ? 'text-tertiary' : ''}`}>
+                          {entry.display_number || `Q-${entry.queue_number}`}
                         </span>
-                      </td>
-                      <td className="py-4 px-4 text-slate-400 text-xs font-mono">
-                        {new Date(entry.joined_at || entry.created_at).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </td>
-                      <td className="py-4 px-4">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                            isWaiting
-                              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                              : isNotified
-                              ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
-                              : isCalled
-                              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                              : isSeated
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                              : 'bg-slate-800 text-slate-400 border border-slate-700'
-                          }`}
-                        >
-                          {entry.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {isWaiting && (
-                            <>
-                              <form action={updateQueueStatusAction.bind(null, entry.id, 'NOTIFIED', userId)}>
-                                <button
-                                  type="submit"
-                                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white transition-colors"
-                                >
-                                  Notify
-                                </button>
-                              </form>
-                              <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)}>
-                                <button
-                                  type="submit"
-                                  className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors"
-                                >
-                                  Call
-                                </button>
-                              </form>
-                            </>
-                          )}
+                        {isCalled && <span className="font-label-sm text-[9px] uppercase tracking-widest text-on-primary-container font-bold">Called</span>}
+                        {isWaiting && <span className="font-label-sm text-[9px] uppercase tracking-widest text-on-surface-variant font-bold">Waiting</span>}
+                      </div>
 
-                          {isNotified && (
-                            <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)}>
-                              <button
-                                type="submit"
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors"
-                              >
-                                Call Party
-                              </button>
-                            </form>
-                          )}
-
-                          {!isTerminal && (
-                            <SeatCustomerModal
-                              entryId={entry.id}
-                              customerName={entry.customer_name}
-                              displayNumber={entry.display_number}
-                              partySize={entry.party_size}
-                              userId={userId}
-                              seatableTables={seatableTables}
-                            />
-                          )}
-
-                          {isCalled && (
-                            <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId)}>
-                              <button
-                                type="submit"
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-                              >
-                                No-Show
-                              </button>
-                            </form>
-                          )}
-
-                          {!isTerminal && (
-                            <form action={updateQueueStatusAction.bind(null, entry.id, 'CANCELLED', userId)}>
-                              <button
-                                type="submit"
-                                className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors"
-                              >
-                                Cancel
-                              </button>
-                            </form>
-                          )}
+                      {/* Guest Profile & Metadata */}
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-headline-sm text-headline-sm text-on-surface font-bold">{entry.customer_name}</span>
+                          <span className="font-body-sm text-body-sm text-on-surface-variant">• {entry.customer_phone || 'No phone'}</span>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                        <div className="flex items-center gap-3 mt-1 flex-wrap font-body-sm text-body-sm text-on-surface-variant">
+                          <span className="flex items-center gap-1 font-semibold text-on-surface">
+                            <span className="material-symbols-outlined text-[16px] text-primary">groups</span>
+                            {entry.party_size} Guests
+                          </span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[16px]">schedule</span>
+                            Joined {new Date(entry.joined_at || entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <span>•</span>
+                          <span className="px-2 py-0.5 rounded bg-surface-container-high text-on-surface font-label-sm text-label-sm font-semibold">
+                            Status: {entry.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-      {/* Configuration Cards: Queue Operating & ETA Engine Settings */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Queue Settings Form */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-          <div>
-            <h3 className="text-base font-bold text-white">Queue Operating Limits</h3>
-            <p className="text-xs text-slate-400">Configure party boundaries & max queue capacity.</p>
-          </div>
+                    {/* Actions */}
+                    <div className="flex items-center justify-end gap-2 shrink-0">
+                      {isWaiting && (
+                        <>
+                          <form action={updateQueueStatusAction.bind(null, entry.id, 'NOTIFIED', userId)}>
+                            <button type="submit" className="px-3 py-2 rounded-lg bg-secondary hover:bg-secondary-container hover:text-on-secondary-container text-on-secondary font-headline-sm text-body-sm font-bold shadow-sm flex items-center gap-1 transition-all">
+                              <span className="material-symbols-outlined text-[18px]">notifications</span>
+                              <span>Notify</span>
+                            </button>
+                          </form>
+                          <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)}>
+                            <button type="submit" className="px-3 py-2 rounded-lg bg-primary hover:bg-primary-container hover:text-on-primary-container text-on-primary font-headline-sm text-body-sm font-bold shadow-sm flex items-center gap-1 transition-all">
+                              <span className="material-symbols-outlined text-[18px]">campaign</span>
+                              <span>Call</span>
+                            </button>
+                          </form>
+                        </>
+                      )}
 
-          <form action={updateQueueSettingsFormAction} className="space-y-4">
-            <input type="hidden" name="restaurantId" value={restaurant.id} />
-            <input type="hidden" name="actorUserId" value={userId} />
+                      {isNotified && (
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)}>
+                          <button type="submit" className="px-3 py-2 rounded-lg bg-primary hover:bg-primary-container hover:text-on-primary-container text-on-primary font-headline-sm text-body-sm font-bold shadow-sm flex items-center gap-1 transition-all">
+                            <span className="material-symbols-outlined text-[18px]">campaign</span>
+                            <span>Call Party</span>
+                          </button>
+                        </form>
+                      )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Max Queue Capacity
-                </label>
-                <input
-                  type="number"
-                  name="maxQueueCapacity"
-                  defaultValue={restaurant.max_queue_capacity ?? 100}
-                  min={1}
-                  max={1000}
-                  required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs"
-                />
-              </div>
+                      {!isTerminal && (
+                        <SeatCustomerModal
+                          entryId={entry.id}
+                          customerName={entry.customer_name}
+                          displayNumber={entry.display_number}
+                          partySize={entry.party_size}
+                          userId={userId}
+                          seatableTables={seatableTables}
+                        />
+                      )}
 
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Call Timeout (mins)
-                </label>
-                <input
-                  type="number"
-                  name="callTimeoutMinutes"
-                  defaultValue={restaurant.call_timeout_minutes ?? 15}
-                  min={1}
-                  max={120}
-                  required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs"
-                />
-              </div>
-            </div>
+                      {isCalled && (
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId)}>
+                          <button type="submit" className="px-3 py-2 rounded-lg bg-surface-container-lowest hover:bg-error-container text-error font-headline-sm text-body-sm transition-colors shadow-sm flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[16px]">person_off</span>
+                            <span>No-Show</span>
+                          </button>
+                        </form>
+                      )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Min Party Size
-                </label>
-                <input
-                  type="number"
-                  name="minPartySize"
-                  defaultValue={restaurant.min_party_size ?? 1}
-                  min={1}
-                  max={20}
-                  required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Max Party Size
-                </label>
-                <input
-                  type="number"
-                  name="maxPartySize"
-                  defaultValue={restaurant.max_party_size ?? 20}
-                  min={1}
-                  max={50}
-                  required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-colors border border-slate-700"
-              >
-                Save Queue Limits
-              </button>
-            </div>
-          </form>
+                      {!isTerminal && (
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'CANCELLED', userId)}>
+                          <button type="submit" className="px-3 py-2 rounded-lg bg-surface-container-lowest hover:bg-surface-container-high text-on-surface font-headline-sm text-body-sm transition-colors shadow-sm flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[16px]">cancel</span>
+                            <span>Cancel</span>
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
-        {/* ETA Engine Configuration Form */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-          <div>
-            <h3 className="text-base font-bold text-white">ETA Engine Parameters</h3>
-            <p className="text-xs text-slate-400">Configure deterministic formulas for customer wait estimates.</p>
+        {/* Configuration Cards (4 Columns) */}
+        <div className="xl:col-span-4 flex flex-col gap-space-lg">
+          
+          <div className="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col gap-space-md">
+            <div>
+              <h3 className="font-headline-sm text-headline-sm text-on-surface">Queue Limits</h3>
+              <p className="font-body-sm text-body-sm text-on-surface-variant">Configure party boundaries & max capacity.</p>
+            </div>
+
+            <form action={updateQueueSettingsFormAction} className="flex flex-col gap-4">
+              <input type="hidden" name="restaurantId" value={restaurant.id} />
+              <input type="hidden" name="actorUserId" value={userId} />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">Max Capacity</label>
+                  <input type="number" name="maxQueueCapacity" defaultValue={restaurant.max_queue_capacity ?? 100} min={1} max={1000} required className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-on-surface font-body-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">Call Timeout</label>
+                  <input type="number" name="callTimeoutMinutes" defaultValue={restaurant.call_timeout_minutes ?? 15} min={1} max={120} required className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-on-surface font-body-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">Min Party</label>
+                  <input type="number" name="minPartySize" defaultValue={restaurant.min_party_size ?? 1} min={1} max={20} required className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-on-surface font-body-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">Max Party</label>
+                  <input type="number" name="maxPartySize" defaultValue={restaurant.max_party_size ?? 20} min={1} max={50} required className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-on-surface font-body-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
+              </div>
+
+              <div className="flex justify-end mt-2">
+                <button type="submit" className="px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-headline-sm text-body-sm font-semibold rounded-lg transition-colors shadow-sm">
+                  Save Limits
+                </button>
+              </div>
+            </form>
           </div>
 
-          <form action={updateETASettingsFormAction} className="space-y-4">
-            <input type="hidden" name="restaurantId" value={restaurant.id} />
-            <input type="hidden" name="actorUserId" value={userId} />
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Avg Service Time (mins)
-                </label>
-                <input
-                  type="number"
-                  name="avgServiceTimeMins"
-                  defaultValue={restaurant.avg_service_time_mins ?? 15}
-                  min={1}
-                  max={180}
-                  required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Service Capacity Units
-                </label>
-                <input
-                  type="number"
-                  name="serviceCapacityUnits"
-                  defaultValue={restaurant.service_capacity_units ?? 3}
-                  min={1}
-                  max={50}
-                  required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs"
-                />
-              </div>
+          <div className="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col gap-space-md">
+            <div>
+              <h3 className="font-headline-sm text-headline-sm text-on-surface">ETA Settings</h3>
+              <p className="font-body-sm text-body-sm text-on-surface-variant">Configure wait estimation formulas.</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  ETA Safety Buffer (mins)
-                </label>
-                <input
-                  type="number"
-                  name="etaBufferMins"
-                  defaultValue={restaurant.eta_buffer_mins ?? 5}
-                  min={0}
-                  max={60}
-                  required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs"
-                />
+            <form action={updateETASettingsFormAction} className="flex flex-col gap-4">
+              <input type="hidden" name="restaurantId" value={restaurant.id} />
+              <input type="hidden" name="actorUserId" value={userId} />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">Avg Service</label>
+                  <input type="number" name="avgServiceTimeMins" defaultValue={restaurant.avg_service_time_mins ?? 15} min={1} max={180} required className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-on-surface font-body-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">Capacity Units</label>
+                  <input type="number" name="serviceCapacityUnits" defaultValue={restaurant.service_capacity_units ?? 3} min={1} max={50} required className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-on-surface font-body-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">ETA Buffer (m)</label>
+                  <input type="number" name="etaBufferMins" defaultValue={restaurant.eta_buffer_mins ?? 5} min={0} max={60} required className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-on-surface font-body-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">Up Threshold</label>
+                  <input type="number" name="almostYourTurnThreshold" defaultValue={restaurant.almost_your_turn_threshold ?? 3} min={1} max={20} required className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-on-surface font-body-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                  Almost Up Threshold (Parties)
-                </label>
-                <input
-                  type="number"
-                  name="almostYourTurnThreshold"
-                  defaultValue={restaurant.almost_your_turn_threshold ?? 3}
-                  min={1}
-                  max={20}
-                  required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs"
-                />
+              <div className="flex justify-end mt-2">
+                <button type="submit" className="px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-headline-sm text-body-sm font-semibold rounded-lg transition-colors shadow-sm">
+                  Save ETA Settings
+                </button>
               </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors"
-              >
-                Save ETA Settings
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
+          
         </div>
       </div>
     </div>
