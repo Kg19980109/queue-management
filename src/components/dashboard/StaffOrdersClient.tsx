@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useOptimistic } from 'react';
 import { updateOrderStatusAction } from '@/app/dashboard/actions';
 import { useRouter } from 'next/navigation';
 
@@ -36,6 +36,196 @@ interface StaffOrdersClientProps {
 
 const STATUS_FILTERS = ['ALL', 'PLACED', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED', 'CANCELLED'];
 
+type OrderStatus = 'PLACED' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED';
+
+function getStatusBadge(status: string) {
+  switch (status) {
+    case 'PLACED':      return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
+    case 'CONFIRMED':   return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30';
+    case 'PREPARING':   return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+    case 'READY':       return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+    case 'SERVED':      return 'bg-slate-800 text-slate-300 border-slate-700';
+    case 'CANCELLED':   return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+    default:            return 'bg-slate-800 text-slate-300 border-slate-700';
+  }
+}
+
+function formatPrice(amount: number) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+/**
+ * Individual order card with its own useTransition + optimistic status.
+ *
+ * WHY PER-CARD TRANSITION:
+ *   The old design had ONE global isPending boolean shared across all orders.
+ *   Clicking "Confirm" on Order A disabled every button on the page.
+ *   Now each card has its own transition — other cards stay fully interactive.
+ *
+ * WHY useOptimistic:
+ *   The status badge and action buttons update INSTANTLY on click (optimistic).
+ *   The server action runs in the background. If it fails, React reverts.
+ *   This makes every button feel sub-50ms even when the DB takes 500ms.
+ */
+function OrderCard({
+  order,
+  restaurantId,
+  userId,
+}: {
+  order: DashboardOrderItem;
+  restaurantId: string;
+  userId: string;
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  // Optimistic status — shown immediately on click, reverts on server error
+  const [optimisticStatus, setOptimisticStatus] = useOptimistic(order.status);
+
+  const handleTransition = (targetStatus: OrderStatus) => {
+    startTransition(async () => {
+      // 1. Instant visual update — no waiting for server
+      setOptimisticStatus(targetStatus);
+      // 2. Actual DB write in background
+      await updateOrderStatusAction(order.id, targetStatus, restaurantId, userId);
+    });
+  };
+
+  return (
+    <div
+      className={`bg-slate-900/90 border rounded-3xl p-5 space-y-4 flex flex-col justify-between shadow-xl transition-all ${
+        isPending
+          ? 'border-slate-600 opacity-90 scale-[0.99]'
+          : 'border-slate-800 hover:border-slate-700'
+      }`}
+    >
+      <div className="space-y-3">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono font-bold text-white text-sm">
+                #{order.orderNumber}
+              </span>
+              {order.queueDisplayNumber && (
+                <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] font-bold">
+                  {order.queueDisplayNumber}
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-slate-400 font-medium">{order.customerName}</div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isPending && (
+              <div className="w-3.5 h-3.5 border-2 border-slate-500 border-t-white rounded-full animate-spin" />
+            )}
+            <span
+              className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold uppercase border transition-all ${getStatusBadge(optimisticStatus)}`}
+            >
+              {optimisticStatus}
+            </span>
+          </div>
+        </div>
+
+        {/* Items Summary */}
+        <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+          {order.items.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between text-xs text-slate-300"
+            >
+              <span>
+                <strong className="text-white font-mono">{item.quantity}×</strong>{' '}
+                {item.name}
+              </span>
+              <span className="font-mono text-slate-400 text-[11px]">
+                {formatPrice(item.totalPrice)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Total & FSM Actions */}
+      <div className="border-t border-slate-800 pt-3 space-y-3">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-400">Total ({order.itemCount} items)</span>
+          <span className="font-mono font-bold text-amber-400 text-sm">
+            {formatPrice(order.total)}
+          </span>
+        </div>
+
+        {/* FSM Actions — buttons only disabled for THIS card when pending */}
+        <div className="flex flex-wrap gap-2 pt-1">
+          {optimisticStatus === 'PLACED' && (
+            <>
+              <button
+                type="button"
+                onClick={() => handleTransition('CONFIRMED')}
+                disabled={isPending}
+                className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Confirm Order
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTransition('CANCELLED')}
+                disabled={isPending}
+                className="py-2 px-3 bg-slate-800 hover:bg-rose-950 text-rose-400 font-bold text-xs rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+            </>
+          )}
+
+          {optimisticStatus === 'CONFIRMED' && (
+            <button
+              type="button"
+              onClick={() => handleTransition('PREPARING')}
+              disabled={isPending}
+              className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Start Preparation
+            </button>
+          )}
+
+          {optimisticStatus === 'PREPARING' && (
+            <button
+              type="button"
+              onClick={() => handleTransition('READY')}
+              disabled={isPending}
+              className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Mark Ready
+            </button>
+          )}
+
+          {optimisticStatus === 'READY' && (
+            <button
+              type="button"
+              onClick={() => handleTransition('SERVED')}
+              disabled={isPending}
+              className="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Mark Served ✓
+            </button>
+          )}
+
+          {(optimisticStatus === 'SERVED' || optimisticStatus === 'CANCELLED') && (
+            <div className="w-full text-center text-xs text-slate-500 py-2">
+              {optimisticStatus === 'SERVED' ? '✅ Completed' : '🚫 Cancelled'}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function StaffOrdersClient({
   orders,
   restaurantId,
@@ -46,7 +236,6 @@ export function StaffOrdersClient({
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [searchQuery, setSearchQuery] = useState(initialSearch);
-  const [isPending, startTransition] = useTransition();
 
   const handleFilterChange = (status: string) => {
     setStatusFilter(status);
@@ -68,42 +257,6 @@ export function StaffOrdersClient({
       url.searchParams.set('search', searchQuery.trim());
     }
     router.push(url.pathname + url.search);
-  };
-
-  const handleTransition = (
-    orderId: string,
-    targetStatus: 'PLACED' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED'
-  ) => {
-    startTransition(async () => {
-      await updateOrderStatusAction(orderId, targetStatus, restaurantId, userId);
-    });
-  };
-
-  const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PLACED':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
-      case 'CONFIRMED':
-        return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30';
-      case 'PREPARING':
-        return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-      case 'READY':
-        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-      case 'SERVED':
-        return 'bg-slate-800 text-slate-300 border-slate-700';
-      case 'CANCELLED':
-        return 'bg-rose-500/10 text-rose-400 border-rose-500/30';
-      default:
-        return 'bg-slate-800 text-slate-300 border-slate-700';
-    }
   };
 
   return (
@@ -158,124 +311,12 @@ export function StaffOrdersClient({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {orders.map((order) => (
-            <div
+            <OrderCard
               key={order.id}
-              className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 space-y-4 flex flex-col justify-between shadow-xl hover:border-slate-700 transition-all"
-            >
-              <div className="space-y-3">
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-white text-sm">
-                        #{order.orderNumber}
-                      </span>
-                      {order.queueDisplayNumber && (
-                        <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] font-bold">
-                          {order.queueDisplayNumber}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-slate-400 font-medium">
-                      {order.customerName}
-                    </div>
-                  </div>
-
-                  <span
-                    className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold uppercase border ${getStatusBadge(
-                      order.status
-                    )}`}
-                  >
-                    {order.status}
-                  </span>
-                </div>
-
-                {/* Items Summary */}
-                <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
-                  {order.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between text-xs text-slate-300"
-                    >
-                      <span>
-                        <strong className="text-white font-mono">{item.quantity}×</strong>{' '}
-                        {item.name}
-                      </span>
-                      <span className="font-mono text-slate-400 text-[11px]">
-                        {formatPrice(item.totalPrice)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Total & FSM Actions */}
-              <div className="border-t border-slate-800 pt-3 space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400">Total ({order.itemCount} items)</span>
-                  <span className="font-mono font-bold text-amber-400 text-sm">
-                    {formatPrice(order.total)}
-                  </span>
-                </div>
-
-                {/* FSM Actions */}
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {order.status === 'PLACED' && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleTransition(order.id, 'CONFIRMED')}
-                        disabled={isPending}
-                        className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50"
-                      >
-                        Confirm Order
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleTransition(order.id, 'CANCELLED')}
-                        disabled={isPending}
-                        className="py-2 px-3 bg-slate-800 hover:bg-rose-950 text-rose-400 font-bold text-xs rounded-xl transition-colors disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  )}
-
-                  {order.status === 'CONFIRMED' && (
-                    <button
-                      type="button"
-                      onClick={() => handleTransition(order.id, 'PREPARING')}
-                      disabled={isPending}
-                      className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50"
-                    >
-                      Start Preparation
-                    </button>
-                  )}
-
-                  {order.status === 'PREPARING' && (
-                    <button
-                      type="button"
-                      onClick={() => handleTransition(order.id, 'READY')}
-                      disabled={isPending}
-                      className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50"
-                    >
-                      Mark Ready
-                    </button>
-                  )}
-
-                  {order.status === 'READY' && (
-                    <button
-                      type="button"
-                      onClick={() => handleTransition(order.id, 'SERVED')}
-                      disabled={isPending}
-                      className="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50"
-                    >
-                      Mark Served ✓
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+              order={order}
+              restaurantId={restaurantId}
+              userId={userId}
+            />
           ))}
         </div>
       )}

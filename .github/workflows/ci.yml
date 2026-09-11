@@ -128,14 +128,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Skip if no DB secrets configured
+      - name: Run integration tests (skipped if DB secrets not configured)
         run: |
-          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ "$NEXT_PUBLIC_SUPABASE_URL" = "" ]; then
-            echo "No DB secrets configured. Skipping integration tests."
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [[ "$NEXT_PUBLIC_SUPABASE_URL" == *placeholder* ]]; then
+            echo "⏭️  No DB secrets configured — skipping integration tests."
             exit 0
           fi
-
-      - name: Run integration tests
-        run: npm run test -- tests/setup --reporter=verbose
+          npm run test -- tests/setup --reporter=verbose
         timeout-minutes: 10
 
