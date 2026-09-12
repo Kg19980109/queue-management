@@ -111,6 +111,21 @@ export class RestaurantAdminService {
   }
 
   /**
+   * Lightweight fetch for layout header (only restaurant, no counts) — snappy.
+   */
+  static getRestaurantForLayout = cache(async () => {
+    const { restaurantId } = await _getAuthorizedRestaurantContext();
+    const supabase = await createServerClient();
+    const { data: restaurant, error } = await supabase
+      .from('restaurants')
+      .select('id, name, slug, avg_service_time_mins, service_capacity_units')
+      .eq('id', restaurantId)
+      .single();
+    if (error || !restaurant) throw new NotFoundError(`Restaurant ${restaurantId} not found`);
+    return { restaurant, restaurantId };
+  });
+
+  /**
    * Get restaurant admin dashboard stats & metadata.
    */
   static async getRestaurantDashboardStats() {

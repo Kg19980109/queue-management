@@ -230,12 +230,21 @@ export function KitchenDisplayClient({
     setOrders(initialOrders);
   }, [initialOrders]);
 
-  // Polling — every 10s refresh server data in background
+  // Polling — 30s, visibility-aware (was 10s, hammered DB)
   useEffect(() => {
-    const timer = setInterval(() => {
-      router.refresh();
-    }, 10000);
-    return () => clearInterval(timer);
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (timer) return;
+      timer = setInterval(() => {
+        if (document.visibilityState === 'visible' && navigator.onLine) router.refresh();
+      }, 30000);
+    };
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    start();
+    document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' ? start() : stop());
+    window.addEventListener('online', start);
+    window.addEventListener('offline', stop);
+    return () => { stop(); document.removeEventListener('visibilitychange', start); window.removeEventListener('online', start); window.removeEventListener('offline', stop); };
   }, [router]);
 
   // Called by a ticket when it reaches a terminal state — removes it from local list instantly

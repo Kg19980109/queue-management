@@ -13,7 +13,7 @@ export default async function RestaurantDashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { restaurant } = await RestaurantAdminService.getRestaurantDashboardStats();
+  const { restaurant } = await RestaurantAdminService.getRestaurantForLayout();
   const activeQueue = await QueueService.getActiveQueue(restaurant.id);
   const activeQueueCount = activeQueue.length;
   

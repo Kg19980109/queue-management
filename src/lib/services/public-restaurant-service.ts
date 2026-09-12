@@ -64,29 +64,28 @@ export class PublicRestaurantService {
 
   /**
    * Fetches active menu items for public customer preview while waiting.
+   * Parallelized for snappiness.
    */
   static async getPublicMenuPreview(restaurantId: string) {
     const supabase = createAdminClient();
 
-    // Fetch active categories
-    const { data: categories, error: catError } = await supabase
-      .from('menu_categories')
-      .select('id, name, description, sort_order')
-      .eq('restaurant_id', restaurantId)
-      .eq('active', true)
-      .eq('is_archived', false)
-      .order('sort_order', { ascending: true });
+    const [{ data: categories, error: catError }, { data: items, error: itemError }] = await Promise.all([
+      supabase
+        .from('menu_categories')
+        .select('id, name, description, sort_order')
+        .eq('restaurant_id', restaurantId)
+        .eq('active', true)
+        .eq('is_archived', false)
+        .order('sort_order', { ascending: true }),
+      supabase
+        .from('menu_items')
+        .select('id, category_id, name, description, price, available')
+        .eq('restaurant_id', restaurantId)
+        .eq('is_archived', false)
+        .order('name', { ascending: true }),
+    ]);
 
     if (catError || !categories) return [];
-
-    // Fetch active menu items
-    const { data: items, error: itemError } = await supabase
-      .from('menu_items')
-      .select('id, category_id, name, description, price, available')
-      .eq('restaurant_id', restaurantId)
-      .eq('is_archived', false)
-      .order('name', { ascending: true });
-
     if (itemError || !items) return [];
 
     // Group items by category
