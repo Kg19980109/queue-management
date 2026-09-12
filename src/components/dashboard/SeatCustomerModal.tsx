@@ -46,7 +46,7 @@ export function SeatCustomerModal({
         onClick={() => setIsOpen(true)}
         className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold shadow-md transition-all cursor-pointer"
       >
-        Seat Party
+        Assign Table & Seat
       </button>
 
       {isOpen && (
@@ -55,7 +55,7 @@ export function SeatCustomerModal({
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400">
-                  Seat Queue Customer
+                  Assign Table & Seat
                 </span>
                 <h3 className="text-lg font-bold text-white tracking-tight">
                   {displayNumber || 'Party'} — {customerName}
@@ -114,7 +114,7 @@ export function SeatCustomerModal({
                         disabled={isPending}
                         className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50"
                       >
-                        {isPending && selectedTableId === table.id ? 'Seating...' : 'Select & Seat'}
+                        {isPending && selectedTableId === table.id ? 'Assigning...' : 'Assign & Seat'}
                       </button>
                     </div>
                   ))}

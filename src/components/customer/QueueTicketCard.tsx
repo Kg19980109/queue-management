@@ -11,7 +11,7 @@ export function QueueTicketCard({ status }: QueueTicketCardProps) {
   // Calculate rough wait estimate based on position (e.g. ~5-8 mins per waiting party)
   const estWaitMins = isWaiting && status.position ? Math.max(5, (status.position - 1) * 7) : null;
   
-  const displayNum = status.displayNumber || `Q-${status.entryId.substring(0, 4).toUpperCase()}`;
+  const displayNum = status.displayNumber || `#${status.entryId.substring(0, 4).toUpperCase()}`;
 
   return (
     <div className="w-full px-1">

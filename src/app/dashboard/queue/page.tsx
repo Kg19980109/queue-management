@@ -117,7 +117,7 @@ export default async function QueueManagementPage({
             <form action={updateQueueStatusAction.bind(null, nextUp.id, 'CALLED', userId)}>
               <button type="submit" className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/20 transition-all transform active:scale-95 cursor-pointer border border-blue-500" id="call-next-hero-btn">
                 <span className="material-symbols-outlined text-[20px]">campaign</span>
-                <span>Call Next ({nextUp.display_number || `Q-${nextUp.queue_number}`})</span>
+                <span>Notify Next ({nextUp.display_number || nextUp.queue_number})</span>
                 <span className="px-2 py-0.5 rounded bg-white/20 text-white text-[10px] hidden sm:inline-block border border-white/10">Space / ↵</span>
               </button>
             </form>
@@ -334,7 +334,7 @@ export default async function QueueManagementPage({
                         isCalled ? 'bg-blue-600 text-white' : isNext ? 'bg-blue-900/30 text-blue-400 border border-blue-500/20' : 'bg-[#1A2333] border border-white/5 text-slate-300'
                       }`}>
                         <span className="font-black text-2xl tracking-tight font-headline-xl">
-                          {entry.display_number || `Q-${entry.queue_number}`}
+                          {entry.display_number || entry.queue_number}
                         </span>
                         {isCalled && <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Priority</span>}
                         {isNext && <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Next</span>}
@@ -404,7 +404,7 @@ export default async function QueueManagementPage({
                       {isWaiting && (
                         <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)}>
                           <button type="submit" className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
-                            Call
+                            Notify Ready
                           </button>
                         </form>
                       )}
@@ -460,7 +460,7 @@ export default async function QueueManagementPage({
                 <div className="p-space-md rounded-xl bg-[#0A0E17] border border-white/5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xl shadow-md">
-                      {nextUp.display_number || `Q-${nextUp.queue_number}`}
+                      {nextUp.display_number || nextUp.queue_number}
                     </div>
                     <div className="flex flex-col">
                       <span className="font-bold text-white">{nextUp.customer_name}</span>
@@ -494,7 +494,7 @@ export default async function QueueManagementPage({
                   <form action={updateQueueStatusAction.bind(null, nextUp.id, 'CALLED', userId)}>
                     <button type="submit" className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer flex items-center justify-center gap-2">
                       <span className="material-symbols-outlined text-[18px]">campaign</span>
-                      <span>Call {bestMatchTable ? `& Prep Table ${bestMatchTable.tableNumber}` : 'Guest'}</span>
+                      <span>Notify {bestMatchTable ? `& Prep Table ${bestMatchTable.tableNumber}` : 'Guest'}</span>
                     </button>
                   </form>
                 </div>

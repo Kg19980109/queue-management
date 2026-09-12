@@ -147,7 +147,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                   
                   <div className="flex items-start sm:items-center gap-4 sm:gap-6 pl-2">
                     <div className="flex flex-col items-center">
-                      <span className={`text-2xl font-black font-headline-xl ${isCalled ? 'text-emerald-400' : 'text-white'}`}>Q-{entry.display_number.replace('#', '')}</span>
+                      <span className={`text-2xl font-black font-headline-xl ${isCalled ? 'text-emerald-400' : 'text-white'}`}>#{entry.display_number.replace('#', '')}</span>
                       <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${pillColor} mt-1`}>
                         {isCalled ? 'CALLED' : isNextUp ? 'NEXT UP' : 'WAITING'}
                       </span>
@@ -267,19 +267,46 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                   <span className="text-[10px] text-slate-400 mb-4">Cap: {t.capacity} guests</span>
                   
                   {isCleaning && (
-                    <button onClick={() => handlePingBusser(t.id)} className="w-full py-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-rose-500/30">
-                      <span className="material-symbols-outlined text-[12px]">notifications_active</span> Ping Busser
-                    </button>
+                    <div className="flex gap-1 w-full mt-2">
+                      <button onClick={() => handlePingBusser(t.id)} className="flex-1 py-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-rose-500/30">
+                        Ping
+                      </button>
+                      <button onClick={async () => {
+                        setIsProcessing(`table-${t.id}`);
+                        await updateTableStatusAction(t.id, 'AVAILABLE');
+                        setIsProcessing(null);
+                      }} className="flex-1 py-1.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-emerald-500/30">
+                        Available
+                      </button>
+                    </div>
                   )}
                   {isOccupied && (
-                    <Link href={`/dashboard/orders`} className="w-full py-1.5 rounded bg-[#1A2333] hover:bg-white/10 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-primary/30">
-                      <span className="material-symbols-outlined text-[12px]">visibility</span> View Order
-                    </Link>
+                    <div className="flex gap-1 w-full mt-2">
+                      <Link href={`/dashboard/orders`} className="flex-1 py-1.5 rounded bg-[#1A2333] hover:bg-white/10 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-primary/30">
+                        Order
+                      </Link>
+                      <button onClick={async () => {
+                        setIsProcessing(`table-${t.id}`);
+                        await updateTableStatusAction(t.id, 'CLEANING');
+                        setIsProcessing(null);
+                      }} className="flex-1 py-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-rose-500/30">
+                        Clean
+                      </button>
+                    </div>
                   )}
                   {isAvailable && (
-                    <Link href={`/dashboard/tables`} className="w-full py-1.5 rounded bg-[#1A2333] hover:bg-white/10 text-emerald-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-emerald-500/30">
-                      View
-                    </Link>
+                    <div className="flex gap-1 w-full mt-2">
+                      <Link href={`/dashboard/tables`} className="flex-1 py-1.5 rounded bg-[#1A2333] hover:bg-white/10 text-emerald-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-emerald-500/30">
+                        View
+                      </Link>
+                      <button onClick={async () => {
+                        setIsProcessing(`table-${t.id}`);
+                        await updateTableStatusAction(t.id, 'OCCUPIED');
+                        setIsProcessing(null);
+                      }} className="flex-1 py-1.5 rounded bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-primary/30">
+                        Occupy
+                      </button>
+                    </div>
                   )}
                 </div>
               );
