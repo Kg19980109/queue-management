@@ -53,6 +53,7 @@ export default async function QueueManagementPage({
   const nextUp = waitingEntries.length > 0 ? waitingEntries[0] : null;
 
   // Build seatable map by filtering local available tables (avoids N RPC calls)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const availableTables = tablesRes.tables.filter((t: any) => t.status === 'AVAILABLE' && !t.is_archived) as unknown as SeatableTableItem[];
   const uniquePartySizes = Array.from(new Set(entries.map((e) => e.party_size)));
   const seatableTablesMap = new Map<number, SeatableTableItem[]>();
@@ -89,7 +90,8 @@ export default async function QueueManagementPage({
 
   let bestMatchTable = null;
   if (nextUp) {
-     const candidates = tablesRes.tables.filter(t => t.status === 'AVAILABLE' && t.capacity >= nextUp.party_size);
+     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     const candidates = tablesRes.tables.filter((t: any) => t.status === 'AVAILABLE' && t.capacity >= nextUp.party_size);
      if (candidates.length > 0) {
         candidates.sort((a, b) => a.capacity - b.capacity);
         bestMatchTable = candidates[0];
