@@ -31,13 +31,13 @@ export function FloorManagerClient({
   }, {} as Record<string, typeof tables>);
 
   return (
-    <div className="w-full flex-1 flex flex-col h-[calc(100vh-64px)] overflow-hidden">
+    <div className="w-full flex-1 flex flex-col min-h-[calc(100vh-64px)]">
       
       {/* Top Bar / Actions */}
-      <div className="p-6 pb-2 shrink-0 flex flex-col gap-4">
+      <div className="p-4 sm:p-6 pb-2 shrink-0 flex flex-col gap-4">
         
         {/* KPI Ribbon */}
-        <div className="grid grid-cols-4 gap-4 mb-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
           {/* Active Tables */}
           <div className="bg-[#111827] rounded-xl border border-white/5 p-4 flex items-center justify-between">
             <div className="flex flex-col gap-1">
@@ -95,8 +95,8 @@ export function FloorManagerClient({
         </div>
 
         {/* Zones & Legend row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2">
             <button 
               onClick={() => setActiveZone(null)}
               className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
@@ -120,9 +120,12 @@ export function FloorManagerClient({
                 {z.name}
               </button>
             ))}
+            <button className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-sm border border-emerald-500/30 transition-colors shadow-sm ml-auto sm:ml-2">
+              <span className="material-symbols-outlined text-[16px]">add</span> Add Table
+            </button>
           </div>
           
-          <div className="flex items-center gap-4 text-xs font-bold">
+          <div className="flex flex-wrap items-center gap-4 text-xs font-bold">
             <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#111827] border border-emerald-500/30 text-emerald-400"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Available</div>
             <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#111827] border border-amber-500/30 text-amber-500"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Occupied</div>
             <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#111827] border border-blue-500/30 text-blue-400"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Held/Reserved</div>
@@ -132,7 +135,7 @@ export function FloorManagerClient({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 pt-2 overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 sm:p-6 pt-2">
         
         {/* Left Side: Blueprint / Grid */}
         <div className="lg:col-span-8 flex flex-col gap-4">
