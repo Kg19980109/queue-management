@@ -101,7 +101,7 @@ export async function delayQueuePublicAction(token: string, restaurantSlug: stri
       throw new Error('Tenant isolation mismatch.');
     }
     
-    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const { createAdminClient } = await import('@/lib/db/supabase/admin');
     const supabase = createAdminClient();
 
     // Log the event that customer requested a delay
