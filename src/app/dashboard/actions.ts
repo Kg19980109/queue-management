@@ -153,8 +153,7 @@ export async function updateTableStatusAction(
     }
     throw error instanceof Error ? error : new Error('Failed to update table status.');
   }
-  revalidatePath('/dashboard/tables');
-  revalidatePath('/dashboard');
+  revalidatePath('/dashboard', 'layout');
 }
 
 export async function adminAddQueueGuestAction(formData: FormData): Promise<void> {
@@ -418,8 +417,7 @@ export async function seatQueueEntryAction(entryId: string, tableId: string, act
     }
     throw error instanceof Error ? error : new Error('Failed to seat queue entry.');
   }
-  revalidatePath('/dashboard/queue');
-  revalidatePath('/dashboard/tables');
+  revalidatePath('/dashboard', 'layout');
 }
 
 export async function updateETASettingsFormAction(formData: FormData): Promise<void> {
