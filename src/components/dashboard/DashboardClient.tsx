@@ -24,26 +24,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
     return Math.floor(diffMs / 60000);
   };
 
-  const handleRecall = async (entryId: string) => {
-    setIsProcessing(entryId);
-    try {
-      await updateQueueStatusAction(entryId, 'CALLED');
-    } catch (e) {
-      console.error(e);
-    }
-    setIsProcessing(null);
-  };
 
-  const handleCancel = async (entryId: string) => {
-    if (!confirm('Are you sure you want to cancel this guest?')) return;
-    setIsProcessing(entryId);
-    try {
-      await updateQueueStatusAction(entryId, 'CANCELLED');
-    } catch (e) {
-      console.error(e);
-    }
-    setIsProcessing(null);
-  };
 
   const handleSeatClick = (entryId: string) => {
     setSeatingEntryId(entryId);
@@ -172,28 +153,42 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                   </div>
 
                   <div className="flex items-center gap-2 self-end sm:self-auto w-full sm:w-auto justify-end border-t border-white/5 sm:border-t-0 pt-3 sm:pt-0 mt-1 sm:mt-0">
-                    {isCalled ? (
-                      <>
-                        <button onClick={() => handleSeatClick(entry.id)} className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-sm transition-colors flex items-center justify-center gap-1.5">
-                          <span className="material-symbols-outlined text-[16px]">check</span> Seat Guest
+                      {entry.status === 'WAITING' && (
+                        <button onClick={() => { setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'CALLED').finally(() => setIsProcessing(null)); }} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
+                          Inform Next
                         </button>
-                        <button onClick={() => handleRecall(entry.id)} className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#1A2333] hover:bg-white/10 text-slate-300 border border-white/5 font-bold text-sm transition-colors text-center">
-                          Recall
+                      )}
+                      
+                      {entry.status === 'CALLED' && (
+                        <button onClick={() => { setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'NOTIFIED').finally(() => setIsProcessing(null)); }} className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
+                          Tell to Come
                         </button>
-                      </>
-                    ) : (
-                      <>
-                          <button onClick={() => handleSeatClick(entry.id)} className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-sm transition-colors flex items-center justify-center gap-1.5">
-                          <span className="material-symbols-outlined text-[16px]">check</span> Seat Guest
+                      )}
+
+                      {entry.status === 'NOTIFIED' && (
+                        <button onClick={() => handleSeatClick(entry.id)} className="px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer">
+                          Assign Table & Seat
                         </button>
-                        <button onClick={() => handleRecall(entry.id)} className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#1A2333] hover:bg-white/10 text-slate-300 border border-white/5 font-bold text-sm transition-colors text-center">
-                          Call Again
+                      )}
+                      
+                      {entry.status === 'SEATED' && (
+                        <button onClick={() => { setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'COMPLETED').finally(() => setIsProcessing(null)); }} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
+                          Mark Done
                         </button>
-                      </>
-                    )}
-                    <button onClick={() => handleCancel(entry.id)} className="w-10 sm:w-9 h-10 sm:h-9 shrink-0 rounded-full bg-[#1A2333] hover:bg-white/10 border border-white/5 text-slate-400 flex items-center justify-center transition-colors">
-                      <span className="material-symbols-outlined text-[18px]">close</span>
-                    </button>
+                      )}
+
+                      {(entry.status === 'CALLED' || entry.status === 'NOTIFIED') && (
+                        <button onClick={() => { setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'NO_SHOW').finally(() => setIsProcessing(null)); }} className="px-3 py-2 rounded-xl bg-transparent hover:bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer">
+                          <span className="material-symbols-outlined text-[16px]">person_off</span>
+                          <span>No-Show</span>
+                        </button>
+                      )}
+
+                      {!['CANCELLED', 'NO_SHOW', 'EXPIRED', 'COMPLETED'].includes(entry.status) && (
+                        <button type="button" className="w-9 h-9 shrink-0 rounded-full bg-transparent hover:bg-white/5 border border-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center">
+                          <span className="material-symbols-outlined text-[18px]">more_vert</span>
+                        </button>
+                      )}
                   </div>
                 </div>
               );
