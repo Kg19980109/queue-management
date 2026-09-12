@@ -35,8 +35,12 @@ export default async function QueueManagementPage({
     return <div className="p-space-xl text-error">No managed restaurant assigned.</div>;
   }
 
-  const entries = await QueueService.getAllQueueEntries(restaurant.id, statusFilter, searchTerm);
-  const activeEntries = await QueueService.getActiveQueue(restaurant.id);
+  // Parallelize independent fetches for snappy load
+  const [entries, activeEntries, tablesRes] = await Promise.all([
+    QueueService.getAllQueueEntries(restaurant.id, statusFilter, searchTerm),
+    QueueService.getActiveQueue(restaurant.id),
+    TableService.listTables({ restaurantId: restaurant.id }),
+  ]);
 
   const waitingEntries = activeEntries.filter((e) => e.status === 'WAITING');
   const calledEntries = activeEntries.filter((e) => e.status === 'CALLED' || e.status === 'NOTIFIED');
@@ -48,18 +52,16 @@ export default async function QueueManagementPage({
   // Best next guest logic (first waiting)
   const nextUp = waitingEntries.length > 0 ? waitingEntries[0] : null;
 
-  // Pre-fetch seatable tables grouped by party size
+  // Build seatable map by filtering local available tables (avoids N RPC calls)
+  const availableTables = tablesRes.tables.filter((t: any) => t.status === 'AVAILABLE' && !t.is_archived) as unknown as SeatableTableItem[];
   const uniquePartySizes = Array.from(new Set(entries.map((e) => e.party_size)));
   const seatableTablesMap = new Map<number, SeatableTableItem[]>();
-
-  await Promise.all(
-    uniquePartySizes.map(async (size) => {
-      const tables = await QueueService.getSeatableTables(restaurant.id, size);
-      seatableTablesMap.set(size, tables as SeatableTableItem[]);
-    })
-  );
-
-  const tablesRes = await TableService.listTables({ restaurantId: restaurant.id });
+  for (const size of uniquePartySizes) {
+    seatableTablesMap.set(
+      size,
+      availableTables.filter((t) => (t.capacity ?? 0) >= size).sort((a, b) => (a.capacity ?? 0) - (b.capacity ?? 0))
+    );
+  }
   const tablesTotal = tablesRes.stats.total;
   const tablesReady = tablesRes.stats.available;
   const tablesOccupied = tablesRes.stats.occupied;
@@ -524,10 +526,11 @@ export default async function QueueManagementPage({
               </div>
             </div>
 
-            <div className="relative mt-2 rounded-xl overflow-hidden h-28 bg-[#0A0E17] border border-white/5">
-              <img className="w-full h-full object-cover opacity-70" alt="Venue Preview" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAk6ZfbwnYUJLL2FiHCoiDU893aX2VISiwoBFoORUhDg8ST3mlIHs4kq0LeOOKIqyGQ61vWeyV2nHTQz6JRYWtU9VPcnCm7ZrJ_Y6YibqOTHZ__j9qi5FWT6hOEoh3HNhEiv3qAKVkneJyA7UGBxGH2vwCK7hvfAbsxlvQE_DwCelXUE9cC0uPMWv82yogunLtw3eaFrc6NlvmFwaxSYXokAkr7G4Ai3cmEiy94wVhGumuDdMUryykt"/>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-3">
-                <span className="text-white text-sm font-bold">{restaurant.name}</span>
+            <div className="relative mt-2 rounded-xl overflow-hidden h-20 bg-gradient-to-br from-[#1A2333] to-[#0A0E17] border border-white/5 flex items-center justify-center">
+              <div className="flex items-center gap-2 text-slate-400">
+                <span className="material-symbols-outlined text-[20px]">storefront</span>
+                <span className="text-sm font-bold text-white">{restaurant.name}</span>
+                <span className="text-xs bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-2 py-0.5 rounded-full font-bold">{tablesReady} ready</span>
               </div>
             </div>
           </div>
