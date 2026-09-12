@@ -96,38 +96,49 @@ function OrderCard({
 
   return (
     <div
-      className={`bg-[#111827] border rounded-2xl p-5 space-y-4 flex flex-col justify-between shadow-sm transition-all ${
+      className={`group relative overflow-hidden rounded-2xl border backdrop-blur-md p-5 space-y-4 flex flex-col justify-between transition-all duration-300 ${
         isPending
-          ? 'border-white/10 opacity-90 scale-[0.99]'
-          : 'border-white/5 hover:border-white/10'
+          ? 'bg-slate-900/60 border-white/5 opacity-80 scale-[0.98]'
+          : 'bg-[#111827]/80 border-white/10 hover:border-white/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:-translate-y-1'
       }`}
     >
-      <div className="space-y-3">
+      {/* Decorative gradient based on status */}
+      <div className={`absolute top-0 right-0 w-32 h-32 blur-[50px] opacity-20 pointer-events-none rounded-full transition-colors ${
+        optimisticStatus === 'PLACED' ? 'bg-blue-500' :
+        optimisticStatus === 'CONFIRMED' ? 'bg-indigo-500' :
+        optimisticStatus === 'PREPARING' ? 'bg-amber-500' :
+        optimisticStatus === 'READY' ? 'bg-emerald-500' : 'bg-transparent'
+      }`}></div>
+      
+      <div className="relative z-10 space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/5 pb-3">
-          <div>
+        <div className="flex items-start justify-between border-b border-white/5 pb-4">
+          <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
-              <span className="font-mono font-bold text-white text-sm">
+              <span className="font-mono font-black text-white text-base tracking-tight">
                 #{order.orderNumber}
               </span>
               {order.queueDisplayNumber && (
-                <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] font-bold">
+                <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-mono text-[10px] font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]">
                   {order.queueDisplayNumber}
                 </span>
               )}
             </div>
-            <div className="text-xs text-slate-400 font-medium">{order.customerName}</div>
+            <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+              <span className="material-symbols-outlined text-[14px]">person</span>
+              {order.customerName}
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {isPending && (
-              <div className="w-3.5 h-3.5 border-2 border-slate-500 border-t-white rounded-full animate-spin" />
-            )}
+          <div className="flex flex-col items-end gap-2">
             <span
-              className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold uppercase border transition-all ${getStatusBadge(optimisticStatus)}`}
+              className={`px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase border transition-all shadow-sm ${getStatusBadge(optimisticStatus)}`}
             >
               {optimisticStatus}
             </span>
+            {isPending && (
+              <div className="w-3.5 h-3.5 border-2 border-slate-500 border-t-white rounded-full animate-spin" />
+            )}
           </div>
         </div>
 
@@ -151,10 +162,13 @@ function OrderCard({
       </div>
 
       {/* Total & FSM Actions */}
-      <div className="border-t border-white/5 pt-3 space-y-3">
+      <div className="relative z-10 border-t border-white/5 pt-4 space-y-4">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-400">Total ({order.itemCount} items)</span>
-          <span className="font-mono font-bold text-amber-400 text-sm">
+          <span className="text-slate-400 font-medium flex items-center gap-1">
+            <span className="material-symbols-outlined text-[14px]">restaurant</span>
+            {order.itemCount} items
+          </span>
+          <span className="font-mono font-bold text-white text-base tracking-tight">
             {formatPrice(order.total)}
           </span>
         </div>
@@ -167,7 +181,7 @@ function OrderCard({
                 type="button"
                 onClick={() => handleTransition('CONFIRMED')}
                 disabled={isPending}
-                className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 px-4 bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border border-indigo-500/50"
               >
                 Confirm Order
               </button>
@@ -175,7 +189,7 @@ function OrderCard({
                 type="button"
                 onClick={() => handleTransition('CANCELLED')}
                 disabled={isPending}
-                className="py-2 px-3 bg-slate-800 hover:bg-rose-950 text-rose-400 font-bold text-xs rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="py-2.5 px-4 bg-slate-800/80 hover:bg-rose-500/20 text-rose-400 border border-transparent hover:border-rose-500/30 font-bold text-xs rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
@@ -187,7 +201,7 @@ function OrderCard({
               type="button"
               onClick={() => handleTransition('PREPARING')}
               disabled={isPending}
-              className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 px-4 bg-amber-600/90 hover:bg-amber-500 text-white font-bold text-xs rounded-xl transition-all shadow-[0_0_15px_rgba(217,119,6,0.3)] hover:shadow-[0_0_20px_rgba(217,119,6,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border border-amber-500/50"
             >
               Start Preparation
             </button>
@@ -198,7 +212,7 @@ function OrderCard({
               type="button"
               onClick={() => handleTransition('READY')}
               disabled={isPending}
-              className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 px-4 bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-500/50"
             >
               Mark Ready
             </button>
@@ -209,15 +223,21 @@ function OrderCard({
               type="button"
               onClick={() => handleTransition('SERVED')}
               disabled={isPending}
-              className="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 px-4 bg-primary/90 hover:bg-primary text-white font-bold text-xs rounded-xl transition-all shadow-[0_0_15px_rgba(37,99,235,0.4)] hover:shadow-[0_0_20px_rgba(37,99,235,0.6)] disabled:opacity-50 disabled:cursor-not-allowed border border-primary/50 flex items-center justify-center gap-2"
             >
-              Mark Served ✓
+              <span className="material-symbols-outlined text-[16px]">check_circle</span>
+              Mark Served
             </button>
           )}
 
           {(optimisticStatus === 'SERVED' || optimisticStatus === 'CANCELLED') && (
-            <div className="w-full text-center text-xs text-slate-500 py-2">
-              {optimisticStatus === 'SERVED' ? '✅ Completed' : '🚫 Cancelled'}
+            <div className="w-full text-center text-xs font-bold px-4 py-3 rounded-xl bg-black/20 border border-white/5 flex items-center justify-center gap-2">
+              <span className={`material-symbols-outlined text-[16px] ${optimisticStatus === 'SERVED' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {optimisticStatus === 'SERVED' ? 'task_alt' : 'cancel'}
+              </span>
+              <span className={optimisticStatus === 'SERVED' ? 'text-emerald-300' : 'text-rose-300'}>
+                {optimisticStatus === 'SERVED' ? 'Order Completed' : 'Order Cancelled'}
+              </span>
             </div>
           )}
         </div>

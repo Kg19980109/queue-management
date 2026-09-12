@@ -84,44 +84,53 @@ function KitchenTicket({
 
   return (
     <div
-      className={`bg-[#111827] border rounded-2xl p-5 space-y-4 flex flex-col justify-between shadow-sm transition-all ${
+      className={`group relative overflow-hidden rounded-2xl border backdrop-blur-md p-5 space-y-4 flex flex-col justify-between transition-all duration-300 ${
         optimisticStatus === 'PREPARING'
-          ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
+          ? 'bg-[#111827]/80 border-amber-500/50 shadow-[0_8px_30px_rgba(245,158,11,0.2)]'
           : optimisticStatus === 'READY'
-          ? 'border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+          ? 'bg-[#111827]/80 border-emerald-500/50 shadow-[0_8px_30px_rgba(16,185,129,0.2)]'
           : isPending
-          ? 'border-white/10 opacity-90 scale-[0.99]'
-          : 'border-white/5'
+          ? 'bg-slate-900/60 border-white/5 opacity-80 scale-[0.98]'
+          : 'bg-[#111827]/80 border-white/10 hover:border-white/20'
       }`}
     >
+      {/* Decorative gradient based on status */}
+      <div className={`absolute top-0 right-0 w-32 h-32 blur-[50px] opacity-20 pointer-events-none rounded-full transition-colors ${
+        optimisticStatus === 'PREPARING' ? 'bg-amber-500' :
+        optimisticStatus === 'READY' ? 'bg-emerald-500' : 'bg-transparent'
+      }`}></div>
+
       {/* Ticket Top */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-white/5 pb-3">
-          <div>
+      <div className="relative z-10 space-y-4">
+        <div className="flex items-start justify-between border-b border-white/5 pb-4">
+          <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
-              <span className="font-mono font-black text-white text-base">
+              <span className="font-mono font-black text-white text-base tracking-tight">
                 #{order.orderNumber}
               </span>
               {order.queueDisplayNumber && (
-                <span className="px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-mono text-xs font-black">
+                <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-mono text-[10px] font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)]">
                   {order.queueDisplayNumber}
                 </span>
               )}
             </div>
-            <div className="text-xs text-slate-400 font-medium">{order.customerName}</div>
+            <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+              <span className="material-symbols-outlined text-[14px]">person</span>
+              {order.customerName}
+            </div>
           </div>
 
-          <div className="text-right flex items-center gap-2">
-            {isPending && (
-              <div className="w-3.5 h-3.5 border-2 border-slate-500 border-t-white rounded-full animate-spin" />
-            )}
-            <div>
-              <span
-                className={`inline-block px-2.5 py-1 rounded-xl text-[10px] font-black uppercase border transition-all ${getTicketStatusBadge(optimisticStatus)}`}
-              >
-                {optimisticStatus}
-              </span>
-              <div className="text-[10px] font-mono text-slate-400 mt-1">
+          <div className="flex flex-col items-end gap-2">
+            <span
+              className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase border transition-all shadow-sm ${getTicketStatusBadge(optimisticStatus)}`}
+            >
+              {optimisticStatus}
+            </span>
+            <div className="flex items-center gap-2">
+              {isPending && (
+                <div className="w-3.5 h-3.5 border-2 border-slate-500 border-t-white rounded-full animate-spin" />
+              )}
+              <div className="text-[10px] font-mono text-slate-400">
                 ⏱️ {getElapsedTimeMins(order.createdAt)}
               </div>
             </div>
@@ -133,7 +142,7 @@ function KitchenTicket({
           {order.items.map((item) => (
             <div
               key={item.id}
-              className="bg-[#0A0E17] border border-white/5 rounded-xl p-3 flex items-start justify-between gap-3"
+              className="bg-black/20 border border-white/5 rounded-xl p-3 flex items-start justify-between gap-3"
             >
               <div>
                 <div className="font-bold text-white text-sm">
@@ -143,8 +152,8 @@ function KitchenTicket({
                   {item.name}
                 </div>
                 {item.notes && (
-                  <div className="text-xs text-amber-300 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-1.5 mt-1">
-                    Note: {item.notes}
+                  <div className="text-xs text-amber-300 font-medium bg-amber-500/10 border border-amber-500/20 rounded-lg p-1.5 mt-2">
+                    <span className="font-bold">Note:</span> {item.notes}
                   </div>
                 )}
               </div>
@@ -154,13 +163,13 @@ function KitchenTicket({
       </div>
 
       {/* Kitchen Action Buttons — only THIS ticket is disabled when pending */}
-      <div className="border-t border-white/5 pt-3">
+      <div className="relative z-10 border-t border-white/5 pt-4">
         {optimisticStatus === 'PLACED' && (
           <button
             type="button"
             onClick={() => handleKitchenStatus('CONFIRMED')}
             disabled={isPending}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 bg-blue-600/90 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border border-blue-500/50"
           >
             Accept Order
           </button>
@@ -171,9 +180,10 @@ function KitchenTicket({
             type="button"
             onClick={() => handleKitchenStatus('PREPARING')}
             disabled={isPending}
-            className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-lg shadow-amber-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 bg-amber-600/90 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(217,119,6,0.3)] hover:shadow-[0_0_20px_rgba(217,119,6,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border border-amber-500/50 flex items-center justify-center gap-2"
           >
-            Start Preparing 🍳
+            <span className="material-symbols-outlined text-[16px]">skillet</span>
+            Start Preparing
           </button>
         )}
 
@@ -182,9 +192,10 @@ function KitchenTicket({
             type="button"
             onClick={() => handleKitchenStatus('READY')}
             disabled={isPending}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 bg-emerald-600/90 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-500/50 flex items-center justify-center gap-2"
           >
-            Mark Ready 🔔
+            <span className="material-symbols-outlined text-[16px]">notifications_active</span>
+            Mark Ready
           </button>
         )}
 
@@ -193,9 +204,10 @@ function KitchenTicket({
             type="button"
             onClick={() => handleKitchenStatus('SERVED')}
             disabled={isPending}
-            className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 bg-primary/90 hover:bg-primary text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border border-primary/50 flex items-center justify-center gap-2"
           >
-            Mark Served 🍽️
+            <span className="material-symbols-outlined text-[16px]">room_service</span>
+            Mark Served
           </button>
         )}
       </div>

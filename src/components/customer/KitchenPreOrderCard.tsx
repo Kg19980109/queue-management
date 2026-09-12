@@ -14,7 +14,7 @@ export function KitchenPreOrderCard({
   restaurantSlug,
   token,
 }: KitchenPreOrderCardProps) {
-  const menuUrl = token ? `/q/${restaurantSlug}/menu?token=${token}` : `/q/${restaurantSlug}/menu`;
+  const menuUrl = token ? `/q/${restaurantSlug}/menu?qtoken=${token}` : `/q/${restaurantSlug}/menu`;
 
   return (
     <div className="w-full flex flex-col gap-4 mt-8 px-1">

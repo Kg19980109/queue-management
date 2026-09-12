@@ -101,13 +101,7 @@ export default function DesktopNavigation({ activeQueueCount, children }: Deskto
                 <span className="font-medium text-sm">Menu Config</span>
               </div>
             </Link>
-            <Link href="/dashboard/inventory" className={navLinkClass('/dashboard/inventory')}>
-              {isActive('/dashboard/inventory') && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full"></div>}
-              <div className="flex items-center gap-3">
-                <span className={`material-symbols-outlined text-[18px] ${isActive('/dashboard/inventory') ? 'text-primary' : ''}`}>inventory_2</span>
-                <span className="font-medium text-sm">Inventory</span>
-              </div>
-            </Link>
+
             <Link href="/dashboard/staff" className={navLinkClass('/dashboard/staff')}>
               {isActive('/dashboard/staff') && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full"></div>}
               <div className="flex items-center gap-3">
