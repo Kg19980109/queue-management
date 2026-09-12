@@ -53,6 +53,12 @@ export default async function RestaurantAdminDashboardPage() {
   // --- Live Queue Feed Data ---
   const feedEntries = activeQueue.slice(0, 5); // Show top 5
 
+  // --- Greeting ---
+  const hour = new Date().getHours();
+  let greeting = 'Good evening';
+  if (hour < 12) greeting = 'Good morning';
+  else if (hour < 17) greeting = 'Good afternoon';
+
   return (
     <div className="flex flex-col w-full text-slate-300 font-sans p-4 md:p-8 gap-6 md:gap-8">
       
@@ -61,15 +67,14 @@ export default async function RestaurantAdminDashboardPage() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">
             <span className="text-primary border border-primary/20 bg-primary/10 px-2 py-0.5 rounded-full">Shift Telemetry</span>
-            <span>• Night Service •</span>
             <span className="text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Normal Service</span>
           </div>
           <div className="relative pb-2 w-full max-w-3xl">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl leading-none font-black text-white tracking-widest uppercase font-headline-xl">
-              Good evening, Love Cafe Rathindra
+              {greeting}, {restaurant.name}
             </h1>
           </div>
-          <p className="text-slate-400 text-xs sm:text-sm font-medium">Here is your live floor and queue performance for tonight&apos;s dinner service.</p>
+          <p className="text-slate-400 text-xs sm:text-sm font-medium">Here is your live floor and queue performance for today&apos;s service.</p>
         </div>
         
         {/* Quick Action Block */}

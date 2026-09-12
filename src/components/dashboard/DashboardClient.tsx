@@ -200,21 +200,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
             })
           )}
 
-          {/* Smart Pacing Engine Banner */}
-          <div className="bg-primary/10 rounded-2xl border border-primary/20 p-4 mt-2 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center border border-primary/30">
-                <span className="material-symbols-outlined">bolt</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-bold text-white">Smart Pacing Engine Recommendation</span>
-                <span className="text-xs text-slate-400">Table 1 turnaround predicted in ~4 mins. Kitchen load is optimal (12m cook avg).</span>
-              </div>
-            </div>
-            <div className="px-3 py-1 rounded bg-[#0A0E17] border border-white/10 text-primary text-[10px] font-mono font-bold">
-              AUTO-SYNC ON
-            </div>
-          </div>
+
         </div>
       </section>
 
@@ -318,25 +304,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
           </Link>
         </div>
 
-        {/* Shift Efficiency */}
-        <div className="bg-[#111827] rounded-2xl border border-white/5 p-6 flex flex-col gap-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Shift Efficiency</span>
-            <span className="text-sm font-bold text-emerald-400 font-mono">98.4%</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-400">Target Seating Delay:</span>
-            <span className="text-slate-300 font-mono text-xs">&lt; 3 mins</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-400">Avg Turnover Speed:</span>
-            <span className="text-emerald-400 font-mono text-xs">15m (Optimal)</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-400">Kitchen Line Sync:</span>
-            <span className="text-emerald-400 font-medium text-xs flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Synchronized</span>
-          </div>
-        </div>
+
         
       </section>
 

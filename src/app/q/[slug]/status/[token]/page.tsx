@@ -5,7 +5,6 @@ import { QueueTicketCard } from '@/components/customer/QueueTicketCard';
 import { PublicMobileHeader } from '@/components/customer/PublicMobileHeader';
 import { PartyPreferencesCard } from '@/components/customer/PartyPreferencesCard';
 import { KitchenPreOrderCard } from '@/components/customer/KitchenPreOrderCard';
-import { ComplimentaryPourCard } from '@/components/customer/ComplimentaryPourCard';
 import { PublicBottomNav } from '@/components/customer/PublicBottomNav';
 import { StatusAutoRefresh } from './StatusAutoRefresh';
 import type { Metadata } from 'next';
@@ -117,7 +116,6 @@ export default async function CustomerQueueStatusPage({
                partySize={status.partySize}
              />
              <KitchenPreOrderCard queueNumber={displayNum} restaurantSlug={slug} token={token} categories={menuCategories} />
-             <ComplimentaryPourCard />
           </div>
         )}
       </div>

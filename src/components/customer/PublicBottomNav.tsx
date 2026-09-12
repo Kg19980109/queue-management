@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 
 interface PublicBottomNavProps {
@@ -16,13 +16,6 @@ export function PublicBottomNav({
   restaurantSlug,
   token,
 }: PublicBottomNavProps) {
-  const [isHostHelpOpen, setIsHostHelpOpen] = useState(false);
-  const [helpSent, setHelpSent] = useState<string | null>(null);
-
-  const handleRequestHelp = (requestType: string) => {
-    setHelpSent(requestType);
-    setTimeout(() => setHelpSent(null), 3000);
-  };
 
   const statusUrl = token ? `/q/${restaurantSlug}/status/${token}` : `/q/${restaurantSlug}`;
   const menuUrl = token ? `/q/${restaurantSlug}/menu?qtoken=${token}` : `/q/${restaurantSlug}/menu`;
@@ -65,7 +58,7 @@ export function PublicBottomNav({
           <div className="flex items-center justify-around px-2">
             <Link
               href={statusUrl}
-              className="flex flex-col items-center gap-1 w-16 text-slate-300 hover:text-white transition-colors"
+              className="flex flex-col items-center gap-1 w-24 text-slate-300 hover:text-white transition-colors"
             >
               <span className="material-symbols-outlined text-[22px]">confirmation_number</span>
               <span className="text-[10px] font-bold">Ticket</span>
@@ -73,7 +66,7 @@ export function PublicBottomNav({
 
             <Link
               href={menuUrl}
-              className="flex flex-col items-center gap-1 w-16 text-slate-400 hover:text-white transition-colors"
+              className="flex flex-col items-center gap-1 w-24 text-slate-400 hover:text-white transition-colors"
             >
               <span className="material-symbols-outlined text-[22px]">restaurant_menu</span>
               <span className="text-[10px] font-bold">Menu</span>
@@ -81,76 +74,14 @@ export function PublicBottomNav({
 
             <Link
               href={menuUrl}
-              className="flex flex-col items-center gap-1 w-16 text-slate-400 hover:text-white transition-colors relative"
+              className="flex flex-col items-center gap-1 w-24 text-slate-400 hover:text-white transition-colors relative"
             >
               <span className="material-symbols-outlined text-[22px]">shopping_bag</span>
               <span className="text-[10px] font-bold">Pre-Order</span>
             </Link>
-
-            <button
-              type="button"
-              onClick={() => setIsHostHelpOpen(true)}
-              className="flex flex-col items-center gap-1 w-16 text-slate-400 hover:text-white transition-colors cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[22px]">room_service</span>
-              <span className="text-[10px] font-bold">Host Desk</span>
-            </button>
           </div>
         </div>
       </div>
-
-      {/* Host Assistance Modal Drawer */}
-      {isHostHelpOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md p-4">
-          <div className="bg-[#0A0E17] border border-white/10 rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 text-white animate-in slide-in-from-bottom-6">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-purple-400 text-[22px]">room_service</span>
-                <h3 className="text-base font-bold">Host Desk Assistance</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsHostHelpOpen(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            {helpSent ? (
-              <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-4 rounded-2xl text-xs font-bold text-center space-y-1">
-                <div>✓ Request Notified to Host Desk</div>
-                <div className="text-[11px] font-normal text-slate-300">
-                  Staff has been notified for: {helpSent}.
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2 text-xs">
-                <p className="text-slate-400 mb-2">
-                  Need something while waiting in line? Tap any option below:
-                </p>
-
-                {[
-                  { label: '💧 Request Welcome Water / Drinks', id: 'water' },
-                  { label: '👶 Request High Chair for Table', id: 'highchair' },
-                  { label: '♿ Wheelchair / Accessibility Seating', id: 'a11y' },
-                  { label: '🎉 Special Occasion (Birthday/Anniversary)', id: 'celebration' },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleRequestHelp(item.label)}
-                    className="w-full text-left p-3.5 rounded-2xl bg-[#111827] hover:bg-white/5 border border-white/5 font-bold text-slate-200 hover:text-white transition-colors flex items-center justify-between"
-                  >
-                    <span>{item.label}</span>
-                    <span className="material-symbols-outlined text-[16px] text-slate-500">chevron_right</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </>
   );
 }
