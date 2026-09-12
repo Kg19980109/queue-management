@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
+import { AddTableModal } from './AddTableModal';
+import { updateTableStatusAction } from '@/app/dashboard/actions';
 
 export function FloorManagerClient({
   tables,
@@ -15,6 +17,13 @@ export function FloorManagerClient({
 }) {
   const [selectedTableId, setSelectedTableId] = useState<string | null>(tables.length > 0 ? tables[0].id : null);
   const [activeZone, setActiveZone] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const handleStatusChange = (tableId: string, newStatus: string) => {
+    startTransition(async () => {
+      await updateTableStatusAction(tableId, newStatus as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+    });
+  };
 
   const selectedTable = tables.find(t => t.id === selectedTableId);
   
@@ -120,9 +129,7 @@ export function FloorManagerClient({
                 {z.name}
               </button>
             ))}
-            <button className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-sm border border-emerald-500/30 transition-colors shadow-sm ml-auto sm:ml-2">
-              <span className="material-symbols-outlined text-[16px]">add</span> Add Table
-            </button>
+            <AddTableModal zones={zones} />
           </div>
           
           <div className="flex flex-wrap items-center gap-4 text-xs font-bold">
@@ -407,17 +414,60 @@ export function FloorManagerClient({
                  </div>
               </div>
 
-              <div className="flex flex-col gap-3 mt-4">
-                <button className="w-full py-3.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2">
+              {/* Table Status Quick Switcher */}
+              <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+                  Set Table Status
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: 'Available', status: 'AVAILABLE', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' },
+                    { label: 'Occupied', status: 'OCCUPIED', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20' },
+                    { label: 'Needs Cleaning', status: 'CLEANING', cls: 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20' },
+                    { label: 'Reserved', status: 'RESERVED', cls: 'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20' },
+                    { label: 'Out of Service', status: 'OUT_OF_SERVICE', cls: 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700' },
+                  ].map((s) => (
+                    <button
+                      key={s.status}
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => handleStatusChange(selectedTable.id, s.status)}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold text-center transition-all ${s.cls} ${
+                        selectedTable.status === s.status ? 'ring-2 ring-white/30 scale-[1.02]' : 'opacity-80'
+                      }`}
+                    >
+                      {selectedTable.status === s.status ? `✓ ${s.label}` : s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 mt-2">
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => handleStatusChange(selectedTable.id, 'CLEANING')}
+                  className="w-full py-3.5 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-50 text-white text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
                   <span className="material-symbols-outlined text-[18px]">done</span>
                   CLOSE BILL & MARK READY FOR BUSSER
                 </button>
                 
                 <div className="grid grid-cols-2 gap-3">
-                  <button className="py-2.5 rounded-xl bg-transparent border border-white/10 hover:bg-white/5 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-1.5">
-                    <span className="material-symbols-outlined text-[18px]">compare_arrows</span> Merge with T3
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => handleStatusChange(selectedTable.id, 'CLEANING')}
+                    className="py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 text-rose-400 font-semibold text-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">notifications_active</span> Ping Busser
                   </button>
-                  <button className="py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400 font-semibold text-sm transition-colors flex items-center justify-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => handleStatusChange(selectedTable.id, 'AVAILABLE')}
+                    className="py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400 font-semibold text-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
                     <span className="material-symbols-outlined text-[18px]">check</span> Fast Reset (Clean)
                   </button>
                 </div>

@@ -154,6 +154,34 @@ export async function updateTableStatusAction(
     throw error instanceof Error ? error : new Error('Failed to update table status.');
   }
   revalidatePath('/dashboard/tables');
+  revalidatePath('/dashboard');
+}
+
+export async function adminAddQueueGuestAction(formData: FormData): Promise<void> {
+  try {
+    const { restaurantId } = await RestaurantAdminService.getAuthorizedRestaurantContext();
+    const customerName = formData.get('customerName') as string;
+    const customerPhone = (formData.get('customerPhone') as string) || undefined;
+    const partySize = parseInt((formData.get('partySize') as string) || '1', 10);
+
+    if (!customerName) {
+      throw new Error('Customer name is required.');
+    }
+
+    await QueueService.joinQueue({
+      restaurantId,
+      customerName,
+      customerPhone,
+      partySize,
+    });
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
+    throw error instanceof Error ? error : new Error('Failed to add guest to queue.');
+  }
+  revalidatePath('/dashboard/queue');
+  revalidatePath('/dashboard');
 }
 
 export async function archiveTableAction(tableId: string): Promise<void> {

@@ -15,6 +15,7 @@ import {
   updateETASettingsFormAction,
 } from '@/app/dashboard/actions';
 import { SeatCustomerModal, SeatableTableItem } from '@/components/dashboard/SeatCustomerModal';
+import { AddQueueGuestModal } from '@/components/dashboard/AddQueueGuestModal';
 import Link from 'next/link';
 
 export default async function QueueManagementPage({
@@ -137,10 +138,7 @@ export default async function QueueManagementPage({
               <span>{queueEnabled ? 'Pause Queue' : 'Open Queue'}</span>
             </button>
           </form>
-          <button className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#111827] hover:bg-white/5 border border-white/5 text-slate-300 text-sm font-bold transition-colors cursor-pointer">
-            <span className="material-symbols-outlined text-[18px] text-blue-400">person_add</span>
-            <span>Manual Add (+)</span>
-          </button>
+          <AddQueueGuestModal />
           <button className="p-2.5 rounded-xl bg-[#111827] hover:bg-white/5 border border-white/5 text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center" title="Queue Settings">
             <span className="material-symbols-outlined text-[20px]">tune</span>
           </button>

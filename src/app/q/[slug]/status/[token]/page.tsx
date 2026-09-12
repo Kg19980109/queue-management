@@ -112,7 +112,7 @@ export default async function CustomerQueueStatusPage({
                customerName={status.customerName} 
                phone={null} 
              />
-             <KitchenPreOrderCard queueNumber={displayNum} />
+             <KitchenPreOrderCard queueNumber={displayNum} restaurantSlug={slug} token={token} />
              <ComplimentaryPourCard />
           </div>
         )}
@@ -120,7 +120,7 @@ export default async function CustomerQueueStatusPage({
 
       {/* Fixed Bottom Nav & Action Bar */}
       {!isTerminal && (
-        <PublicBottomNav queueNumber={displayNum} estWaitMins={estWaitMins} />
+        <PublicBottomNav queueNumber={displayNum} estWaitMins={estWaitMins} restaurantSlug={slug} token={token} />
       )}
     </main>
   );
