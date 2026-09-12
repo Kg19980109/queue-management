@@ -58,25 +58,27 @@ export default async function CustomerMenuPage({
   }
 
   const menuCategories = await PublicRestaurantService.getPublicMenuPreview(restaurant.id);
+  const currency = (restaurant as unknown as { currency?: string })?.currency || 'INR';
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 px-4 py-8 flex flex-col justify-between selection:bg-emerald-500 selection:text-slate-950">
-      <div className="w-full max-w-md mx-auto space-y-6">
+    <main className="min-h-[100dvh] bg-slate-950 text-slate-100 px-4 py-6 sm:py-8 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
+      <div className="w-full max-w-md mx-auto space-y-5 sm:space-y-6">
         <RestaurantHeader restaurant={restaurant} />
 
         <div className="flex items-center justify-between bg-slate-900/60 border border-slate-800 rounded-2xl p-3.5">
           <div className="flex items-center gap-2">
-            <span className="text-base">📋</span>
-            <span className="text-xs font-bold text-white uppercase tracking-wider">
+            <span className="material-symbols-outlined text-[18px] text-emerald-400">restaurant_menu</span>
+            <span className="text-xs font-black text-white uppercase tracking-widest">
               Food Menu
             </span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 font-bold">{menuCategories.flatMap(c=>c.items).length} items</span>
           </div>
           {qtoken && (
             <a
               href={`/q/${slug}/status/${qtoken}`}
-              className="text-xs font-semibold text-emerald-400 hover:underline"
+              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
             >
-              ← Queue Status
+              <span className="material-symbols-outlined text-[14px]">arrow_back</span> Ticket
             </a>
           )}
         </div>
@@ -87,11 +89,11 @@ export default async function CustomerMenuPage({
           restaurantSlug={restaurant.slug}
           queueEntryId={queueEntryId}
           tableId={tableId || null}
-          currency="USD"
+          currency={currency}
         />
       </div>
 
-      <footer className="w-full max-w-md mx-auto text-center pt-8 pb-4">
+      <footer className="w-full max-w-md mx-auto text-center pt-10 pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
           <span>Powered by</span>
           <span className="text-emerald-400 font-bold tracking-tight">QueueFlow</span>

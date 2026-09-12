@@ -18,59 +18,67 @@ interface MenuPreviewSectionProps {
   currency?: string;
 }
 
-export function MenuPreviewSection({ categories, currency = 'USD' }: MenuPreviewSectionProps) {
+export function MenuPreviewSection({ categories, currency = 'INR' }: MenuPreviewSectionProps) {
   if (!categories || categories.length === 0) {
-    return null;
+    return (
+      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center">
+        <span className="material-symbols-outlined text-slate-500 text-[28px]">restaurant_menu</span>
+        <p className="text-sm font-bold text-slate-300 mt-2">Menu updating</p>
+        <p className="text-xs text-slate-500 mt-1">Ask host for today&apos;s specials</p>
+      </div>
+    );
   }
 
+  const locale = currency === 'INR' ? 'en-IN' : 'en-US';
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-      maximumFractionDigits: 2,
-    }).format(price);
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: currency || 'INR',
+        maximumFractionDigits: 2,
+      }).format(price);
+    } catch { return `₹${price.toFixed(2)}`; }
   };
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-6">
+    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 sm:p-6 space-y-5">
       <div className="text-center space-y-1">
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-          While You Wait
+        <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> While You Wait
         </span>
-        <h3 className="text-lg font-bold text-white tracking-tight">
-          Browse Menu Preview
+        <h3 className="text-lg font-black text-white tracking-tight">
+          Menu Preview
         </h3>
         <p className="text-xs text-slate-500">
-          Check out popular dishes while you wait for your table.
+          Popular dishes — full menu after joining
         </p>
       </div>
 
-      <div className="space-y-6">
-        {categories.map((cat) => (
-          <div key={cat.id} className="space-y-3">
-            <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider border-b border-slate-800 pb-1.5">
-              {cat.name}
+      <div className="space-y-5">
+        {categories.slice(0,3).map((cat) => (
+          <div key={cat.id} className="space-y-2.5">
+            <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-1.5 flex items-center justify-between">
+              <span>{cat.name}</span>
+              <span className="font-mono font-bold text-slate-500">{cat.items.length}</span>
             </h4>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {cat.items.map((item) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {cat.items.slice(0,4).map((item) => (
                 <div
                   key={item.id}
-                  className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-3.5 flex flex-col justify-between gap-2"
+                  className="bg-slate-950/60 border border-slate-800 rounded-2xl p-3 flex justify-between gap-3 hover:border-white/10 transition-colors"
                 >
-                  <div>
-                    <h5 className="font-semibold text-white text-sm">{item.name}</h5>
+                  <div className="min-w-0 flex-1">
+                    <h5 className="font-bold text-white text-[13px] truncate">{item.name}</h5>
                     {item.description && (
-                      <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">
+                      <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
                         {item.description}
                       </p>
                     )}
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs font-mono font-bold text-amber-400">
-                      {formatPrice(item.price)}
-                    </span>
-                  </div>
+                  <span className="text-xs font-black text-white shrink-0">
+                    {formatPrice(item.price)}
+                  </span>
                 </div>
               ))}
             </div>

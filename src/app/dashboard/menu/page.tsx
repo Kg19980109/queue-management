@@ -33,9 +33,9 @@ export default async function MenuManagementPage({
   ]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500 p-4 sm:p-0">
       {/* Page Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900/40 via-purple-900/20 to-slate-900/40 border border-white/10 p-8 shadow-2xl">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900/40 via-purple-900/20 to-slate-900/40 border border-white/10 p-5 sm:p-8 shadow-2xl">
         <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-primary/20 rounded-full blur-[80px]"></div>
         <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px]"></div>
         
@@ -50,7 +50,7 @@ export default async function MenuManagementPage({
       </div>
 
       {/* CATEGORIES SECTION */}
-      <div className="rounded-2xl border border-white/5 bg-[#111827]/80 backdrop-blur-xl p-6 space-y-6 shadow-xl">
+      <div className="rounded-2xl border border-white/5 bg-[#111827]/80 backdrop-blur-xl p-4 sm:p-6 space-y-6 shadow-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.2)]">
@@ -174,7 +174,7 @@ export default async function MenuManagementPage({
       </div>
 
       {/* MENU ITEMS SECTION */}
-      <div className="rounded-2xl border border-white/5 bg-[#111827]/80 backdrop-blur-xl p-6 space-y-6 shadow-xl relative overflow-hidden">
+      <div className="rounded-2xl border border-white/5 bg-[#111827]/80 backdrop-blur-xl p-4 sm:p-6 space-y-6 shadow-xl relative overflow-hidden">
         {/* Subtle decorative background */}
         <div className="absolute right-0 bottom-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none"></div>
 
@@ -225,8 +225,8 @@ export default async function MenuManagementPage({
           </form>
         </div>
 
-        {/* Menu Items Table */}
-        <div className="overflow-x-auto rounded-xl border border-white/5 bg-black/20 relative z-10">
+        {/* Menu Items Table - desktop */}
+        <div className="hidden sm:block overflow-x-auto rounded-xl border border-white/5 bg-black/20 relative z-10">
           <table className="w-full text-left text-sm text-slate-300">
             <thead className="bg-slate-900/80 text-xs uppercase tracking-wider text-slate-400 font-bold border-b border-white/10">
               <tr>
@@ -255,11 +255,11 @@ export default async function MenuManagementPage({
                   <tr key={item.id} className="hover:bg-white/[0.02] transition-colors group">
                     <td className="p-4 font-medium text-white max-w-[250px]">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center flex-shrink-0">
-                          <span className="material-symbols-outlined text-[20px] text-slate-400">lunch_dining</span>
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {item.imageUrl ? (<img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />) : (<span className="material-symbols-outlined text-[20px] text-slate-400">lunch_dining</span>)}
                         </div>
-                        <div>
-                          <div className="font-bold text-sm text-white group-hover:text-primary transition-colors">{item.name}</div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm text-white group-hover:text-primary transition-colors truncate">{item.name}</div>
                           {item.description && (
                             <div className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{item.description}</div>
                           )}
@@ -268,12 +268,12 @@ export default async function MenuManagementPage({
                     </td>
                     <td className="p-4">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-xs font-medium text-slate-300">
-                        {item.categoryName}
+                        {item.categoryName || 'Unassigned'}
                       </span>
                     </td>
                     <td className="p-4 text-right">
                       <span className="font-mono font-bold text-base text-white tracking-tight">
-                        ${item.price.toFixed(2)}
+                        ₹{Number(item.price).toFixed(2)}
                       </span>
                     </td>
                     <td className="p-4 text-center">
@@ -295,8 +295,8 @@ export default async function MenuManagementPage({
                             type="submit"
                             className={`px-3 py-1 text-[10px] rounded-full font-bold transition-all flex items-center gap-1 ${
                               item.available
-                                ? 'bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30'
-                                : 'bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30'
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
+                                : 'bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25'
                             }`}
                           >
                             <span className="material-symbols-outlined text-[12px]">
@@ -315,7 +315,7 @@ export default async function MenuManagementPage({
                         >
                           <button
                             type="submit"
-                            className="w-8 h-8 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            className="w-8 h-8 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 flex items-center justify-center transition-all"
                             title="Archive Item"
                           >
                             <span className="material-symbols-outlined text-[18px]">delete</span>
@@ -328,6 +328,41 @@ export default async function MenuManagementPage({
               )}
             </tbody>
           </table>
+        </div>
+        {/* Menu Cards - mobile */}
+        <div className="sm:hidden space-y-3 relative z-10">
+          {items.length === 0 ? (
+            <div className="bg-black/20 border border-white/5 rounded-xl p-8 text-center">
+              <span className="material-symbols-outlined text-[32px] text-slate-500">search_off</span>
+              <p className="text-slate-400 font-medium mt-2">No menu items found</p>
+              <p className="text-xs text-slate-500 mt-1">Create your first item below</p>
+            </div>
+          ) : items.map((item) => (
+            <div key={item.id} className="bg-black/20 border border-white/5 rounded-2xl p-4 flex gap-3">
+              <div className="w-16 h-16 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                {item.imageUrl ? (<img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />) : (<span className="material-symbols-outlined text-[24px] text-slate-500">lunch_dining</span>)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-sm text-white truncate">{item.name}</div>
+                {item.description && <div className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">{item.description}</div>}
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <span className="text-xs font-mono font-bold text-emerald-400">₹{Number(item.price).toFixed(2)}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-400">{item.categoryName || 'Unassigned'}</span>
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${item.available?'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20':'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>{item.available?'In Stock':'Out'}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-3">
+                  <form action={updateMenuItemAvailabilityAction.bind(null, item.id, !item.available)} className="flex-1">
+                    <button type="submit" className={`w-full h-9 rounded-xl text-xs font-bold border ${item.available?'bg-amber-500/10 border-amber-500/20 text-amber-400':'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>{item.available?'Mark Out':'Mark In'}</button>
+                  </form>
+                  {!item.isArchived && (
+                    <form action={archiveMenuItemAction.bind(null, item.id)}>
+                      <button type="submit" className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center"><span className="material-symbols-outlined text-[18px]">delete</span></button>
+                    </form>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Add Menu Item Form */}

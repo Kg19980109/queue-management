@@ -24,7 +24,6 @@ interface KitchenPreOrderCardProps {
 }
 
 export function KitchenPreOrderCard({
-  queueNumber,
   restaurantSlug,
   token,
   categories = [],
@@ -32,120 +31,68 @@ export function KitchenPreOrderCard({
   const menuUrl = token ? `/q/${restaurantSlug}/menu?qtoken=${token}` : `/q/${restaurantSlug}/menu`;
 
   return (
-    <div className="w-full flex flex-col gap-4 mt-8 px-1">
-      <div className="flex items-center gap-3">
-        <h3 className="text-xl font-bold text-white tracking-tight">Kitchen Pre-Order</h3>
-        <span className="bg-purple-900/40 border border-purple-500/40 text-purple-400 text-[9px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full">
-          Express Fire
-        </span>
+    <div className="w-full flex flex-col gap-4 mt-6 sm:mt-8 px-1">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base sm:text-xl font-bold text-white tracking-tight">Pre-Order Food</h3>
+        <Link href={menuUrl} className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
+          Browse Menu <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+        </Link>
       </div>
-      <div className="flex items-start justify-between gap-4 -mt-2">
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Piped directly to kitchen. Plates land within 3 mins of seating.
-        </p>
-        <div className="w-8 h-8 rounded-full bg-amber-900/20 border border-amber-500/30 flex items-center justify-center shrink-0">
-          <span className="material-symbols-outlined text-[16px] text-amber-500">bolt</span>
-        </div>
-      </div>
+      <p className="text-xs text-slate-400 leading-relaxed -mt-2">
+        Order now — kitchen starts right after you&apos;re seated. No extra wait.
+      </p>
 
-      {/* Cart Staged Items */}
-      <div className="bg-[#111827] border border-white/5 rounded-3xl p-4 mt-2 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-white/5 pb-3">
-          <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-            <span className="material-symbols-outlined text-[18px]">restaurant</span>
-            <span>Pre-Order Items for #{queueNumber}</span>
-          </div>
-          <Link href={menuUrl} className="text-xs text-blue-400 font-bold hover:underline">
-            Open Menu →
-          </Link>
+      {/* Dynamic items - show up to 5 across all categories, no hardcoded slices */}
+      <div className="bg-[#111827] border border-white/5 rounded-2xl p-4 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Popular — tap to order</span>
+          <Link href={menuUrl} className="text-xs font-bold text-emerald-400 hover:text-emerald-300">View All →</Link>
         </div>
 
-        {/* Render Dynamic Categories / Items */}
         {categories.length > 0 ? (
-          categories.slice(0, 1).map((category) => (
-            <React.Fragment key={category.id}>
-              {category.items.slice(0, 3).map((item: MenuItem) => (
-                <div key={item.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-slate-800 overflow-hidden flex items-center justify-center border border-white/10 shrink-0">
-                      <span className="material-symbols-outlined text-slate-500">restaurant_menu</span>
+          <div className="space-y-3">
+            {categories.flatMap(c => c.items).slice(0, 5).map((item: MenuItem) => (
+                <div key={item.id} className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-11 h-11 rounded-xl bg-slate-800 overflow-hidden flex items-center justify-center border border-white/10 shrink-0">
+                      <span className="material-symbols-outlined text-slate-500 text-[20px]">restaurant_menu</span>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-white">{item.name}</span>
-                      <span className="text-[10px] text-slate-400 line-clamp-1 max-w-[150px]">{item.description}</span>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-bold text-white truncate">{item.name}</span>
+                      <span className="text-[11px] text-slate-400 line-clamp-1">{item.description}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <span className="font-bold text-slate-300">₹{item.price}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-bold text-white text-sm">₹{Number(item.price).toFixed(0)}</span>
                     <Link
                       href={menuUrl}
-                      className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-colors"
+                      className="bg-white text-[#0A0E17] hover:bg-slate-100 font-black text-xs px-3 py-1.5 rounded-xl transition-colors"
                     >
-                      + Add
+                      Add
                     </Link>
                   </div>
                 </div>
-              ))}
-            </React.Fragment>
-          ))
+            ))}
+            {categories.flatMap(c => c.items).length > 5 && (
+              <Link href={menuUrl} className="block text-center text-xs font-bold text-slate-400 hover:text-white py-2 border-t border-white/5 mt-2">
+                + {categories.flatMap(c => c.items).length - 5} more items →
+              </Link>
+            )}
+          </div>
         ) : (
-          <div className="text-sm text-slate-400 py-2">No menu items available right now.</div>
+          <div className="text-center py-6 space-y-2">
+            <p className="text-sm font-bold text-slate-300">Menu not published yet</p>
+            <p className="text-xs text-slate-500">Ask host for today&apos;s specials</p>
+          </div>
         )}
 
-        <div className="bg-slate-950/50 rounded-xl p-3 flex items-start gap-2 border border-white/5 mt-2">
-          <span className="material-symbols-outlined text-[14px] text-slate-400 mt-0.5">info</span>
-          <span className="text-[11px] text-slate-400 leading-snug">
-            Payment is deferred until seating or payable now at checkout.
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-start gap-2">
+          <span className="material-symbols-outlined text-[16px] text-emerald-400 mt-0.5 shrink-0">info</span>
+          <span className="text-[11px] text-emerald-200/80 leading-snug">
+            You&apos;ll pay after seating. Pre-order just fires the kitchen faster.
           </span>
         </div>
       </div>
-      
-      {/* Upsell Row */}
-      {categories.length > 1 && (
-        <>
-          <div className="flex items-center justify-between mt-4 mb-2">
-            <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest">
-              Pair with your reservation
-            </span>
-            <Link href={menuUrl} className="text-[10px] font-bold text-blue-400 hover:text-blue-300">
-              View Full Menu →
-            </Link>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {categories[1]?.items.slice(0, 2).map((item: MenuItem) => (
-              <div key={item.id} className="bg-[#111827] border border-white/5 rounded-2xl p-3 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 rounded-xl bg-slate-800 overflow-hidden shrink-0 border border-white/10 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-slate-500 text-[24px]">local_dining</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-bold text-white line-clamp-1">{item.name}</span>
-                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full shrink-0"></span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 truncate max-w-[120px]">
-                      {item.description}
-                    </span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="font-bold text-white text-sm">₹{item.price}</span>
-                      <span className="text-[8px] bg-emerald-900/30 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                        Chef Special
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <Link
-                  href={menuUrl}
-                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors shadow-sm"
-                >
-                  + Add
-                </Link>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   );
 }

@@ -15,11 +15,17 @@ export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCa
   const isCalled = status.status === 'CALLED';
   const isNotified = status.status === 'NOTIFIED';
   const isSeated = status.status === 'SEATED';
+  const isCancelled = status.status === 'CANCELLED';
+  const isExpired = status.status === 'EXPIRED';
+  const isNoShow = status.status === 'NO_SHOW';
+  const isCompleted = status.status === 'COMPLETED';
+  const isTerminal = ['SEATED','CANCELLED','EXPIRED','NO_SHOW','COMPLETED'].includes(status.status);
 
-  // Calculate rough wait estimate based on position (e.g. ~5-8 mins per waiting party)
-  const estWaitMins = isWaiting && status.position ? Math.max(5, (status.position - 1) * 7) : null;
+  // Use server-calculated wait (respects restaurant ETA settings), fallback only if null
+  const estWaitMins = status.estimatedWaitMins ?? (isWaiting && status.position ? Math.max(5, (status.position - 1) * 7) : null);
   
-  const displayNum = status.displayNumber || `#${status.entryId.substring(0, 4).toUpperCase()}`;
+  const rawDisplay = status.displayNumber || status.entryId.substring(0, 4).toUpperCase();
+  const displayNum = rawDisplay.startsWith('#') ? rawDisplay : `#${rawDisplay}`;
 
   // Dynamic content based on status
   let glowColors = 'bg-blue-600/20';
@@ -69,6 +75,39 @@ export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCa
     );
     statusTitle = "Welcome!";
     statusSubtitle = "Enjoy your meal. Let us know if you need anything.";
+  } else if (isCancelled) {
+    glowColors = 'bg-slate-500/20';
+    gradientColors = 'from-slate-600/20 to-slate-500/5';
+    svgGradient = (
+      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#64748B" />
+        <stop offset="100%" stopColor="#94A3B8" />
+      </linearGradient>
+    );
+    statusTitle = "Queue Cancelled";
+    statusSubtitle = "Your spot has been cancelled. You can re-join anytime.";
+  } else if (isExpired || isNoShow) {
+    glowColors = 'bg-amber-500/20';
+    gradientColors = 'from-amber-600/20 to-orange-500/5';
+    svgGradient = (
+      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#F59E0B" />
+        <stop offset="100%" stopColor="#FBBF24" />
+      </linearGradient>
+    );
+    statusTitle = isNoShow ? "Marked as No-Show" : "Queue Expired";
+    statusSubtitle = "Your ticket is no longer active. Please join again at the host stand.";
+  } else if (isCompleted) {
+    glowColors = 'bg-emerald-500/20';
+    gradientColors = 'from-emerald-600/20 to-emerald-500/5';
+    svgGradient = (
+      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#10B981" />
+        <stop offset="100%" stopColor="#34D399" />
+      </linearGradient>
+    );
+    statusTitle = "Visit Completed";
+    statusSubtitle = "Thanks for dining with us! We hope to see you again.";
   }
 
   return (
@@ -91,12 +130,12 @@ export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCa
              </defs>
            </svg>
            
-           <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-[0.2em] mt-2">Your Pass</span>
-           <span className="text-4xl sm:text-5xl font-black text-white tracking-tighter my-1 truncate max-w-[150px] text-center">#{displayNum}</span>
-           <div className="flex items-center gap-1.5 bg-emerald-950/50 border border-emerald-500/30 rounded-full px-2.5 py-0.5 mt-1">
-             <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-             <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">VIP Guest</span>
-           </div>
+            <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-[0.2em] mt-2">Your Pass</span>
+            <span className="text-4xl sm:text-5xl font-black text-white tracking-tighter my-1 truncate max-w-[150px] text-center">{displayNum}</span>
+            <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 mt-1 border ${isTerminal ? 'bg-slate-800 border-white/10 text-slate-300' : 'bg-emerald-950/50 border-emerald-500/30 text-emerald-400'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isTerminal ? 'bg-slate-400' : 'bg-emerald-400'}`}></span>
+              <span className="text-[9px] font-bold uppercase tracking-widest">{isTerminal ? status.status : 'Confirmed'}</span>
+            </div>
         </div>
 
         {/* Status Text */}
@@ -159,11 +198,19 @@ export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCa
         </div>
 
         {/* Actions */}
-        {!isSeated && (
+        {!isTerminal && (
           <div className="flex w-full relative z-10">
              <div className="w-full">
                <CancelQueueDialog token={token} restaurantSlug={restaurantSlug} />
              </div>
+          </div>
+        )}
+        {isTerminal && (
+          <div className="flex w-full relative z-10">
+            <a href={`/q/${restaurantSlug}`} className="w-full h-11 rounded-xl bg-white text-[#0A0E17] font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-100 active:scale-[0.98] transition-all">
+              <span className="material-symbols-outlined text-[18px]">refresh</span>
+              Join Queue Again
+            </a>
           </div>
         )}
 

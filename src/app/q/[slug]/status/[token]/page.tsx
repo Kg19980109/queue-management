@@ -59,8 +59,9 @@ export default async function CustomerQueueStatusPage({
           <div className="text-4xl">🎟️</div>
           <h1 className="text-xl font-bold text-white">Ticket Expired / Invalid</h1>
           <p className="text-xs text-slate-400 leading-relaxed">
-            We couldn&apos;t find a valid queue ticket for this token. You may join the line again anytime.
+            We couldn&apos;t find a valid queue ticket for this token.
           </p>
+          <a href={`/q/${slug}`} className="inline-flex items-center justify-center w-full h-11 rounded-xl bg-white text-[#0A0E17] font-bold text-sm mt-2 hover:bg-slate-100">Join Queue Again</a>
         </div>
       </div>
     );
@@ -74,26 +75,27 @@ export default async function CustomerQueueStatusPage({
           <div className="text-4xl">🛡️</div>
           <h1 className="text-xl font-bold text-rose-400">Access Denied</h1>
           <p className="text-xs text-slate-400 leading-relaxed">
-            This queue ticket belongs to a different restaurant. Cross-tenant access is prohibited.
+            This ticket belongs to a different restaurant.
           </p>
+          <a href={`/q/${slug}`} className="inline-flex items-center justify-center w-full h-11 rounded-xl bg-white text-[#0A0E17] font-bold text-sm mt-2">Back to {restaurant.name}</a>
         </div>
       </div>
     );
   }
 
-  const isTerminal = ['SEATED', 'CANCELLED', 'NO_SHOW', 'EXPIRED'].includes(status.status);
+  const isTerminal = ['SEATED', 'CANCELLED', 'NO_SHOW', 'EXPIRED', 'COMPLETED'].includes(status.status);
   
-  // Calculate wait mins
-  const isWaiting = status.status === 'WAITING';
-  const estWaitMins = isWaiting && status.position ? Math.max(5, (status.position - 1) * 7) : null;
-  const displayNum = status.displayNumber || `A${status.entryId.substring(0, 2).toUpperCase()}`;
+  // Use server-calculated ETA (respects restaurant avg_service_time etc), fallback only if null
+  const estWaitMins = status.estimatedWaitMins ?? (status.status === 'WAITING' && status.position ? Math.max(5, (status.position - 1) * 7) : null);
+  const rawDisplay = status.displayNumber || status.entryId.substring(0, 4).toUpperCase();
+  const displayNum = rawDisplay.startsWith('#') ? rawDisplay : `#${rawDisplay}`;
 
-  // 4. Fetch menu for pre-orders
-  const menuCategories = await PublicRestaurantService.getPublicMenuPreview(restaurant.id);
+  // Only fetch menu when still queueing (save DB)
+  const menuCategories = !isTerminal ? await PublicRestaurantService.getPublicMenuPreview(restaurant.id) : [];
 
   return (
     <main className="min-h-[100dvh] bg-[#0A0E17] text-white flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950 pb-[calc(6rem+env(safe-area-inset-bottom))]">
-      <StatusAutoRefresh intervalMs={10000} />
+      <StatusAutoRefresh intervalMs={10000} isTerminal={isTerminal} />
 
       <div className="w-full max-w-md mx-auto">
         {/* Top Header & Tab Navigation */}
@@ -108,7 +110,7 @@ export default async function CustomerQueueStatusPage({
            <QueueTicketCard status={status} token={token} restaurantSlug={slug} />
         </div>
 
-        {!isTerminal && (
+        {!isTerminal ? (
           <div className="px-3 sm:px-4 space-y-4">
              <PartyPreferencesCard 
                customerName={status.customerName} 
@@ -117,10 +119,19 @@ export default async function CustomerQueueStatusPage({
              />
              <KitchenPreOrderCard queueNumber={displayNum} restaurantSlug={slug} token={token} categories={menuCategories} />
           </div>
+        ) : (
+          <div className="px-3 sm:px-4 mt-4">
+            <div className="bg-[#111827] border border-white/5 rounded-2xl p-4 text-center">
+              <p className="text-sm font-bold text-white">
+                {status.status === 'SEATED' ? 'You are seated — enjoy your meal!' : status.status === 'CANCELLED' ? 'You left the queue. Re-join anytime.' : 'This ticket is no longer active.'}
+              </p>
+              <a href={`/q/${slug}`} className="inline-flex items-center justify-center mt-3 w-full h-11 rounded-xl bg-emerald-500 text-white font-bold text-sm">Join Again</a>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Fixed Bottom Nav & Action Bar */}
+      {/* Fixed Bottom Nav */}
       {!isTerminal && (
         <PublicBottomNav queueNumber={displayNum} estWaitMins={estWaitMins} restaurantSlug={slug} token={token} />
       )}

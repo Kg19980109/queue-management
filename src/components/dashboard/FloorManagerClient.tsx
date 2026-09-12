@@ -8,12 +8,13 @@ export function FloorManagerClient({
   tables,
   zones,
   stats,
+  queueEntries = [],
 }: {
   tables: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
   zones: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
   stats: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   restaurantName: string;
-  queueEntries: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  queueEntries?: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
 }) {
   const [selectedTableId, setSelectedTableId] = useState<string | null>(tables.length > 0 ? tables[0].id : null);
   const [activeZone, setActiveZone] = useState<string | null>(null);
@@ -71,41 +72,41 @@ export function FloorManagerClient({
             </div>
           </div>
           
-          {/* Needs Attention */}
+          {/* Needs Attention - uses real cleaning count */}
           <div className="bg-[#111827] rounded-xl border border-white/5 p-4 flex items-center justify-between">
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-extrabold text-red-400 uppercase tracking-widest flex items-center gap-1">
-                <span className="material-symbols-outlined text-[12px]">warning</span> Action Required
+              <span className="text-[10px] font-extrabold text-amber-400 uppercase tracking-widest flex items-center gap-1">
+                <span className="material-symbols-outlined text-[12px]">cleaning_services</span> Needs Cleaning
               </span>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-red-400">3</span>
-                <span className="text-xs font-bold text-slate-400">Overdue turns</span>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                <span className="text-3xl font-black text-amber-400">{tables.filter((t:any)=>t.status==='CLEANING').length}</span>
+                <span className="text-xs font-bold text-slate-400">Tables</span>
               </div>
             </div>
           </div>
 
-          {/* Incoming Queue */}
+          {/* Incoming Queue - real count */}
           <div className="bg-[#111827] rounded-xl border border-white/5 p-4 flex items-center justify-between">
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-extrabold text-blue-400 uppercase tracking-widest flex items-center gap-1">
                 <span className="material-symbols-outlined text-[12px]">groups</span> Queued Guests
               </span>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-white">12</span>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                <span className="text-3xl font-black text-white">{(queueEntries as any[]).filter((e:any)=>['WAITING','CALLED','NOTIFIED'].includes(e.status)).length}</span>
                 <span className="text-xs font-bold text-slate-400">Waiting</span>
               </div>
             </div>
           </div>
 
-          {/* Turnover Speed */}
+          {/* Occupancy Speed */}
           <div className="bg-[#111827] rounded-xl border border-white/5 p-4 flex items-center justify-between">
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Avg Turn Time</span>
+              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Floor Occupancy</span>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-white">42m</span>
-                <span className="text-xs font-bold text-emerald-400 flex items-center">
-                  <span className="material-symbols-outlined text-[14px]">arrow_downward</span> 3m
-                </span>
+                <span className="text-3xl font-black text-white">{stats.total>0?Math.round(stats.occupied/stats.total*100):0}%</span>
+                <span className="text-xs font-bold text-slate-400">{stats.occupied}/{stats.total}</span>
               </div>
             </div>
           </div>
@@ -255,25 +256,17 @@ export function FloorManagerClient({
                            <span className="text-sm font-semibold text-white truncate">
                              {table.capacity} Guests Capacity
                            </span>
-                           <span className="text-xs text-slate-400">
-                             {table.status === 'AVAILABLE' ? 'Table is ready for guests' : table.status === 'OCCUPIED' ? 'Guests are seated' : table.status === 'CLEANING' ? 'Waiting to be cleaned' : 'Table is reserved'}
-                           </span>
-                         </div>
-                       </button>
-                     );
-                   })}
-                 </div>
-               </div>
-             ))}
-             
-             {/* Bottom bar inside map */}
-             <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between border-t border-white/5 pt-3 text-[10px] text-slate-500 font-medium z-20">
-               <div className="flex items-center gap-4">
-                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-emerald-400">power</span> Outlets at T1-T6, B1-B4</span>
-                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-blue-400">accessible</span> ADA Compliant: T1, T2, T4, P2</span>
-               </div>
-               <span className="flex items-center gap-1">Auto-refresh synced: 3s ago <span className="material-symbols-outlined text-[12px]">sync</span></span>
-             </div>
+                    <span className="text-xs text-slate-400">
+                              {table.status === 'AVAILABLE' ? 'Ready for guests' : table.status === 'OCCUPIED' ? 'Guests seated' : table.status === 'CLEANING' ? 'Needs cleaning' : 'Reserved'}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              
           </div>
         </div>
 
@@ -290,7 +283,7 @@ export function FloorManagerClient({
                   </div>
                   <div className="flex items-center gap-1 text-xs text-slate-400">
                     <span className="material-symbols-outlined text-[14px]">grid_view</span>
-                    Zone A • Main Dining Hall • {selectedTable.capacity} Seats • Rectangular Wood Top
+                    {selectedTable.zoneName || 'Unassigned'} • {selectedTable.capacity} Seats
                   </div>
                 </div>
                 <button className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 transition-colors">
@@ -298,11 +291,10 @@ export function FloorManagerClient({
                 </button>
               </div>
 
-              {/* Badges row */}
-              <div className="flex flex-col gap-2">
-                <span className="px-2 py-1.5 rounded bg-blue-900/20 text-blue-400 border border-blue-500/20 text-xs font-semibold flex items-center gap-2 w-max"><span className="material-symbols-outlined text-[14px]">bolt</span> Under-Table Power</span>
-                <span className="px-2 py-1.5 rounded bg-blue-900/20 text-blue-400 border border-blue-500/20 text-xs font-semibold flex items-center gap-2 w-max"><span className="material-symbols-outlined text-[14px]">music_note</span> Acoustic Damped</span>
-                <span className="px-2 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-2 w-max"><span className="material-symbols-outlined text-[14px]">child_friendly</span> High Chair Available</span>
+              {/* Table meta */}
+              <div className="flex flex-wrap gap-2">
+                <span className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 text-xs font-medium">Cap {selectedTable.capacity}</span>
+                <span className={`px-2 py-1 rounded-full text-xs font-bold border ${selectedTable.status==='AVAILABLE'?'bg-emerald-500/10 border-emerald-500/20 text-emerald-400':selectedTable.status==='OCCUPIED'?'bg-amber-500/10 border-amber-500/20 text-amber-400':selectedTable.status==='CLEANING'?'bg-rose-500/10 border-rose-500/20 text-rose-400':'bg-blue-500/10 border-blue-500/20 text-blue-400'}`}>{selectedTable.status}</span>
               </div>
 
               {/* Status Indicator */}

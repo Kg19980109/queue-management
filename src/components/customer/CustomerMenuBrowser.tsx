@@ -47,7 +47,7 @@ export function CustomerMenuBrowser({
   tableId,
   customerName,
   customerPhone,
-  currency = 'USD',
+  currency = 'INR',
 }: CustomerMenuBrowserProps) {
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -57,16 +57,22 @@ export function CustomerMenuBrowser({
   const [activeCategory, setActiveCategory] = useState<string>(
     categories[0]?.id || ''
   );
+  const [search, setSearch] = useState('');
   const [idempotencyKey] = useState<string>(
     () => `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
   );
 
+  const locale = currency === 'INR' ? 'en-IN' : 'en-US';
   const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-      maximumFractionDigits: 2,
-    }).format(amount);
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: currency || 'INR',
+        maximumFractionDigits: 2,
+      }).format(amount);
+    } catch {
+      return `₹${amount.toFixed(2)}`;
+    }
   };
 
   const handleAddToCart = (item: CustomerMenuItem) => {
@@ -157,40 +163,73 @@ export function CustomerMenuBrowser({
     );
   }
 
+  const q = search.trim().toLowerCase();
+  const filteredCategories = categories
+    .filter((cat) => !activeCategory || cat.id === activeCategory)
+    .map((cat) => ({
+      ...cat,
+      items: q ? cat.items.filter((it) => it.name.toLowerCase().includes(q) || (it.description && it.description.toLowerCase().includes(q))) : cat.items,
+    }))
+    .filter((cat) => cat.items.length > 0);
+
   return (
-    <div className="space-y-6 pb-24">
-      {/* Category Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-        {categories.map((cat) => (
+    <div className="space-y-5 pb-28">
+      {/* Search + Category Tabs */}
+      <div className="space-y-3">
+        <div className="relative">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-[18px]">search</span>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search dishes..."
+            className="w-full h-11 pl-10 pr-4 rounded-2xl bg-slate-900 border border-white/10 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30"
+          />
+          {q && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 hide-scrollbar">
           <button
-            key={cat.id}
             type="button"
-            onClick={() => setActiveCategory(cat.id)}
-            className={`px-5 py-2.5 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-wider ${
-              activeCategory === cat.id
-                ? 'bg-emerald-500 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                : 'bg-white/5 text-slate-400 border border-white/10 hover:border-white/20 hover:bg-white/10'
-            }`}
+            onClick={() => setActiveCategory('')}
+            className={`px-4 h-9 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-wider shrink-0 border ${!activeCategory ? 'bg-white text-slate-900 border-white shadow-md' : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'}`}
           >
-            {cat.name}
+            All
           </button>
-        ))}
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setActiveCategory(cat.id)}
+              className={`px-4 h-9 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-wider shrink-0 border ${
+                activeCategory === cat.id
+                  ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-md'
+                  : 'bg-white/5 text-slate-400 border-white/10 hover:border-white/20 hover:bg-white/10'
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Category Items List */}
-      {categories
-        .filter((cat) => !activeCategory || cat.id === activeCategory)
-        .map((cat) => (
-          <div key={cat.id} className="space-y-4">
-            <div className="border-b border-white/5 pb-2">
-              <h3 className="text-lg font-black text-white tracking-tight">
+      {/* Category Items List - polished cards with image */}
+      {filteredCategories.length === 0 ? (
+        <div className="bg-slate-900/60 border border-white/5 rounded-2xl p-10 text-center">
+          <span className="material-symbols-outlined text-[32px] text-slate-500">search_off</span>
+          <p className="text-sm font-bold text-white mt-2">No dishes found</p>
+          <p className="text-xs text-slate-500 mt-1">Try another keyword or category</p>
+          {q && <button onClick={()=>{setSearch(''); setActiveCategory('');}} className="mt-3 text-xs font-bold text-emerald-400 hover:text-emerald-300">Clear filters</button>}
+        </div>
+      ) : filteredCategories.map((cat) => (
+          <div key={cat.id} className="space-y-3">
+            <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+              <h3 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">
                 {cat.name}
               </h3>
-              {cat.description && (
-                <p className="text-xs text-slate-400 mt-1">
-                  {cat.description}
-                </p>
-              )}
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-400 font-bold">{cat.items.length}</span>
             </div>
 
             <div className="space-y-3">
@@ -198,34 +237,37 @@ export function CustomerMenuBrowser({
                 const inCart = cart.find((i) => i.menuItemId === item.id);
 
                 return (
-                  <div
-                    key={item.id}
-                    className={`bg-slate-900/80 border rounded-2xl p-4 flex items-center justify-between gap-4 transition-all backdrop-blur-md ${
-                      item.available
-                        ? 'border-white/10 hover:border-white/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:-translate-y-1'
-                        : 'border-white/5 opacity-60'
-                    }`}
-                  >
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-white text-sm">
-                          {item.name}
-                        </h4>
-                        {!item.available && (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 border border-amber-500/30 text-amber-400 uppercase tracking-wider">
-                            Unavailable
-                          </span>
+                    <div
+                      key={item.id}
+                      className={`bg-slate-900 border rounded-2xl p-3 sm:p-4 flex gap-3 transition-all ${
+                        item.available
+                          ? 'border-white/10 hover:border-white/15 hover:shadow-md'
+                          : 'border-white/5 opacity-60'
+                      }`}
+                    >
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-800 border border-white/5 shrink-0 flex items-center justify-center">
+                        {item.imageUrl ? (<img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />) : (<span className="material-symbols-outlined text-slate-600 text-[28px]">lunch_dining</span>)}
+                      </div>
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="font-bold text-white text-[14px] leading-tight line-clamp-1 flex-1">
+                            {item.name}
+                          </h4>
+                          {!item.available && (
+                            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-400 uppercase tracking-wider">
+                              Sold Out
+                            </span>
+                          )}
+                        </div>
+                        {item.description && (
+                          <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                            {item.description}
+                          </p>
                         )}
+                        <div className="text-[13px] font-black text-white pt-1">
+                          {formatPrice(item.price)}
+                        </div>
                       </div>
-                      {item.description && (
-                        <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
-                          {item.description}
-                        </p>
-                      )}
-                      <div className="text-sm font-mono font-bold text-emerald-400 pt-1">
-                        {formatPrice(item.price)}
-                      </div>
-                    </div>
 
                     <div>
                       {!item.available ? (

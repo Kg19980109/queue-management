@@ -136,18 +136,12 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                     
                     <div className="hidden sm:block w-px h-12 bg-white/10"></div>
                     
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg font-bold text-white">{entry.customer_name}</span>
-                        {index === 0 && <span className="text-[9px] px-2 py-0.5 rounded bg-[#1A2333] border border-white/10 text-slate-300 font-medium">VIP Host Guest</span>}
-                        {index === 1 && <span className="text-[9px] px-2 py-0.5 rounded bg-primary/20 border border-primary/30 text-primary font-medium">Pre-assigned T2</span>}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-slate-400">
-                        <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">person</span> {entry.party_size} guests</span>
-                        <span className="w-1 h-1 rounded-full bg-slate-600"></span>
-                        <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-amber-500">schedule</span> Waited {waitMins}m</span>
-                        <span className="w-1 h-1 rounded-full bg-slate-600"></span>
-                        <span className="flex items-center gap-1 text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> {isCalled ? 'SMS Sent' : 'Ready for seating'}</span>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[15px] font-bold text-white truncate">{entry.customer_name}</span>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-slate-400">
+                        <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">group</span> {entry.party_size} guests</span>
+                        <span className="w-1 h-1 rounded-full bg-slate-600 hidden sm:inline"></span>
+                        <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-amber-500">schedule</span> {waitMins}m wait</span>
                       </div>
                     </div>
                   </div>
@@ -184,10 +178,10 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                         </button>
                       )}
 
-                      {!['CANCELLED', 'NO_SHOW', 'EXPIRED', 'COMPLETED'].includes(entry.status) && (
-                        <button type="button" className="w-9 h-9 shrink-0 rounded-full bg-transparent hover:bg-white/5 border border-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center">
-                          <span className="material-symbols-outlined text-[18px]">more_vert</span>
-                        </button>
+                      {entry.status === 'SEATED' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest">
+                          Dining
+                        </span>
                       )}
                   </div>
                 </div>
