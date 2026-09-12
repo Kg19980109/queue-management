@@ -5,6 +5,7 @@ import { signOutAction } from '@/app/login/actions';
 import { QueueService } from '@/lib/services/queue-service';
 import { RestaurantAdminService } from '@/lib/services/restaurant-admin-service';
 import MobileNavigation from '@/components/dashboard/MobileNavigation';
+import DesktopNavigation from '@/components/dashboard/DesktopNavigation';
 
 export default async function RestaurantDashboardLayout({
   children,
@@ -26,122 +27,13 @@ export default async function RestaurantDashboardLayout({
 
   return (
     <>
-      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-64 bg-[#0A0E17] border-r border-white/5 z-50 flex-col justify-between overflow-y-auto font-sans text-slate-300">
-        <div className="flex flex-col">
-          {/* Logo Area */}
-          <div className="h-20 px-6 flex flex-col justify-center border-b border-white/5">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded bg-primary/20 border border-primary/30 flex items-center justify-center">
-                <span className="material-symbols-outlined text-[18px] text-primary">restaurant</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="font-headline-sm text-[16px] text-white font-black tracking-tight leading-none">QueueFlow</span>
-                <span className="text-[8px] text-slate-400 font-mono tracking-widest uppercase mt-0.5">COMMAND OS • HOST STATION</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="px-4 pt-6">
-            <div className="mb-2 px-2">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Core Command</span>
-            </div>
-            <nav className="flex flex-col gap-1">
-              {/* Active State (Dashboard) */}
-              <Link href="/dashboard" className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#111827] border border-white/10 text-white shadow-[0_0_15px_rgba(37,99,235,0.15)] transition-colors relative overflow-hidden group">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full"></div>
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[18px] text-primary">grid_view</span>
-                  <span className="font-medium text-sm">Dashboard</span>
-                </div>
-                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-              </Link>
-
-              <Link href="/dashboard/queue" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[18px]">people</span>
-                  <span className="font-medium text-sm">Live Queue</span>
-                </div>
-                {activeQueueCount > 0 && <span className="px-2 py-0.5 rounded border border-primary/30 bg-primary/10 text-primary font-mono text-[10px] font-bold">{activeQueueCount}</span>}
-              </Link>
-              
-              <Link href="/dashboard/tables" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[18px]">table_restaurant</span>
-                  <span className="font-medium text-sm">Tables Map</span>
-                </div>
-              </Link>
-              
-              <Link href="/dashboard/orders" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[18px]">receipt_long</span>
-                  <span className="font-medium text-sm">Orders</span>
-                </div>
-              </Link>
-              
-              <Link href="/dashboard/kitchen" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[18px]">soup_kitchen</span>
-                  <span className="font-medium text-sm">Kitchen Display</span>
-                </div>
-              </Link>
-            </nav>
-
-            <div className="mt-8 mb-2 px-2">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Venue Control</span>
-            </div>
-            <nav className="flex flex-col gap-1">
-              <Link href="/dashboard/menu" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[18px]">menu_book</span>
-                  <span className="font-medium text-sm">Menu Config</span>
-                </div>
-              </Link>
-              <Link href="/dashboard/inventory" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[18px]">inventory_2</span>
-                  <span className="font-medium text-sm">Inventory</span>
-                </div>
-              </Link>
-              <Link href="/dashboard/staff" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[18px]">badge</span>
-                  <span className="font-medium text-sm">Staff Management</span>
-                </div>
-              </Link>
-              <Link href="/dashboard/settings/qr" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[18px]">qr_code</span>
-                  <span className="font-medium text-sm">QR Codes</span>
-                </div>
-              </Link>
-            </nav>
-          </div>
-        </div>
-
-        <div className="p-4 flex flex-col gap-2 border-t border-white/5">
-          <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded bg-primary text-white flex items-center justify-center font-bold text-sm">
-                M
-              </div>
-              <div className="flex flex-col">
-                <span className="font-bold text-xs text-white truncate max-w-[100px]">
-                  Chef Marco
-                </span>
-                <span className="text-[10px] text-slate-400">Host Station 1</span>
-              </div>
-            </div>
-            <div className="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[9px] font-bold uppercase">
-              Open
-            </div>
-          </div>
-          <form action={signOutAction} className="w-full">
-            <button title="Sign Out" type="submit" className="w-full py-2 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-2 text-xs font-bold">
-              <span className="material-symbols-outlined text-[14px]">logout</span> Sign Out
-            </button>
-          </form>
-        </div>
-      </aside>
+      <DesktopNavigation activeQueueCount={activeQueueCount}>
+        <form action={signOutAction} className="w-full mt-2">
+          <button title="Sign Out" type="submit" className="w-full py-2 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-2 text-xs font-bold">
+            <span className="material-symbols-outlined text-[14px]">logout</span> Sign Out
+          </button>
+        </form>
+      </DesktopNavigation>
 
       <div className="pl-0 md:pl-64 flex flex-col min-h-screen bg-[#0A0E17] pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
         <header className="fixed top-0 left-0 md:left-64 right-0 h-16 bg-[#0A0E17]/80 backdrop-blur-md border-b border-white/5 z-40 text-slate-300">

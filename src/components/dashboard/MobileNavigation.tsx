@@ -12,8 +12,12 @@ export default function MobileNavigation({ activeQueueCount }: MobileNavigationP
   const pathname = usePathname();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Helper to determine if a path is active
-  const isActive = (path: string) => pathname === path;
+  const isActive = (path: string) => {
+    if (path === '/dashboard') {
+      return pathname === '/dashboard';
+    }
+    return pathname.startsWith(path);
+  };
 
   return (
     <>

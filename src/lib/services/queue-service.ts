@@ -439,17 +439,35 @@ export class QueueService {
 
   /**
    * Returns active queue entries for a restaurant with real-time positions.
+   * Filters out entries from before the daily 5 AM reset boundary.
    */
   static async getActiveQueue(restaurantId: string) {
     const supabase = createAdminClient();
 
-    const { data: entries, error } = await supabase
+    // Get timezone
+    const { data: restaurant } = await supabase
+      .from('restaurants')
+      .select('timezone')
+      .eq('id', restaurantId)
+      .single();
+
+    const { data: cutoffData, error: cutoffError } = await supabase.rpc('get_recent_5am_cutoff', {
+      p_timezone: restaurant?.timezone || 'UTC'
+    });
+
+    let query = supabase
       .from('queue_entries')
       .select('*')
       .eq('restaurant_id', restaurantId)
       .in('status', ['WAITING', 'NOTIFIED', 'CALLED'])
       .order('joined_at', { ascending: true })
       .order('id', { ascending: true });
+      
+    if (!cutoffError && cutoffData) {
+      query = query.gte('joined_at', cutoffData);
+    }
+
+    const { data: entries, error } = await query;
 
     if (error) {
       throw new Error(`Failed to fetch active queue: ${error.message}`);
@@ -490,6 +508,21 @@ export class QueueService {
     if (filterStatus && filterStatus !== 'ALL') {
       if (filterStatus === 'ACTIVE') {
         query = query.in('status', ['WAITING', 'NOTIFIED', 'CALLED']);
+        
+        // Filter out active entries from previous days (before 5 AM cutoff)
+        const { data: restaurant } = await supabase
+          .from('restaurants')
+          .select('timezone')
+          .eq('id', restaurantId)
+          .single();
+
+        const { data: cutoffData, error: cutoffError } = await supabase.rpc('get_recent_5am_cutoff', {
+          p_timezone: restaurant?.timezone || 'UTC'
+        });
+        
+        if (!cutoffError && cutoffData) {
+          query = query.gte('joined_at', cutoffData);
+        }
       } else if (filterStatus === 'TERMINAL') {
         query = query.in('status', ['SEATED', 'CANCELLED', 'NO_SHOW', 'EXPIRED']);
       } else {
