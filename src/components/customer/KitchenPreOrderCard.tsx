@@ -3,12 +3,24 @@
 import React from 'react';
 import Link from 'next/link';
 
+export interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+}
+
+export interface MenuCategory {
+  id: string;
+  name: string;
+  items: MenuItem[];
+}
+
 interface KitchenPreOrderCardProps {
   queueNumber: string;
   restaurantSlug: string;
   token?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  categories?: any[];
+  categories?: MenuCategory[];
 }
 
 export function KitchenPreOrderCard({
@@ -52,7 +64,7 @@ export function KitchenPreOrderCard({
         {categories.length > 0 ? (
           categories.slice(0, 1).map((category) => (
             <React.Fragment key={category.id}>
-              {category.items.slice(0, 3).map((item: any) => (
+              {category.items.slice(0, 3).map((item: MenuItem) => (
                 <div key={item.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-slate-800 overflow-hidden flex items-center justify-center border border-white/10 shrink-0">
@@ -101,7 +113,7 @@ export function KitchenPreOrderCard({
           </div>
 
           <div className="flex flex-col gap-3">
-            {categories[1].items.slice(0, 2).map((item: any) => (
+            {categories[1].items.slice(0, 2).map((item: MenuItem) => (
               <div key={item.id} className="bg-[#111827] border border-white/5 rounded-2xl p-3 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-16 rounded-xl bg-slate-800 overflow-hidden shrink-0 border border-white/10 flex items-center justify-center">
