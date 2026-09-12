@@ -15,32 +15,82 @@ export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCa
   const [isDelayPending, startDelayTransition] = useTransition();
   const [delayRequested, setDelayRequested] = useState(false);
   const isWaiting = status.status === 'WAITING';
+  const isCalled = status.status === 'CALLED';
+  const isNotified = status.status === 'NOTIFIED';
+  const isSeated = status.status === 'SEATED';
 
   // Calculate rough wait estimate based on position (e.g. ~5-8 mins per waiting party)
   const estWaitMins = isWaiting && status.position ? Math.max(5, (status.position - 1) * 7) : null;
   
   const displayNum = status.displayNumber || `#${status.entryId.substring(0, 4).toUpperCase()}`;
 
+  // Dynamic content based on status
+  let glowColors = 'bg-blue-600/20';
+  let gradientColors = 'from-blue-500/10 to-emerald-500/5';
+  let svgGradient = (
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#3B82F6" />
+      <stop offset="100%" stopColor="#10B981" />
+    </linearGradient>
+  );
+  let statusTitle = "You're Next!";
+  let statusSubtitle = "You are next in sequence for seating.";
+  
+  if (isWaiting) {
+    statusTitle = status.peopleAhead !== null && status.peopleAhead > 0 ? `${status.peopleAhead} Groups Ahead` : "You're Next!";
+    statusSubtitle = "Relax, your spot is secured. We will notify you when it's time.";
+  } else if (isCalled) {
+    glowColors = 'bg-blue-500/30';
+    gradientColors = 'from-blue-500/30 to-blue-400/10';
+    svgGradient = (
+      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#3B82F6" />
+        <stop offset="100%" stopColor="#60A5FA" />
+      </linearGradient>
+    );
+    statusTitle = "Preparing Your Table";
+    statusSubtitle = "We're almost ready for you! Please stay close to the host stand.";
+  } else if (isNotified) {
+    glowColors = 'bg-purple-500/30';
+    gradientColors = 'from-purple-500/30 to-purple-400/10';
+    svgGradient = (
+      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#A855F7" />
+        <stop offset="100%" stopColor="#C084FC" />
+      </linearGradient>
+    );
+    statusTitle = "Your Table is Ready!";
+    statusSubtitle = "Please come to the host stand now to be seated.";
+  } else if (isSeated) {
+    glowColors = 'bg-emerald-500/30';
+    gradientColors = 'from-emerald-500/30 to-emerald-400/10';
+    svgGradient = (
+      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#10B981" />
+        <stop offset="100%" stopColor="#34D399" />
+      </linearGradient>
+    );
+    statusTitle = "Welcome!";
+    statusSubtitle = "Enjoy your meal. Let us know if you need anything.";
+  }
+
   return (
     <div className="w-full px-1">
       <div className="relative bg-[#111827] border border-white/5 rounded-[32px] p-6 shadow-2xl flex flex-col items-center justify-center overflow-hidden">
         
         {/* Glow Effects */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 ${glowColors} rounded-full blur-3xl pointer-events-none transition-colors duration-700`}></div>
         <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
         <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
         {/* Central Circular Pass */}
         <div className="relative z-10 w-48 h-48 rounded-full flex flex-col items-center justify-center border border-white/10 mt-2 mb-6">
-           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-500/10 to-emerald-500/5"></div>
+           <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${gradientColors} transition-colors duration-700`}></div>
            <svg className="absolute inset-0 w-full h-full rotate-[-90deg]">
              <circle cx="96" cy="96" r="94" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="2" />
-             <circle cx="96" cy="96" r="94" fill="none" stroke="url(#gradient)" strokeWidth="4" strokeDasharray="590" strokeDashoffset="150" strokeLinecap="round" />
+             <circle cx="96" cy="96" r="94" fill="none" stroke="url(#gradient)" strokeWidth="4" strokeDasharray="590" strokeDashoffset={isWaiting ? '295' : isCalled ? '150' : isNotified ? '50' : '0'} strokeLinecap="round" className="transition-all duration-1000" />
              <defs>
-               <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                 <stop offset="0%" stopColor="#3B82F6" />
-                 <stop offset="100%" stopColor="#10B981" />
-               </linearGradient>
+               {svgGradient}
              </defs>
            </svg>
            
@@ -54,71 +104,88 @@ export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCa
 
         {/* Status Text */}
         <h2 className="text-2xl font-black text-white tracking-tight relative z-10 mb-2">
-          {status.peopleAhead !== null && status.peopleAhead > 0 ? `${status.peopleAhead} Groups Ahead` : "You're Next!"}
+          {statusTitle}
         </h2>
-        <p className="text-xs text-slate-400 text-center leading-relaxed max-w-[280px] relative z-10 mb-6">
-          You are next in sequence for premium seating. Table T4 is undergoing luxury setup.
+        <p className="text-xs text-slate-400 text-center leading-relaxed max-w-[280px] relative z-10 mb-6 h-8">
+          {statusSubtitle}
         </p>
 
         {/* Time / Table Status Row */}
-        <div className="flex items-center gap-3 relative z-10 w-full justify-center mb-8">
-           <div className="bg-[#1A2234] border border-white/5 rounded-full px-4 py-2 flex items-center gap-2">
-              <span className="material-symbols-outlined text-[14px] text-slate-400">schedule</span>
-              <span className="text-xs font-bold text-slate-300">~{estWaitMins || '?'} mins wait</span>
-           </div>
-           <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-full px-4 py-2 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-              <span className="text-xs font-bold text-emerald-400">Table T4 Prepping</span>
-           </div>
+        <div className="flex items-center gap-3 relative z-10 w-full justify-center mb-8 h-8">
+           {isWaiting ? (
+             <div className="bg-[#1A2234] border border-white/5 rounded-full px-4 py-2 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[14px] text-slate-400">schedule</span>
+                <span className="text-xs font-bold text-slate-300">~{estWaitMins || '?'} mins wait</span>
+             </div>
+           ) : isCalled ? (
+             <div className="bg-blue-950/30 border border-blue-500/30 rounded-full px-4 py-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>
+                <span className="text-xs font-bold text-blue-400">Prepping Table</span>
+             </div>
+           ) : isNotified ? (
+             <div className="bg-purple-950/30 border border-purple-500/30 rounded-full px-4 py-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse"></span>
+                <span className="text-xs font-bold text-purple-400">Come to Host</span>
+             </div>
+           ) : isSeated ? (
+             <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-full px-4 py-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+                <span className="text-xs font-bold text-emerald-400">Seated</span>
+             </div>
+           ) : null}
         </div>
 
         {/* Queue Progression */}
         <div className="w-full relative z-10 mb-6">
            <div className="flex items-center justify-between mb-2">
              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Queue Progression</span>
-             <span className="text-[10px] text-slate-500 font-bold">Stage 3 of 4</span>
+             <span className="text-[10px] text-slate-500 font-bold">
+               Stage {isWaiting ? '1' : isCalled ? '2' : isNotified ? '3' : '4'} of 4
+             </span>
            </div>
            
            {/* Progress Bars */}
            <div className="grid grid-cols-4 gap-1.5 mb-2">
              <div className="h-1.5 rounded-full bg-blue-500"></div>
-             <div className="h-1.5 rounded-full bg-blue-500"></div>
-             <div className="h-1.5 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse"></div>
-             <div className="h-1.5 rounded-full bg-white/10"></div>
+             <div className={`h-1.5 rounded-full ${!isWaiting ? 'bg-blue-500' : 'bg-white/10'}`}></div>
+             <div className={`h-1.5 rounded-full ${(isNotified || isSeated) ? 'bg-purple-500' : isCalled ? 'bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse' : 'bg-white/10'}`}></div>
+             <div className={`h-1.5 rounded-full ${isSeated ? 'bg-emerald-500' : isNotified ? 'bg-gradient-to-r from-purple-500 to-emerald-500 animate-pulse' : 'bg-white/10'}`}></div>
            </div>
            
            {/* Labels */}
            <div className="grid grid-cols-4 gap-1.5">
-             <span className="text-[9px] font-bold text-slate-300">Checked In</span>
-             <span className="text-[9px] font-bold text-slate-300">Assigned #{displayNum}</span>
-             <span className="text-[9px] font-bold text-purple-400">Setting T4</span>
-             <span className="text-[9px] font-bold text-slate-600">Host Call</span>
+             <span className="text-[9px] font-bold text-slate-300 truncate">Wait</span>
+             <span className={`text-[9px] font-bold truncate ${!isWaiting ? 'text-slate-300' : 'text-slate-600'}`}>Prep</span>
+             <span className={`text-[9px] font-bold truncate ${(isNotified || isSeated) ? 'text-purple-400' : isCalled ? 'text-purple-400' : 'text-slate-600'}`}>Ready</span>
+             <span className={`text-[9px] font-bold truncate ${isSeated ? 'text-emerald-400' : isNotified ? 'text-emerald-400' : 'text-slate-600'}`}>Seated</span>
            </div>
         </div>
 
         {/* Actions */}
-        <div className="grid grid-cols-2 gap-3 w-full relative z-10">
-           <button 
-             onClick={() => {
-               if (delayRequested) return;
-               startDelayTransition(async () => {
-                 await delayQueuePublicAction(token, restaurantSlug);
-                 setDelayRequested(true);
-               });
-             }}
-             disabled={isDelayPending || delayRequested}
-             className="bg-[#1A2234] hover:bg-[#232D42] disabled:opacity-50 border border-white/5 rounded-2xl py-3.5 flex items-center justify-center gap-2 transition-colors">
-              <span className="material-symbols-outlined text-[16px] text-slate-400">
-                {delayRequested ? 'check' : 'update'}
-              </span>
-              <span className="text-sm font-bold text-slate-300">
-                {isDelayPending ? 'Sending...' : delayRequested ? 'Requested' : '+10m Delay'}
-              </span>
-           </button>
-           <div className="w-full">
-             <CancelQueueDialog token={token} restaurantSlug={restaurantSlug} />
-           </div>
-        </div>
+        {!isSeated && (
+          <div className="grid grid-cols-2 gap-3 w-full relative z-10">
+             <button 
+               onClick={() => {
+                 if (delayRequested) return;
+                 startDelayTransition(async () => {
+                   await delayQueuePublicAction(token, restaurantSlug);
+                   setDelayRequested(true);
+                 });
+               }}
+               disabled={isDelayPending || delayRequested}
+               className="bg-[#1A2234] hover:bg-[#232D42] disabled:opacity-50 border border-white/5 rounded-2xl py-3.5 flex items-center justify-center gap-2 transition-colors">
+                <span className="material-symbols-outlined text-[16px] text-slate-400">
+                  {delayRequested ? 'check' : 'update'}
+                </span>
+                <span className="text-sm font-bold text-slate-300">
+                  {isDelayPending ? 'Sending...' : delayRequested ? 'Requested' : '+10m Delay'}
+                </span>
+             </button>
+             <div className="w-full">
+               <CancelQueueDialog token={token} restaurantSlug={restaurantSlug} />
+             </div>
+          </div>
+        )}
 
       </div>
     </div>

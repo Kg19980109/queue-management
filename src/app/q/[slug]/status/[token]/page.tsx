@@ -89,6 +89,9 @@ export default async function CustomerQueueStatusPage({
   const estWaitMins = isWaiting && status.position ? Math.max(5, (status.position - 1) * 7) : null;
   const displayNum = status.displayNumber || `A${status.entryId.substring(0, 2).toUpperCase()}`;
 
+  // 4. Fetch menu for pre-orders
+  const menuCategories = await PublicRestaurantService.getPublicMenuPreview(restaurant.id);
+
   return (
     <main className="min-h-screen bg-[#0A0E17] text-white flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950 pb-32">
       <StatusAutoRefresh intervalMs={10000} />
@@ -112,7 +115,7 @@ export default async function CustomerQueueStatusPage({
                customerName={status.customerName} 
                phone={null} 
              />
-             <KitchenPreOrderCard queueNumber={displayNum} restaurantSlug={slug} token={token} />
+             <KitchenPreOrderCard queueNumber={displayNum} restaurantSlug={slug} token={token} categories={menuCategories} />
              <ComplimentaryPourCard />
           </div>
         )}

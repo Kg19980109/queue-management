@@ -309,7 +309,9 @@ export default async function QueueManagementPage({
             entries.map((entry, index) => {
               const isWaiting = entry.status === 'WAITING';
               const isCalled = entry.status === 'CALLED';
-              const isTerminal = ['SEATED', 'CANCELLED', 'NO_SHOW', 'EXPIRED'].includes(entry.status);
+              const isNotified = entry.status === 'NOTIFIED';
+              const isSeated = entry.status === 'SEATED';
+              const isTerminal = ['CANCELLED', 'NO_SHOW', 'EXPIRED', 'COMPLETED'].includes(entry.status);
 
               const seatableTables = seatableTablesMap.get(entry.party_size) || [];
 
@@ -324,18 +326,20 @@ export default async function QueueManagementPage({
               return (
                 <div key={entry.id} className="relative p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-md flex flex-col gap-3 overflow-hidden">
                   <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-                    isCalled ? 'bg-blue-500' : hasPreOrder ? 'bg-amber-500' : isNext ? 'bg-blue-400' : 'bg-slate-600'
+                    isSeated ? 'bg-emerald-500' : isNotified ? 'bg-purple-500' : isCalled ? 'bg-blue-500' : hasPreOrder ? 'bg-amber-500' : isNext ? 'bg-blue-400' : 'bg-slate-600'
                   }`}></div>
                   
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pl-2">
                     <div className="flex items-start md:items-center gap-4">
                       {/* Ticket Monospace Display */}
                       <div className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl flex-shrink-0 shadow-sm ${
-                        isCalled ? 'bg-blue-600 text-white' : isNext ? 'bg-blue-900/30 text-blue-400 border border-blue-500/20' : 'bg-[#1A2333] border border-white/5 text-slate-300'
+                        isSeated ? 'bg-emerald-600 text-white' : isNotified ? 'bg-purple-600 text-white' : isCalled ? 'bg-blue-600 text-white' : isNext ? 'bg-blue-900/30 text-blue-400 border border-blue-500/20' : 'bg-[#1A2333] border border-white/5 text-slate-300'
                       }`}>
                         <span className="font-black text-2xl tracking-tight font-headline-xl">
                           {entry.display_number || entry.queue_number}
                         </span>
+                        {isSeated && <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Dining</span>}
+                        {isNotified && <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Arriving</span>}
                         {isCalled && <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Priority</span>}
                         {isNext && <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Next</span>}
                         {isWaiting && !isNext && <span className="text-[8px] uppercase tracking-widest mt-0.5">#{index + 1}</span>}
@@ -369,7 +373,7 @@ export default async function QueueManagementPage({
                               <span className="material-symbols-outlined text-[12px]">bolt</span> Pre-ordered & Paid (₹{anyEntry.pre_order_amount})
                             </span>
                           ) : (
-                            <span className={`px-2 py-0.5 rounded border text-[10px] uppercase tracking-widest font-bold ${isCalled ? 'bg-blue-900/30 border-blue-500/30 text-blue-400' : 'bg-transparent border-white/10 text-slate-400'}`}>
+                            <span className={`px-2 py-0.5 rounded border text-[10px] uppercase tracking-widest font-bold ${isSeated ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-400' : isNotified ? 'bg-purple-900/30 border-purple-500/30 text-purple-400' : isCalled ? 'bg-blue-900/30 border-blue-500/30 text-blue-400' : 'bg-transparent border-white/10 text-slate-400'}`}>
                               Status: {entry.status}
                             </span>
                           )}
@@ -379,12 +383,22 @@ export default async function QueueManagementPage({
 
                     {/* Status Indicator Pill / Actions Right */}
                     <div className="flex items-center md:flex-col md:items-end justify-between">
+                      {isSeated && (
+                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-900/30 border border-emerald-500/30 text-emerald-400 text-[10px] tracking-widest uppercase font-bold">
+                          SEATED
+                        </span>
+                      )}
+                      {isNotified && (
+                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-purple-900/30 border border-purple-500/30 text-purple-400 text-[10px] tracking-widest uppercase font-bold">
+                          NOTIFIED
+                        </span>
+                      )}
                       {isCalled && (
                         <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-900/30 border border-blue-500/30 text-blue-400 text-[10px] tracking-widest uppercase font-bold">
                           CALLED
                         </span>
                       )}
-                      {isWaiting && !isCalled && (
+                      {isWaiting && !isCalled && !isNotified && !isSeated && (
                          <span className={`inline-flex items-center gap-1 px-4 py-1.5 rounded-full text-[10px] tracking-widest uppercase font-bold border ${isNext ? 'bg-blue-900/30 border-blue-500/30 text-blue-400' : 'bg-transparent border-white/10 text-slate-400'}`}>
                          WAITING
                        </span>
@@ -404,12 +418,20 @@ export default async function QueueManagementPage({
                       {isWaiting && (
                         <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)}>
                           <button type="submit" className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
-                            Notify Ready
+                            Inform Next
+                          </button>
+                        </form>
+                      )}
+                      
+                      {isCalled && (
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'NOTIFIED', userId)}>
+                          <button type="submit" className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
+                            Tell to Come
                           </button>
                         </form>
                       )}
 
-                      {!isTerminal && (
+                      {isNotified && (
                         <SeatCustomerModal
                           entryId={entry.id}
                           customerName={entry.customer_name}
@@ -419,8 +441,16 @@ export default async function QueueManagementPage({
                           seatableTables={seatableTables}
                         />
                       )}
+                      
+                      {isSeated && (
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'COMPLETED', userId)}>
+                          <button type="submit" className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
+                            Mark Done
+                          </button>
+                        </form>
+                      )}
 
-                      {isCalled && (
+                      {(isCalled || isNotified) && (
                         <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId)}>
                           <button type="submit" className="px-4 py-2 rounded-xl bg-transparent hover:bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer">
                             <span className="material-symbols-outlined text-[16px]">person_off</span>

@@ -226,7 +226,7 @@ export class QueueService {
       return current; // No-op if already in target state
     }
 
-    const isTerminal = ['SEATED', 'CANCELLED', 'NO_SHOW', 'EXPIRED'].includes(currentStatus);
+    const isTerminal = ['CANCELLED', 'NO_SHOW', 'EXPIRED', 'COMPLETED'].includes(currentStatus);
     if (isTerminal) {
       throw new Error(`INVALID_QUEUE_TRANSITION: Cannot transition from terminal state ${currentStatus} to ${targetStatus}`);
     }
@@ -242,9 +242,14 @@ export class QueueService {
         throw new Error(`INVALID_QUEUE_TRANSITION: NOTIFIED can transition to CALLED, SEATED, CANCELLED, or EXPIRED. Received: ${targetStatus}`);
       }
     } else if (currentStatus === 'CALLED') {
-      const allowed = ['SEATED', 'NO_SHOW', 'CANCELLED', 'EXPIRED'];
+      const allowed = ['NOTIFIED', 'SEATED', 'NO_SHOW', 'CANCELLED', 'EXPIRED'];
       if (!allowed.includes(targetStatus)) {
-        throw new Error(`INVALID_QUEUE_TRANSITION: CALLED can transition to SEATED, NO_SHOW, CANCELLED, or EXPIRED. Received: ${targetStatus}`);
+        throw new Error(`INVALID_QUEUE_TRANSITION: CALLED can transition to NOTIFIED, SEATED, NO_SHOW, CANCELLED, or EXPIRED. Received: ${targetStatus}`);
+      }
+    } else if (currentStatus === 'SEATED') {
+      const allowed = ['COMPLETED'];
+      if (!allowed.includes(targetStatus)) {
+        throw new Error(`INVALID_QUEUE_TRANSITION: SEATED can only transition to COMPLETED. Received: ${targetStatus}`);
       }
     }
 
@@ -266,6 +271,8 @@ export class QueueService {
     } else if (targetStatus === 'SEATED') {
       updatePayload.seated_at = now;
       eventType = 'QUEUE_SEATED';
+    } else if (targetStatus === 'COMPLETED') {
+      eventType = 'QUEUE_COMPLETED';
     } else if (targetStatus === 'CANCELLED') {
       updatePayload.cancelled_at = now;
       eventType = 'QUEUE_CANCELLED';
@@ -459,7 +466,7 @@ export class QueueService {
       .from('queue_entries')
       .select('*')
       .eq('restaurant_id', restaurantId)
-      .in('status', ['WAITING', 'NOTIFIED', 'CALLED'])
+      .in('status', ['WAITING', 'NOTIFIED', 'CALLED', 'SEATED'])
       .order('joined_at', { ascending: true })
       .order('id', { ascending: true });
       
@@ -507,7 +514,7 @@ export class QueueService {
 
     if (filterStatus && filterStatus !== 'ALL') {
       if (filterStatus === 'ACTIVE') {
-        query = query.in('status', ['WAITING', 'NOTIFIED', 'CALLED']);
+        query = query.in('status', ['WAITING', 'NOTIFIED', 'CALLED', 'SEATED']);
         
         // Filter out active entries from previous days (before 5 AM cutoff)
         const { data: restaurant } = await supabase
@@ -524,7 +531,7 @@ export class QueueService {
           query = query.gte('joined_at', cutoffData);
         }
       } else if (filterStatus === 'TERMINAL') {
-        query = query.in('status', ['SEATED', 'CANCELLED', 'NO_SHOW', 'EXPIRED']);
+        query = query.in('status', ['CANCELLED', 'NO_SHOW', 'EXPIRED', 'COMPLETED']);
       } else {
         query = query.eq('status', filterStatus);
       }

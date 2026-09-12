@@ -7,12 +7,15 @@ interface KitchenPreOrderCardProps {
   queueNumber: string;
   restaurantSlug: string;
   token?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  categories?: any[];
 }
 
 export function KitchenPreOrderCard({
   queueNumber,
   restaurantSlug,
   token,
+  categories = [],
 }: KitchenPreOrderCardProps) {
   const menuUrl = token ? `/q/${restaurantSlug}/menu?qtoken=${token}` : `/q/${restaurantSlug}/menu`;
 
@@ -45,57 +48,37 @@ export function KitchenPreOrderCard({
           </Link>
         </div>
 
-        {/* Item 1 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-slate-800 overflow-hidden flex items-center justify-center border border-white/10 shrink-0">
-              <img
-                src="https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?auto=format&fit=crop&q=80&w=100"
-                alt="Butter Chicken"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-white">Artisanal Butter Chicken</span>
-              <span className="text-[10px] text-slate-400">Mild Spice · Extra Cream swirl</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="font-bold text-slate-300">₹510</span>
-            <Link
-              href={menuUrl}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-colors"
-            >
-              + Add
-            </Link>
-          </div>
-        </div>
-
-        {/* Item 2 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-slate-800 overflow-hidden flex items-center justify-center border border-white/10 shrink-0">
-              <img
-                src="https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&q=80&w=100"
-                alt="Naan"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-white">Tandoori Garlic Naan</span>
-              <span className="text-[10px] text-slate-400">Crisp clay oven baked · 2 pcs</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="font-bold text-slate-300">₹90</span>
-            <Link
-              href={menuUrl}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-colors"
-            >
-              + Add
-            </Link>
-          </div>
-        </div>
+        {/* Render Dynamic Categories / Items */}
+        {categories.length > 0 ? (
+          categories.slice(0, 1).map((category) => (
+            <React.Fragment key={category.id}>
+              {category.items.slice(0, 3).map((item: any) => (
+                <div key={item.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-slate-800 overflow-hidden flex items-center justify-center border border-white/10 shrink-0">
+                      <span className="material-symbols-outlined text-slate-500">restaurant_menu</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-white">{item.name}</span>
+                      <span className="text-[10px] text-slate-400 line-clamp-1 max-w-[150px]">{item.description}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="font-bold text-slate-300">₹{item.price}</span>
+                    <Link
+                      href={menuUrl}
+                      className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-colors"
+                    >
+                      + Add
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </React.Fragment>
+          ))
+        ) : (
+          <div className="text-sm text-slate-400 py-2">No menu items available right now.</div>
+        )}
 
         <div className="bg-slate-950/50 rounded-xl p-3 flex items-start gap-2 border border-white/5 mt-2">
           <span className="material-symbols-outlined text-[14px] text-slate-400 mt-0.5">info</span>
@@ -104,87 +87,53 @@ export function KitchenPreOrderCard({
           </span>
         </div>
       </div>
-
+      
       {/* Upsell Row */}
-      <div className="flex items-center justify-between mt-4 mb-2">
-        <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest">
-          Pair with your reservation
-        </span>
-        <Link href={menuUrl} className="text-[10px] font-bold text-blue-400 hover:text-blue-300">
-          View Full Menu →
-        </Link>
-      </div>
-
-      {/* Upsell Items */}
-      <div className="flex flex-col gap-3">
-        {/* Upsell 1 */}
-        <div className="bg-[#111827] border border-white/5 rounded-2xl p-3 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-16 h-16 rounded-xl bg-slate-800 overflow-hidden shrink-0 border border-white/10">
-              <img
-                src="https://images.unsplash.com/photo-1599487405270-b05b1c5cce49?auto=format&fit=crop&q=80&w=120"
-                alt="Paneer Tikka"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-white">Smoked Paneer Tikka</span>
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-              </div>
-              <span className="text-[10px] text-slate-400 truncate max-w-[120px]">
-                Charred cottage cheese, mint...
-              </span>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="font-bold text-white text-sm">₹380</span>
-                <span className="text-[8px] bg-purple-900/30 text-purple-400 border border-purple-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                  Chef Special
-                </span>
-              </div>
-            </div>
+      {categories.length > 1 && (
+        <>
+          <div className="flex items-center justify-between mt-4 mb-2">
+            <span className="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest">
+              Pair with your reservation
+            </span>
+            <Link href={menuUrl} className="text-[10px] font-bold text-blue-400 hover:text-blue-300">
+              View Full Menu →
+            </Link>
           </div>
-          <Link
-            href={menuUrl}
-            className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors shadow-sm"
-          >
-            + Add
-          </Link>
-        </div>
 
-        {/* Upsell 2 */}
-        <div className="bg-[#111827] border border-white/5 rounded-2xl p-3 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-16 h-16 rounded-xl bg-slate-800 overflow-hidden shrink-0 border border-white/10">
-              <img
-                src="https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?auto=format&fit=crop&q=80&w=120"
-                alt="Biryani"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-white">Mutton Dum Biryani</span>
-                <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+          <div className="flex flex-col gap-3">
+            {categories[1].items.slice(0, 2).map((item: any) => (
+              <div key={item.id} className="bg-[#111827] border border-white/5 rounded-2xl p-3 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-xl bg-slate-800 overflow-hidden shrink-0 border border-white/10 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-slate-500 text-[24px]">local_dining</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-bold text-white line-clamp-1">{item.name}</span>
+                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full shrink-0"></span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 truncate max-w-[120px]">
+                      {item.description}
+                    </span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="font-bold text-white text-sm">₹{item.price}</span>
+                      <span className="text-[8px] bg-emerald-900/30 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                        Chef Special
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <Link
+                  href={menuUrl}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors shadow-sm"
+                >
+                  + Add
+                </Link>
               </div>
-              <span className="text-[10px] text-slate-400 truncate max-w-[120px]">
-                Aged basmati, slow-steamed...
-              </span>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="font-bold text-white text-sm">₹490</span>
-                <span className="text-[8px] bg-emerald-900/30 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                  Slow Cooked
-                </span>
-              </div>
-            </div>
+            ))}
           </div>
-          <Link
-            href={menuUrl}
-            className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors shadow-sm"
-          >
-            + Add
-          </Link>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
