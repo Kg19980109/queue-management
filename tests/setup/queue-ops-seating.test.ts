@@ -11,7 +11,7 @@ import { QueueService } from '@/lib/services/queue-service';
 vi.mock('@/lib/services/authorization-service', () => ({
   AuthorizationService: {
     requirePermission: vi.fn().mockResolvedValue({
-      userId: 'test-user',
+      userId: '00000000-0000-0000-0000-000000000000',
       role: 'RESTAURANT_ADMIN',
       restaurantId: 'test-restaurant',
       membershipId: 'test-membership',
