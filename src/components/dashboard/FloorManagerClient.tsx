@@ -21,7 +21,12 @@ export function FloorManagerClient({
 
   const handleStatusChange = (tableId: string, newStatus: string) => {
     startTransition(async () => {
-      await updateTableStatusAction(tableId, newStatus as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+      try {
+        const table = tables.find((t) => t.id === tableId);
+        await updateTableStatusAction(tableId, newStatus as any, table?.status as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+      } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+        alert(err.message || 'Failed to update table status');
+      }
     });
   };
 
