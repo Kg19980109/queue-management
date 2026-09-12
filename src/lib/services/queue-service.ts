@@ -370,7 +370,7 @@ export class QueueService {
     // Step 2: Enforce authorization — must have queue.seat permission
     // This check happens in application code (service layer) AND inside the
     // DB function (defense in depth). Neither can be bypassed independently.
-    await AuthorizationService.requirePermission({
+    const authContext = await AuthorizationService.requirePermission({
       userId: actorUserId,
       restaurantId: entry.restaurant_id,
       permission: PERMISSIONS.QUEUE_SEAT,
@@ -380,7 +380,7 @@ export class QueueService {
     const { data, error } = await supabase.rpc('seat_queue_entry_atomic', {
       p_queue_entry_id: entryId,
       p_table_id: tableId,
-      p_actor_user_id: actorUserId || null,
+      p_actor_user_id: authContext.userId,
     });
 
     if (error) {
