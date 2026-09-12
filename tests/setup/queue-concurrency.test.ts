@@ -58,7 +58,7 @@ describe('Phase 8: Core Queue Engine, FSM, Concurrency & Security Tests', () => 
     expect(result.entry.customer_name).toBe('Rahul Sharma');
     expect(result.entry.party_size).toBe(4);
     expect(result.entry.status).toBe('WAITING');
-    expect(result.entry.display_number).toMatch(/^Q-\d+/);
+    expect(result.entry.display_number).toMatch(/^\d+/);
     expect(result.rawToken).toMatch(/^qtoken_[a-f0-9]{64}$/);
 
     // Verify raw token is NOT stored in database
