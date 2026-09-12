@@ -72,7 +72,7 @@ describe('seatQueueEntry() — Authorization (Layer 1)', () => {
     });
 
     // Step 2: auth passes
-    mockRequirePermission.mockResolvedValueOnce(undefined);
+    mockRequirePermission.mockResolvedValueOnce({ userId: actorUserId });
 
     // Step 3: RPC succeeds
     mockRpc.mockResolvedValueOnce({
@@ -153,7 +153,7 @@ describe('seatQueueEntry() — Authorization (Layer 1)', () => {
         }),
       }),
     });
-    mockRequirePermission.mockResolvedValueOnce(undefined);
+    mockRequirePermission.mockResolvedValueOnce({ userId: actorUserId });
     mockRpc.mockResolvedValueOnce({
       data: null,
       error: { message: 'QUEUE_ENTRY_TERMINAL: Cannot seat entry in terminal state CANCELLED' },
@@ -175,7 +175,7 @@ describe('seatQueueEntry() — Authorization (Layer 1)', () => {
         }),
       }),
     });
-    mockRequirePermission.mockResolvedValueOnce(undefined);
+    mockRequirePermission.mockResolvedValueOnce({ userId: actorUserId });
     mockRpc.mockResolvedValueOnce({
       data: null,
       error: { message: 'TABLE_NOT_AVAILABLE: Table status is OCCUPIED' },
@@ -197,7 +197,7 @@ describe('seatQueueEntry() — Authorization (Layer 1)', () => {
         }),
       }),
     });
-    mockRequirePermission.mockResolvedValueOnce(undefined);
+    mockRequirePermission.mockResolvedValueOnce({ userId: actorUserId });
     mockRpc.mockResolvedValueOnce({
       data: null,
       error: { message: 'INSUFFICIENT_TABLE_CAPACITY: Table capacity 2 < party size 4' },
