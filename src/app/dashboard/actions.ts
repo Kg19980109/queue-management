@@ -144,16 +144,17 @@ export async function updateTableStatusAction(
   tableId: string,
   targetStatus: TableStatus,
   currentStatus?: TableStatus
-): Promise<void> {
+): Promise<{ success: boolean; error?: string }> {
   try {
     await TableService.updateTableStatus(tableId, targetStatus, currentStatus);
-  } catch (error: unknown) {
+    revalidatePath('/dashboard', 'layout');
+    return { success: true };
+  } catch (error: any) {
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
       throw error;
     }
-    throw error instanceof Error ? error : new Error('Failed to update table status.');
+    return { success: false, error: error.message || 'Failed to update table status.' };
   }
-  revalidatePath('/dashboard', 'layout');
 }
 
 export async function adminAddQueueGuestAction(formData: FormData): Promise<void> {
