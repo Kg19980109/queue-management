@@ -69,63 +69,65 @@ export default function MobileNavigation({ activeQueueCount }: MobileNavigationP
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav 
-        className="md:hidden fixed bottom-0 left-0 right-0 min-h-[4rem] h-[calc(4rem+env(safe-area-inset-bottom))] bg-[#0A0E17]/90 backdrop-blur-lg border-t border-white/5 z-50 flex items-start pt-2 justify-around px-2 pb-[env(safe-area-inset-bottom)]"
-      >
-        <Link 
-          href="/dashboard" 
-          onClick={() => setIsDrawerOpen(false)}
-          className={`flex flex-col items-center justify-center w-16 h-full transition-colors ${
-            isActive('/dashboard') ? 'text-primary' : 'text-slate-400 hover:text-white'
-          }`}
+      {/* Mobile Bottom Navigation Bar - Floating & Glassmorphic */}
+      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm z-50">
+        <nav 
+          className="flex items-center justify-around px-2 py-2.5 bg-[#0A0E17]/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50"
         >
-          <span className="material-symbols-outlined text-[20px]">grid_view</span>
-          <span className="text-[10px] font-medium mt-1">Home</span>
-        </Link>
-        <Link 
-          href="/dashboard/queue" 
-          onClick={() => setIsDrawerOpen(false)}
-          className={`flex flex-col items-center justify-center w-16 h-full relative transition-colors ${
-            isActive('/dashboard/queue') ? 'text-primary' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[20px]">people</span>
-          <span className="text-[10px] font-medium mt-1">Queue</span>
-          {activeQueueCount > 0 && (
-            <span className="absolute top-0 right-3 w-2.5 h-2.5 bg-primary rounded-full border-2 border-[#0A0E17]"></span>
-          )}
-        </Link>
-        <Link 
-          href="/dashboard/orders" 
-          onClick={() => setIsDrawerOpen(false)}
-          className={`flex flex-col items-center justify-center w-16 h-full transition-colors ${
-            isActive('/dashboard/orders') ? 'text-primary' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[20px]">receipt_long</span>
-          <span className="text-[10px] font-medium mt-1">Orders</span>
-        </Link>
-        <Link 
-          href="/dashboard/kitchen" 
-          onClick={() => setIsDrawerOpen(false)}
-          className={`flex flex-col items-center justify-center w-16 h-full transition-colors ${
-            isActive('/dashboard/kitchen') ? 'text-primary' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[20px]">soup_kitchen</span>
-          <span className="text-[10px] font-medium mt-1">Kitchen</span>
-        </Link>
-        <button 
-          onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-          className={`flex flex-col items-center justify-center w-16 h-full transition-colors ${
-            isDrawerOpen ? 'text-white' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[20px]">menu</span>
-          <span className="text-[10px] font-medium mt-1">More</span>
-        </button>
-      </nav>
+          <Link 
+            href="/dashboard" 
+            onClick={() => setIsDrawerOpen(false)}
+            className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-300 ${
+              isActive('/dashboard') ? 'bg-primary/20 text-primary scale-105' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">grid_view</span>
+            <span className="text-[9px] font-bold mt-1">Home</span>
+          </Link>
+          <Link 
+            href="/dashboard/queue" 
+            onClick={() => setIsDrawerOpen(false)}
+            className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl relative transition-all duration-300 ${
+              isActive('/dashboard/queue') ? 'bg-primary/20 text-primary scale-105' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">people</span>
+            <span className="text-[9px] font-bold mt-1">Queue</span>
+            {activeQueueCount > 0 && (
+              <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-primary rounded-full border-2 border-[#0A0E17]"></span>
+            )}
+          </Link>
+          <Link 
+            href="/dashboard/orders" 
+            onClick={() => setIsDrawerOpen(false)}
+            className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-300 ${
+              isActive('/dashboard/orders') ? 'bg-primary/20 text-primary scale-105' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">receipt_long</span>
+            <span className="text-[9px] font-bold mt-1">Orders</span>
+          </Link>
+          <Link 
+            href="/dashboard/kitchen" 
+            onClick={() => setIsDrawerOpen(false)}
+            className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-300 ${
+              isActive('/dashboard/kitchen') ? 'bg-primary/20 text-primary scale-105' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">soup_kitchen</span>
+            <span className="text-[9px] font-bold mt-1">Kitchen</span>
+          </Link>
+          <button 
+            onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+            className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-300 ${
+              isDrawerOpen ? 'bg-white/10 text-white scale-105' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">menu</span>
+            <span className="text-[9px] font-bold mt-1">More</span>
+          </button>
+        </nav>
+      </div>
     </>
   );
 }

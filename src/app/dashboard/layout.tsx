@@ -35,7 +35,7 @@ export default async function RestaurantDashboardLayout({
         </form>
       </DesktopNavigation>
 
-      <div className="pl-0 md:pl-64 flex flex-col min-h-screen bg-[#0A0E17] pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
+      <div className="pl-0 md:pl-64 flex flex-col min-h-screen bg-[#0A0E17] pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-0">
         <header className="fixed top-0 left-0 md:left-64 right-0 h-16 bg-[#0A0E17]/80 backdrop-blur-md border-b border-white/5 z-40 text-slate-300">
           <div className="h-16 w-full px-2 sm:px-4 md:px-8 flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-6">

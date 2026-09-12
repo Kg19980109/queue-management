@@ -152,7 +152,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end sm:self-auto w-full sm:w-auto justify-end border-t border-white/5 sm:border-t-0 pt-3 sm:pt-0 mt-1 sm:mt-0">
+                  <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto w-full sm:w-auto justify-end border-t border-white/5 sm:border-t-0 pt-3 sm:pt-0 mt-1 sm:mt-0">
                       {entry.status === 'WAITING' && (
                         <button onClick={() => { setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'CALLED').finally(() => setIsProcessing(null)); }} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
                           Inform Next

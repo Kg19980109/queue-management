@@ -92,7 +92,7 @@ export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCa
            </svg>
            
            <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-[0.2em] mt-2">Your Pass</span>
-           <span className="text-5xl font-black text-white tracking-tighter my-1">#{displayNum}</span>
+           <span className="text-4xl sm:text-5xl font-black text-white tracking-tighter my-1 truncate max-w-[150px] text-center">#{displayNum}</span>
            <div className="flex items-center gap-1.5 bg-emerald-950/50 border border-emerald-500/30 rounded-full px-2.5 py-0.5 mt-1">
              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
              <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">VIP Guest</span>

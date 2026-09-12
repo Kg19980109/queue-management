@@ -146,9 +146,9 @@ export default async function QueueManagementPage({
       </div>
 
       {/* Real-time KPI Dynamic Ribbon */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-space-md">
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-2 hide-scrollbar lg:grid lg:grid-cols-5 md:grid md:grid-cols-3">
         {/* Metric 1 */}
-        <div className="p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-white/10 transition-colors">
+        <div className="min-w-[220px] snap-center shrink-0 md:min-w-0 md:shrink md:snap-none p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-white/10 transition-colors">
           <div className="flex items-center justify-between">
             <span className="font-label-sm text-[10px] uppercase text-slate-400 tracking-widest font-bold">Total Waiting</span>
             <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
@@ -170,7 +170,7 @@ export default async function QueueManagementPage({
         </div>
         
         {/* Metric 2 */}
-        <div className="p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between hover:border-white/10 transition-colors">
+        <div className="min-w-[220px] snap-center shrink-0 md:min-w-0 md:shrink md:snap-none p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between hover:border-white/10 transition-colors">
           <div className="flex items-center justify-between">
             <span className="font-label-sm text-[10px] uppercase text-slate-400 tracking-widest font-bold">Currently Called</span>
             <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
@@ -188,7 +188,7 @@ export default async function QueueManagementPage({
         </div>
 
         {/* Metric 3 */}
-        <div className="p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between hover:border-white/10 transition-colors">
+        <div className="min-w-[220px] snap-center shrink-0 md:min-w-0 md:shrink md:snap-none p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between hover:border-white/10 transition-colors">
           <div className="flex items-center justify-between">
             <span className="font-label-sm text-[10px] uppercase text-slate-400 tracking-widest font-bold">Avg Wait Time</span>
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
@@ -205,7 +205,7 @@ export default async function QueueManagementPage({
         </div>
 
         {/* Metric 4 */}
-        <div className="p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between hover:border-white/10 transition-colors">
+        <div className="min-w-[220px] snap-center shrink-0 md:min-w-0 md:shrink md:snap-none p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between hover:border-white/10 transition-colors">
           <div className="flex items-center justify-between">
             <span className="font-label-sm text-[10px] uppercase text-slate-400 tracking-widest font-bold">Seated Today</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
@@ -223,7 +223,7 @@ export default async function QueueManagementPage({
         </div>
 
         {/* Metric 5 */}
-        <div className="p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between hover:border-white/10 transition-colors">
+        <div className="min-w-[220px] snap-center shrink-0 md:min-w-0 md:shrink md:snap-none p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between hover:border-white/10 transition-colors">
           <div className="flex items-center justify-between">
             <span className="font-label-sm text-[10px] uppercase text-slate-400 tracking-widest font-bold">No-Show Rate</span>
             <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
@@ -407,14 +407,14 @@ export default async function QueueManagementPage({
                   </div>
 
                   {/* Action Ribbon per entry */}
-                  <div className="flex items-center justify-between pt-3 border-t border-white/5 -mx-space-md -mb-space-md px-space-md py-3 rounded-b-2xl bg-[#0A0E17]/30">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-white/5 -mx-space-md -mb-space-md px-space-md py-3 rounded-b-2xl bg-[#0A0E17]/30">
                     <div className="flex items-center gap-2 pl-2">
                       {isCalled && <span className="flex items-center gap-1 text-sm font-bold text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Ready to be seated</span>}
                       {hasPreOrder && <span className="text-sm text-slate-400">Dishes ready to fire upon seating</span>}
                       {anyEntry.notes && <span className="text-xs text-slate-400">{anyEntry.notes}</span>}
                     </div>
 
-                    <div className="flex items-center justify-end gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center sm:justify-end gap-2 shrink-0 w-full sm:w-auto">
                       {isWaiting && (
                         <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)}>
                           <button type="submit" className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
