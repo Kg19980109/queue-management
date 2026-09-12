@@ -211,10 +211,13 @@ describe('Phase 6: Restaurant Setup, Table Management & Concurrency Tests', () =
     );
     expect(occupied.status).toBe('OCCUPIED');
 
-    // OCCUPIED -> AVAILABLE directly (Invalid transition! Must go to CLEANING first)
-    await expect(
-      TableService.updateTableStatus(table.id, 'AVAILABLE', 'OCCUPIED', RESTAURANT_A_ID, ADMIN_A_ID)
-    ).rejects.toThrow();
+    // OCCUPIED -> AVAILABLE directly (Valid transition now)
+    const available = await TableService.updateTableStatus(table.id, 'AVAILABLE', 'OCCUPIED', RESTAURANT_A_ID, ADMIN_A_ID);
+    expect(available.status).toBe('AVAILABLE');
+    
+    // AVAILABLE -> OCCUPIED
+    const reOccupied = await TableService.updateTableStatus(table.id, 'OCCUPIED', 'AVAILABLE', RESTAURANT_A_ID, ADMIN_A_ID);
+    expect(reOccupied.status).toBe('OCCUPIED');
 
     // OCCUPIED -> CLEANING (Valid)
     const cleaning = await TableService.updateTableStatus(

@@ -10,12 +10,12 @@ import { QueueService } from '@/lib/services/queue-service';
 // permissions in the beforeAll setup block below.
 vi.mock('@/lib/services/authorization-service', () => ({
   AuthorizationService: {
-    requirePermission: vi.fn().mockResolvedValue({
-      userId: '00000000-0000-0000-0000-000000000000',
+    requirePermission: vi.fn().mockImplementation(async (options: any) => ({
+      userId: options.userId || '00000000-0000-0000-0000-000000000000',
       role: 'RESTAURANT_ADMIN',
-      restaurantId: 'test-restaurant',
+      restaurantId: options.restaurantId || 'test-restaurant',
       membershipId: 'test-membership',
-    }),
+    })),
   },
 }));
 
