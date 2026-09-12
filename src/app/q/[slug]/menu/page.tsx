@@ -2,6 +2,8 @@ import React from 'react';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
 import { RestaurantHeader } from '@/components/customer/RestaurantHeader';
 import { CustomerMenuBrowser } from '@/components/customer/CustomerMenuBrowser';
+import { CustomerTicketFloat } from '@/components/customer/CustomerTicketFloat';
+import { QueueTicketPersister } from '@/components/customer/QueueTicketPersister';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({
@@ -62,6 +64,8 @@ export default async function CustomerMenuPage({
 
   return (
     <main className="min-h-[100dvh] bg-slate-950 text-slate-100 px-4 py-6 sm:py-8 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
+      {qtoken && <QueueTicketPersister slug={slug} token={qtoken} />}
+      <CustomerTicketFloat slug={slug} qtoken={qtoken} />
       <div className="w-full max-w-md mx-auto space-y-5 sm:space-y-6">
         <RestaurantHeader restaurant={restaurant} />
 

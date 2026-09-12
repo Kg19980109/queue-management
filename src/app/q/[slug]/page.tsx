@@ -4,6 +4,7 @@ import { QueueService } from '@/lib/services/queue-service';
 import { RestaurantHeader } from '@/components/customer/RestaurantHeader';
 import { QueueJoinForm } from '@/components/customer/QueueJoinForm';
 import { MenuPreviewSection } from '@/components/customer/MenuPreviewSection';
+import { QueueResumeBanner } from '@/components/customer/QueueResumeBanner';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({
@@ -60,6 +61,9 @@ export default async function PublicRestaurantQueuePage({
       <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-[120px] pointer-events-none -z-10" />
 
       <div className="w-full max-w-md mx-auto space-y-5 sm:space-y-6 px-4 py-6 sm:py-8 z-10 relative">
+        {/* Resume banner - prevents queue loss on back */}
+        <QueueResumeBanner slug={slug} />
+
         {/* Header */}
         <div className="animate-fade-in-up stagger-1">
           <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
