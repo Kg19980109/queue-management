@@ -88,3 +88,36 @@ export async function cancelQueuePublicAction(token: string, restaurantSlug: str
 
   redirect(`/q/${restaurantSlug}/status/${token}?cancelled=true`);
 }
+
+export async function delayQueuePublicAction(token: string, restaurantSlug: string): Promise<void> {
+  try {
+    const status = await QueueService.getQueueStatusByToken(token);
+    if (!status) {
+      throw new Error('Queue entry not found.');
+    }
+
+    const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(restaurantSlug);
+    if (!restaurant || restaurant.id !== status.restaurantId) {
+      throw new Error('Tenant isolation mismatch.');
+    }
+    
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const supabase = createAdminClient();
+
+    // Log the event that customer requested a delay
+    await supabase.from('queue_events').insert({
+      restaurant_id: status.restaurantId,
+      queue_entry_id: status.entryId,
+      event_type: 'CUSTOMER_DELAY_REQUESTED',
+      metadata: { delay_mins: 10 }
+    });
+
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
+    throw error instanceof Error ? error : new Error('Failed to request delay.');
+  }
+
+  redirect(`/q/${restaurantSlug}/status/${token}?delayed=true`);
+}

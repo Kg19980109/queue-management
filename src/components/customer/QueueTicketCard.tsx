@@ -1,11 +1,19 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useTransition } from 'react';
 import type { PublicQueueStatusResponse } from '@/lib/services/queue-service';
+import { CancelQueueDialog } from './CancelQueueDialog';
+import { delayQueuePublicAction } from '@/app/q/actions';
 
 interface QueueTicketCardProps {
   status: PublicQueueStatusResponse;
+  token: string;
+  restaurantSlug: string;
 }
 
-export function QueueTicketCard({ status }: QueueTicketCardProps) {
+export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCardProps) {
+  const [isDelayPending, startDelayTransition] = useTransition();
+  const [delayRequested, setDelayRequested] = useState(false);
   const isWaiting = status.status === 'WAITING';
 
   // Calculate rough wait estimate based on position (e.g. ~5-8 mins per waiting party)
@@ -90,14 +98,26 @@ export function QueueTicketCard({ status }: QueueTicketCardProps) {
 
         {/* Actions */}
         <div className="grid grid-cols-2 gap-3 w-full relative z-10">
-           <button className="bg-[#1A2234] hover:bg-[#232D42] border border-white/5 rounded-2xl py-3.5 flex items-center justify-center gap-2 transition-colors">
-              <span className="material-symbols-outlined text-[16px] text-slate-400">update</span>
-              <span className="text-sm font-bold text-slate-300">+10m Delay</span>
+           <button 
+             onClick={() => {
+               if (delayRequested) return;
+               startDelayTransition(async () => {
+                 await delayQueuePublicAction(token, restaurantSlug);
+                 setDelayRequested(true);
+               });
+             }}
+             disabled={isDelayPending || delayRequested}
+             className="bg-[#1A2234] hover:bg-[#232D42] disabled:opacity-50 border border-white/5 rounded-2xl py-3.5 flex items-center justify-center gap-2 transition-colors">
+              <span className="material-symbols-outlined text-[16px] text-slate-400">
+                {delayRequested ? 'check' : 'update'}
+              </span>
+              <span className="text-sm font-bold text-slate-300">
+                {isDelayPending ? 'Sending...' : delayRequested ? 'Requested' : '+10m Delay'}
+              </span>
            </button>
-           <button className="bg-[#1A2234] hover:bg-red-950/30 hover:border-red-500/30 border border-white/5 rounded-2xl py-3.5 flex items-center justify-center gap-2 transition-colors group">
-              <span className="material-symbols-outlined text-[16px] text-slate-400 group-hover:text-red-400">logout</span>
-              <span className="text-sm font-bold text-slate-300 group-hover:text-red-400">Leave Queue</span>
-           </button>
+           <div className="w-full">
+             <CancelQueueDialog token={token} restaurantSlug={restaurantSlug} />
+           </div>
         </div>
 
       </div>

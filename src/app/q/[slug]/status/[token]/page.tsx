@@ -103,7 +103,7 @@ export default async function CustomerQueueStatusPage({
 
         {/* Hero Digital Pass */}
         <div className="px-3">
-           <QueueTicketCard status={status} />
+           <QueueTicketCard status={status} token={token} restaurantSlug={slug} />
         </div>
 
         {!isTerminal && (

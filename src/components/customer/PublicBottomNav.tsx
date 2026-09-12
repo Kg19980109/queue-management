@@ -25,7 +25,7 @@ export function PublicBottomNav({
   };
 
   const statusUrl = token ? `/q/${restaurantSlug}/status/${token}` : `/q/${restaurantSlug}`;
-  const menuUrl = token ? `/q/${restaurantSlug}/menu?token=${token}` : `/q/${restaurantSlug}/menu`;
+  const menuUrl = token ? `/q/${restaurantSlug}/menu?qtoken=${token}` : `/q/${restaurantSlug}/menu`;
 
   return (
     <>

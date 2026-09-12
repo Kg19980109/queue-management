@@ -24,9 +24,10 @@ export function CancelQueueDialog({ token, restaurantSlug }: CancelQueueDialogPr
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="w-full py-3 rounded-2xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition-all text-center"
+        className="bg-[#1A2234] hover:bg-red-950/30 hover:border-red-500/30 border border-white/5 rounded-2xl py-3.5 flex items-center justify-center gap-2 transition-colors group w-full"
       >
-        Leave Queue / Cancel Spot
+        <span className="material-symbols-outlined text-[16px] text-slate-400 group-hover:text-red-400">logout</span>
+        <span className="text-sm font-bold text-slate-300 group-hover:text-red-400">Leave Queue</span>
       </button>
 
       {isOpen && (
