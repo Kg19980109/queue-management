@@ -2,9 +2,9 @@ import React from 'react';
 
 export function PublicMobileHeader({ restaurantName, queueNumber, estWaitMins }: { restaurantName: string, queueNumber: string, estWaitMins: number | null }) {
   return (
-    <div className="w-full flex flex-col gap-4">
+    <div className="w-full flex flex-col gap-3 sm:gap-4">
       {/* Topmost Nav */}
-      <div className="flex items-center justify-between px-4 pt-6">
+      <div className="flex items-center justify-between px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:pt-6">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-emerald-500 flex items-center justify-center">
              <span className="material-symbols-outlined text-[16px] text-white">restaurant</span>

@@ -53,8 +53,8 @@ export function FloorManagerClient({
       {/* Top Bar / Actions */}
       <div className="p-4 sm:p-6 pb-2 shrink-0 flex flex-col gap-4">
         
-        {/* KPI Ribbon */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
+        {/* KPI Ribbon - 2 cols on phone, 4 on desktop */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-2">
           {/* Active Tables */}
           <div className="bg-[#111827] rounded-xl border border-white/5 p-4 flex items-center justify-between">
             <div className="flex flex-col gap-1">
@@ -111,15 +111,15 @@ export function FloorManagerClient({
           </div>
         </div>
 
-        {/* Zones & Legend row */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2">
+        {/* Zones & Legend row - scrollable on mobile */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 pb-1">
             <button 
               onClick={() => setActiveZone(null)}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+              className={`px-4 h-9 rounded-xl text-sm font-bold transition-colors shrink-0 border ${
                 activeZone === null 
-                  ? 'bg-blue-600 text-white shadow-sm' 
-                  : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+                  ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
+                  : 'bg-white/5 border-white/10 text-slate-400 active:bg-white/10'
               }`}
             >
               All Zones
@@ -128,45 +128,47 @@ export function FloorManagerClient({
               <button
                 key={z.id}
                 onClick={() => setActiveZone(z.id)}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+                className={`px-4 h-9 rounded-xl text-sm font-bold transition-colors shrink-0 border ${
                   activeZone === z.id 
-                  ? 'bg-blue-600 text-white shadow-sm' 
-                  : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+                  ? 'bg-blue-600 text-white shadow-sm border-blue-600' 
+                  : 'bg-white/5 border-white/10 text-slate-400 active:bg-white/10'
                 }`}
               >
                 {z.name}
               </button>
             ))}
-            <AddTableModal zones={zones} />
+            <div className="shrink-0">
+              <AddTableModal zones={zones} />
+            </div>
           </div>
           
-          <div className="flex flex-wrap items-center gap-4 text-xs font-bold">
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#111827] border border-emerald-500/30 text-emerald-400"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Available</div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#111827] border border-amber-500/30 text-amber-500"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Occupied</div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#111827] border border-blue-500/30 text-blue-400"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Held/Reserved</div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-[#111827] border border-red-500/30 text-red-400"><span className="w-2 h-2 rounded-full bg-red-500"></span> Needs Clean</div>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#111827] border border-emerald-500/30 text-emerald-400"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Available</span>
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#111827] border border-amber-500/30 text-amber-500"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Occupied</span>
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#111827] border border-blue-500/30 text-blue-400"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Reserved</span>
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#111827] border border-red-500/30 text-red-400"><span className="w-2 h-2 rounded-full bg-red-500"></span> Needs Clean</span>
           </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 sm:p-6 pt-2">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 p-4 sm:p-6 pt-2">
         
         {/* Left Side: Blueprint / Grid */}
-        <div className="lg:col-span-8 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-bold text-white">Floor Blueprint · Level 1</h2>
-              <span className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-slate-400 font-mono">Scaled 1:50</span>
-              <span className="flex items-center gap-1 text-xs text-emerald-400 font-bold ml-2">
-                <span className="material-symbols-outlined text-[14px]">sensors</span>
-                Live telemetry connected
+        <div className="lg:col-span-8 flex flex-col gap-4 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Floor Blueprint</h2>
+              <span className="hidden sm:inline px-2 py-0.5 bg-white/5 border border-white/10 rounded text-xs text-slate-400 font-mono">Scaled 1:50</span>
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                Live
               </span>
             </div>
-            <div className="flex items-center gap-1 bg-[#111827] border border-white/5 rounded-lg p-1">
-              <button className="p-1.5 rounded bg-white/10 shadow-sm text-white hover:text-blue-400"><span className="material-symbols-outlined text-[18px]">zoom_in</span></button>
-              <button className="p-1.5 rounded text-slate-400 hover:text-white"><span className="material-symbols-outlined text-[18px]">zoom_out</span></button>
-              <button className="p-1.5 rounded text-slate-400 hover:text-white"><span className="material-symbols-outlined text-[18px]">fit_screen</span></button>
+            <div className="hidden sm:flex items-center gap-1 bg-[#111827] border border-white/5 rounded-lg p-1 shrink-0">
+              <button className="w-8 h-8 rounded bg-white/10 shadow-sm text-white flex items-center justify-center"><span className="material-symbols-outlined text-[18px]">zoom_in</span></button>
+              <button className="w-8 h-8 rounded text-slate-400 flex items-center justify-center"><span className="material-symbols-outlined text-[18px]">zoom_out</span></button>
+              <button className="w-8 h-8 rounded text-slate-400 flex items-center justify-center"><span className="material-symbols-outlined text-[18px]">fit_screen</span></button>
             </div>
           </div>
 
@@ -188,8 +190,8 @@ export function FloorManagerClient({
                    <span className="text-[10px] text-slate-500 uppercase tracking-widest">Ambient Daylight Glass Line</span>
                  </div>
                  
-                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                   {tableList.map(table => {
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                    {tableList.map(table => {
                      const isSelected = selectedTableId === table.id;
                      
                      // Derive UI state based on mockup

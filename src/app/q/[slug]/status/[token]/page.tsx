@@ -92,7 +92,7 @@ export default async function CustomerQueueStatusPage({
   const menuCategories = await PublicRestaurantService.getPublicMenuPreview(restaurant.id);
 
   return (
-    <main className="min-h-screen bg-[#0A0E17] text-white flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950 pb-32">
+    <main className="min-h-[100dvh] bg-[#0A0E17] text-white flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950 pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <StatusAutoRefresh intervalMs={10000} />
 
       <div className="w-full max-w-md mx-auto">
@@ -104,12 +104,12 @@ export default async function CustomerQueueStatusPage({
         />
 
         {/* Hero Digital Pass */}
-        <div className="px-3">
+        <div className="px-3 sm:px-4">
            <QueueTicketCard status={status} token={token} restaurantSlug={slug} />
         </div>
 
         {!isTerminal && (
-          <div className="px-3">
+          <div className="px-3 sm:px-4 space-y-4">
              <PartyPreferencesCard 
                customerName={status.customerName} 
                phone={null}

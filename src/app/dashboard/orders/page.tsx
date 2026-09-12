@@ -42,19 +42,17 @@ export default async function StaffOrdersPage({
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500 p-4 sm:p-0">
       {/* Page Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900/40 via-blue-900/20 to-slate-900/40 border border-white/10 p-8 shadow-2xl">
-        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-blue-500/20 rounded-full blur-[80px]"></div>
-        <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px]"></div>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900/40 via-blue-900/20 to-slate-900/40 border border-white/10 p-5 sm:p-8 shadow-2xl">
+        <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-blue-500/20 rounded-full blur-[80px] pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 -mb-16 -ml-16 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none"></div>
         
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 tracking-tight">Order Management</h1>
-            <p className="text-sm text-slate-400 mt-2 max-w-xl">
-              Monitor customer orders, food preparation status, and table deliveries in real-time.
-            </p>
-          </div>
+        <div className="relative z-10">
+          <h1 className="text-[22px] sm:text-3xl font-black text-white tracking-tight">Order Management</h1>
+          <p className="text-[13px] sm:text-sm text-slate-400 mt-1.5 max-w-xl leading-relaxed">
+            Monitor orders, preparation status, and table deliveries live.
+          </p>
         </div>
       </div>
 

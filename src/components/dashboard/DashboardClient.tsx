@@ -57,12 +57,12 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
   const tablesOccupied = tablesRes.tables.filter(t => t.status === 'OCCUPIED').length;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-8 items-start relative z-10">
       
       {/* SEATING MODAL */}
       {seatingEntryId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#0A0E17] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl flex flex-col gap-4 relative">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
+          <div className="bg-[#0A0E17] border border-white/10 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 w-full max-w-md shadow-2xl flex flex-col gap-4 relative max-h-[85dvh] overflow-hidden safe-pb">
              <button 
                 onClick={() => setSeatingEntryId(null)}
                 className="absolute top-4 right-4 text-slate-400 hover:text-white"
@@ -214,7 +214,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             {tablesRes.tables.slice(0, 4).map((t) => {
               const isCleaning = t.status === 'CLEANING';
               const isOccupied = t.status === 'OCCUPIED';

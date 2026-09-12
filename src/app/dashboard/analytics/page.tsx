@@ -59,12 +59,15 @@ export default async function AnalyticsPage() {
     : 0;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
-          <p className="text-gray-500 mt-1">Operational intelligence for the last 30 days</p>
+    <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Analytics Dashboard</h1>
+          <p className="text-slate-400 text-[13px] sm:text-sm mt-1">Operational intelligence — last 30 days</p>
         </div>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono font-bold text-slate-300 self-start sm:self-auto">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Live
+        </span>
       </div>
 
       {error ? (
@@ -74,8 +77,8 @@ export default async function AnalyticsPage() {
       ) : (
         <div className="space-y-8">
           <section>
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Queue Operations</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <h2 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Queue Operations</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
               <KPICard 
                 title="Total Joined" 
                 value={queueMetrics?.total_joined || 0} 
@@ -100,8 +103,8 @@ export default async function AnalyticsPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Commerce Overview</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <h2 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Commerce Overview</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
               <KPICard 
                 title="Total Orders" 
                 value={commerceMetrics?.total_orders || 0} 

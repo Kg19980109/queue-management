@@ -51,14 +51,14 @@ export default async function PublicRestaurantQueuePage({
   const menuCategories = await PublicRestaurantService.getPublicMenuPreview(restaurant.id);
 
   return (
-    <main className="min-h-screen relative overflow-hidden bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-100">
+    <main className="min-h-[100dvh] relative overflow-hidden bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-100">
       
       {/* Background glow effects */}
-      <div className="absolute top-0 inset-x-0 h-[500px] bg-gradient-to-b from-emerald-900/20 via-slate-900/5 to-transparent pointer-events-none -z-10" />
+      <div className="absolute top-0 inset-x-0 h-[420px] bg-gradient-to-b from-emerald-900/20 via-slate-900/5 to-transparent pointer-events-none -z-10" />
       <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-emerald-500/10 blur-[120px] pointer-events-none -z-10" />
       <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-[120px] pointer-events-none -z-10" />
 
-      <div className="w-full max-w-md mx-auto space-y-6 px-4 py-8 z-10 relative">
+      <div className="w-full max-w-md mx-auto space-y-5 sm:space-y-6 px-4 py-6 sm:py-8 z-10 relative">
         {/* Header */}
         <div className="animate-fade-in-up stagger-1">
           <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
@@ -67,15 +67,13 @@ export default async function PublicRestaurantQueuePage({
         {/* Queue Open vs Closed Content */}
         <div className="animate-fade-in-up stagger-2">
           {restaurant.queueEnabled ? (
-            <div className="glass-panel rounded-3xl p-6 sm:p-8">
-              <QueueJoinForm restaurant={restaurant} />
-            </div>
+            <QueueJoinForm restaurant={restaurant} />
           ) : (
-            <div className="glass-panel rounded-3xl p-8 text-center space-y-3">
-              <div className="text-5xl mb-4">🛑</div>
-              <h2 className="text-xl font-bold text-white tracking-tight">Queue is Currently Closed</h2>
-              <p className="text-sm text-slate-400 leading-relaxed max-w-[250px] mx-auto">
-                {restaurant.name} is not accepting new queue entries right now. Please check back later or ask the host stand.
+            <div className="rounded-3xl bg-slate-900/80 border border-slate-800 p-6 sm:p-8 text-center space-y-3 backdrop-blur">
+              <div className="text-4xl sm:text-5xl mb-2">🛑</div>
+              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">Queue Currently Closed</h2>
+              <p className="text-[13px] sm:text-sm text-slate-400 leading-relaxed max-w-[280px] mx-auto">
+                {restaurant.name} is not accepting new entries right now. Please check back later or ask the host.
               </p>
             </div>
           )}

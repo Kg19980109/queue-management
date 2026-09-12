@@ -21,8 +21,8 @@ export function PublicBottomNav({
   const menuUrl = token ? `/q/${restaurantSlug}/menu?qtoken=${token}` : `/q/${restaurantSlug}/menu`;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm z-50 pointer-events-auto">
-      <div className="bg-[#0A0E17]/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-1.5 shadow-2xl shadow-black flex items-center justify-between">
+    <div className="fixed bottom-0 left-0 right-0 z-50 pointer-events-auto px-3 safe-pb" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+      <div className="bg-[#0A0E17]/90 backdrop-blur-2xl border border-white/10 rounded-3xl p-1.5 shadow-2xl shadow-black flex items-center justify-between mx-auto max-w-sm">
         
         {/* Left: Queue Status Mini */}
         <Link href={statusUrl} className="flex items-center gap-2.5 pl-3 pr-4 py-2 rounded-2xl hover:bg-white/5 active:bg-white/10 transition-all flex-1">

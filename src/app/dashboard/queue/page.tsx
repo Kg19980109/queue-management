@@ -95,58 +95,56 @@ export default async function QueueManagementPage({
   }
 
   return (
-    <div className="flex flex-col w-full px-space-xl py-space-lg gap-space-lg bg-[#0A0E17] min-h-screen font-body-md text-white antialiased relative z-10">
+    <div className="flex flex-col w-full px-4 sm:px-6 md:px-space-xl py-4 sm:py-space-lg gap-5 sm:gap-space-lg bg-[#0A0E17] min-h-screen font-body-md text-white antialiased relative z-10">
       {/* Top Command & Action Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl lg:text-4xl font-black text-white tracking-tight font-headline-xl">Live Queue Management</h1>
-            <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${queueEnabled ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
-              <span className={`w-2 h-2 rounded-full ${queueEnabled ? 'bg-emerald-400 animate-ping' : 'bg-rose-500'}`}></span>
-              <span className="text-[10px] tracking-widest uppercase font-bold">
-                {queueEnabled ? `Queue Active • ${activeEntries.length} Groups • ${totalGuests} Guests` : 'Queue Closed'}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col gap-1 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <h1 className="text-[22px] sm:text-3xl lg:text-4xl font-black text-white tracking-tight font-headline-xl leading-tight">Live Queue</h1>
+            <div className={`inline-flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full border text-[11px] sm:text-xs shrink-0 self-start sm:self-auto ${queueEnabled ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
+              <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${queueEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`}></span>
+              <span className="tracking-widest uppercase font-bold leading-none">
+                {queueEnabled ? `${activeEntries.length} Groups • ${totalGuests} Guests` : 'Queue Closed'}
               </span>
             </div>
           </div>
-          <p className="text-sm text-slate-400">Real-time floor flow, dining pacing engine, and instantaneous guest dispatch.</p>
+          <p className="text-[13px] sm:text-sm text-slate-400 leading-relaxed">Real-time floor flow and instantaneous guest dispatch.</p>
         </div>
         
         {/* Quick Action Controls */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {nextUp && (
-            <form action={updateQueueStatusAction.bind(null, nextUp.id, 'CALLED', userId)}>
-              <button type="submit" className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/20 transition-all transform active:scale-95 cursor-pointer border border-blue-500" id="call-next-hero-btn">
-                <span className="material-symbols-outlined text-[20px]">campaign</span>
-                <span>Notify Next ({nextUp.display_number || nextUp.queue_number})</span>
-                <span className="px-2 py-0.5 rounded bg-white/20 text-white text-[10px] hidden sm:inline-block border border-white/10">Space / ↵</span>
+            <form action={updateQueueStatusAction.bind(null, nextUp.id, 'CALLED', userId)} className="flex-1 sm:flex-none">
+              <button type="submit" className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-5 h-11 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95 border border-blue-500" id="call-next-hero-btn">
+                <span className="material-symbols-outlined text-[18px]">campaign</span>
+                <span>Notify {nextUp.display_number || nextUp.queue_number}</span>
               </button>
             </form>
           )}
 
-          <form action={toggleQueueOpenAction.bind(null, restaurant.id, !queueEnabled, userId)}>
+          <form action={toggleQueueOpenAction.bind(null, restaurant.id, !queueEnabled, userId)} className="shrink-0">
             <button
               type="submit"
-              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors cursor-pointer border ${
+              className={`flex items-center justify-center gap-1.5 px-3 sm:px-4 h-11 rounded-xl text-sm font-bold transition-colors border active:scale-95 ${
                 queueEnabled
-                  ? 'bg-[#111827] hover:bg-white/5 border-white/5 text-slate-300'
-                  : 'bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30 text-rose-400'
+                  ? 'bg-[#111827] hover:bg-white/5 border-white/10 text-slate-300'
+                  : 'bg-emerald-500 hover:bg-emerald-600 border-emerald-500 text-white shadow-lg'
               }`}
             >
               <span className="material-symbols-outlined text-[18px]">
                 {queueEnabled ? 'pause_circle' : 'play_circle'}
               </span>
-              <span>{queueEnabled ? 'Pause Queue' : 'Open Queue'}</span>
+              <span className="hidden xs:inline">{queueEnabled ? 'Pause' : 'Open'}</span>
             </button>
           </form>
-          <AddQueueGuestModal />
-          <button className="p-2.5 rounded-xl bg-[#111827] hover:bg-white/5 border border-white/5 text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center" title="Queue Settings">
-            <span className="material-symbols-outlined text-[20px]">tune</span>
-          </button>
+          <div className="shrink-0">
+            <AddQueueGuestModal />
+          </div>
         </div>
       </div>
 
-      {/* Real-time KPI Dynamic Ribbon */}
-      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-2 hide-scrollbar lg:grid lg:grid-cols-5 md:grid md:grid-cols-3">
+      {/* Real-time KPI Dynamic Ribbon - horizontal scroll on mobile, grid on desktop */}
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 sm:gap-4 pb-2 hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-5 md:grid md:grid-cols-3">
         {/* Metric 1 */}
         <div className="min-w-[220px] snap-center shrink-0 md:min-w-0 md:shrink md:snap-none p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-white/10 transition-colors">
           <div className="flex items-center justify-between">
@@ -241,58 +239,38 @@ export default async function QueueManagementPage({
       </div>
 
       {/* Search, Filter Badges, and Views Splitter */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-space-md p-space-sm rounded-2xl bg-[#111827] border border-white/5 shadow-sm">
-        {/* Filter Chips & Search Bar */}
-        <div className="flex flex-wrap items-center gap-2 flex-1">
-          <form method="GET" action="/dashboard/queue" className="relative min-w-[280px] flex-1 max-w-md">
-            <input type="hidden" name="status" value={statusFilter} />
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
-            <input 
-              name="search"
-              defaultValue={searchTerm}
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-[#0A0E17] border border-white/5 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-white/20 transition-all" 
-              placeholder="Search guest name, phone, or ticket #..." 
-              type="text"
-            />
-          </form>
-          <div className="flex items-center gap-1 overflow-x-auto py-1">
-            {[
-              { label: `All (${entries.length})`, value: 'ALL' },
-              { label: `Waiting (${waitingCount})`, value: 'WAITING' },
-              { label: `Called (${calledCount})`, value: 'CALLED' },
-              { label: 'Terminal / History', value: 'TERMINAL' },
-            ].map((tab) => (
-              <Link
-                key={tab.value}
-                href={`/dashboard/queue?status=${tab.value}${searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ''}`}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-colors whitespace-nowrap ${
-                  statusFilter === tab.value
-                    ? 'bg-blue-600 text-white font-bold shadow-sm'
-                    : 'bg-transparent hover:bg-white/5 text-slate-300'
-                }`}
-              >
-                {tab.label}
-              </Link>
-            ))}
-            <div className="h-4 w-[1px] bg-white/10 mx-1"></div>
-            <button className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-transparent hover:bg-white/5 text-slate-400 text-sm transition-colors">
-              <span>Party Size: Any</span>
-              <span className="material-symbols-outlined text-[16px]">expand_more</span>
-            </button>
-          </div>
-        </div>
-        {/* Toggle & Bulk Actions */}
-        <div className="flex items-center justify-end gap-2">
-          <div className="flex items-center p-1 rounded-xl bg-[#0A0E17] border border-white/5">
-            <button className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#111827] border border-white/10 text-white text-sm shadow-sm font-bold">
-              <span className="material-symbols-outlined text-[16px]">format_list_bulleted</span>
-              <span>List</span>
-            </button>
-            <button className="flex items-center gap-1 px-3 py-1 rounded-lg text-slate-400 hover:text-white text-sm transition-colors">
-              <span className="material-symbols-outlined text-[16px]">grid_view</span>
-              <span>Board</span>
-            </button>
-          </div>
+      <div className="flex flex-col gap-3 p-3 sm:p-4 rounded-2xl bg-[#111827] border border-white/5 shadow-sm">
+        <form method="GET" action="/dashboard/queue" className="relative w-full">
+          <input type="hidden" name="status" value={statusFilter} />
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
+          <input 
+            name="search"
+            defaultValue={searchTerm}
+            className="w-full pl-9 pr-4 h-11 rounded-xl bg-[#0A0E17] border border-white/10 text-white placeholder:text-slate-500 text-[15px] sm:text-sm focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all" 
+            placeholder="Search guest, phone, ticket #..." 
+            type="text"
+            enterKeyHint="search"
+          />
+        </form>
+        <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar -mx-1 px-1 pb-1">
+          {[
+            { label: `All (${entries.length})`, value: 'ALL' },
+            { label: `Waiting ${waitingCount}`, value: 'WAITING' },
+            { label: `Called ${calledCount}`, value: 'CALLED' },
+            { label: 'History', value: 'TERMINAL' },
+          ].map((tab) => (
+            <Link
+              key={tab.value}
+              href={`/dashboard/queue?status=${tab.value}${searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ''}`}
+              className={`px-3.5 py-2 rounded-xl text-[13px] font-bold transition-colors whitespace-nowrap shrink-0 border ${
+                statusFilter === tab.value
+                  ? 'bg-primary text-white border-primary shadow-md'
+                  : 'bg-white/[0.04] border-white/10 text-slate-300 active:bg-white/10'
+              }`}
+            >
+              {tab.label}
+            </Link>
+          ))}
         </div>
       </div>
 
@@ -311,7 +289,6 @@ export default async function QueueManagementPage({
               const isCalled = entry.status === 'CALLED';
               const isNotified = entry.status === 'NOTIFIED';
               const isSeated = entry.status === 'SEATED';
-              const isTerminal = ['CANCELLED', 'NO_SHOW', 'EXPIRED', 'COMPLETED'].includes(entry.status);
 
               const seatableTables = seatableTablesMap.get(entry.party_size) || [];
 
@@ -329,13 +306,13 @@ export default async function QueueManagementPage({
                     isSeated ? 'bg-emerald-500' : isNotified ? 'bg-purple-500' : isCalled ? 'bg-blue-500' : hasPreOrder ? 'bg-amber-500' : isNext ? 'bg-blue-400' : 'bg-slate-600'
                   }`}></div>
                   
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pl-2">
-                    <div className="flex items-start md:items-center gap-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       {/* Ticket Monospace Display */}
-                      <div className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl flex-shrink-0 shadow-sm ${
+                      <div className={`flex flex-col items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex-shrink-0 shadow-sm ${
                         isSeated ? 'bg-emerald-600 text-white' : isNotified ? 'bg-purple-600 text-white' : isCalled ? 'bg-blue-600 text-white' : isNext ? 'bg-blue-900/30 text-blue-400 border border-blue-500/20' : 'bg-[#1A2333] border border-white/5 text-slate-300'
                       }`}>
-                        <span className="font-black text-2xl tracking-tight font-headline-xl">
+                        <span className="font-black text-xl sm:text-2xl tracking-tight font-headline-xl leading-none">
                           {entry.display_number || entry.queue_number}
                         </span>
                         {isSeated && <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Dining</span>}
@@ -346,37 +323,25 @@ export default async function QueueManagementPage({
                       </div>
 
                       {/* Guest Profile & Metadata */}
-                      <div className="flex flex-col">
+                      <div className="flex flex-col min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xl font-bold text-white">{entry.customer_name}</span>
+                          <span className="text-[17px] sm:text-xl font-bold text-white truncate">{entry.customer_name}</span>
                           {isVIP && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold border border-amber-500/30">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold border border-amber-500/30 shrink-0">
                               <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                              VIP Guest
+                              VIP
                             </span>
                           )}
-                          <span className="text-sm text-slate-400">• {entry.customer_phone || 'No phone'}</span>
                         </div>
-                        <div className="flex items-center gap-3 mt-1 flex-wrap text-sm text-slate-400">
-                          <span className={`flex items-center gap-1 font-semibold ${isLargeGroup ? 'text-amber-400' : 'text-slate-300'}`}>
-                            <span className={`material-symbols-outlined text-[16px] ${isLargeGroup ? '' : 'text-blue-400'}`}>groups</span>
-                            {entry.party_size} Guests {isLargeGroup ? '(Large Group)' : ''}
+                        <span className="text-[13px] sm:text-sm text-slate-400 truncate">{entry.customer_phone || 'No phone'} • {entry.party_size} guests {isLargeGroup ? '• Large group' : ''}</span>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                            <span className="material-symbols-outlined text-[14px]">schedule</span>
+                            {new Date(entry.joined_at || entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[16px]">schedule</span>
-                            Joined {new Date(entry.joined_at || entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-widest font-bold shrink-0 ${isSeated ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-400' : isNotified ? 'bg-purple-900/30 border-purple-500/30 text-purple-400' : isCalled ? 'bg-blue-900/30 border-blue-500/30 text-blue-400' : 'bg-white/5 border-white/10 text-slate-400'}`}>
+                            {entry.status}
                           </span>
-                          <span>•</span>
-                          {hasPreOrder ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold border border-amber-500/30">
-                              <span className="material-symbols-outlined text-[12px]">bolt</span> Pre-ordered & Paid (₹{anyEntry.pre_order_amount})
-                            </span>
-                          ) : (
-                            <span className={`px-2 py-0.5 rounded border text-[10px] uppercase tracking-widest font-bold ${isSeated ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-400' : isNotified ? 'bg-purple-900/30 border-purple-500/30 text-purple-400' : isCalled ? 'bg-blue-900/30 border-blue-500/30 text-blue-400' : 'bg-transparent border-white/10 text-slate-400'}`}>
-                              Status: {entry.status}
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -406,63 +371,61 @@ export default async function QueueManagementPage({
                     </div>
                   </div>
 
-                  {/* Action Ribbon per entry */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-white/5 -mx-space-md -mb-space-md px-space-md py-3 rounded-b-2xl bg-[#0A0E17]/30">
-                    <div className="flex items-center gap-2 pl-2">
-                      {isCalled && <span className="flex items-center gap-1 text-sm font-bold text-emerald-400"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Ready to be seated</span>}
-                      {hasPreOrder && <span className="text-sm text-slate-400">Dishes ready to fire upon seating</span>}
-                      {anyEntry.notes && <span className="text-xs text-slate-400">{anyEntry.notes}</span>}
-                    </div>
+                  {/* Action Ribbon per entry - thumb-friendly */}
+                  <div className="flex flex-col gap-3 pt-3 border-t border-white/5 -mx-4 -mb-4 px-4 py-3 rounded-b-2xl bg-[#0A0E17]/40">
+                    {(isCalled || hasPreOrder || anyEntry.notes) && (
+                      <div className="flex items-center gap-2 text-xs">
+                        {isCalled && <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Ready to be seated</span>}
+                        {hasPreOrder && <span className="text-slate-400">Dishes ready</span>}
+                        {anyEntry.notes && <span className="text-slate-400 truncate">{anyEntry.notes}</span>}
+                      </div>
+                    )}
 
-                    <div className="flex flex-wrap items-center sm:justify-end gap-2 shrink-0 w-full sm:w-auto">
+                    <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-end gap-2 w-full">
                       {isWaiting && (
-                        <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)}>
-                          <button type="submit" className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
-                            Inform Next
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)} className="col-span-2 sm:col-span-1">
+                          <button type="submit" className="w-full sm:w-auto px-5 h-11 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-bold shadow-md transition-all active:scale-95">
+                            Inform Guest
                           </button>
                         </form>
                       )}
                       
                       {isCalled && (
-                        <form action={updateQueueStatusAction.bind(null, entry.id, 'NOTIFIED', userId)}>
-                          <button type="submit" className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'NOTIFIED', userId)} className="col-span-2 sm:col-span-1">
+                          <button type="submit" className="w-full sm:w-auto px-5 h-11 rounded-xl bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-sm font-bold shadow-md transition-all active:scale-95">
                             Tell to Come
                           </button>
                         </form>
                       )}
 
                       {isNotified && (
-                        <SeatCustomerModal
-                          entryId={entry.id}
-                          customerName={entry.customer_name}
-                          displayNumber={entry.display_number}
-                          partySize={entry.party_size}
-                          userId={userId}
-                          seatableTables={seatableTables}
-                        />
+                        <div className="col-span-2 sm:col-span-1">
+                          <SeatCustomerModal
+                            entryId={entry.id}
+                            customerName={entry.customer_name}
+                            displayNumber={entry.display_number}
+                            partySize={entry.party_size}
+                            userId={userId}
+                            seatableTables={seatableTables}
+                          />
+                        </div>
                       )}
                       
                       {isSeated && (
-                        <form action={updateQueueStatusAction.bind(null, entry.id, 'COMPLETED', userId)}>
-                          <button type="submit" className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'COMPLETED', userId)} className="col-span-2 sm:col-span-1">
+                          <button type="submit" className="w-full sm:w-auto px-5 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-md active:scale-95">
                             Mark Done
                           </button>
                         </form>
                       )}
 
                       {(isCalled || isNotified) && (
-                        <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId)}>
-                          <button type="submit" className="px-4 py-2 rounded-xl bg-transparent hover:bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer">
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId)} className="col-span-2 sm:col-span-1">
+                          <button type="submit" className="w-full sm:w-auto px-4 h-11 rounded-xl bg-transparent active:bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold flex items-center justify-center gap-1.5">
                             <span className="material-symbols-outlined text-[16px]">person_off</span>
                             <span>No-Show</span>
                           </button>
                         </form>
-                      )}
-
-                      {!isTerminal && (
-                        <button type="button" className="w-9 h-9 rounded-full bg-transparent hover:bg-white/5 border border-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center">
-                          <span className="material-symbols-outlined text-[18px]">more_vert</span>
-                        </button>
                       )}
                     </div>
                   </div>

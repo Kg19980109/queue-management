@@ -69,62 +69,64 @@ export default function MobileNavigation({ activeQueueCount }: MobileNavigationP
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation Bar - Floating & Glassmorphic */}
-      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm z-50">
+      {/* Mobile Bottom Navigation Bar - Floating & Glassmorphic with safe-area */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-3 safe-pb" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <nav 
-          className="flex items-center justify-around px-2 py-2.5 bg-[#0A0E17]/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50"
+          className="flex items-center justify-around px-1.5 py-2 bg-[#0A0E17]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/60 mx-auto max-w-sm"
         >
           <Link 
             href="/dashboard" 
             onClick={() => setIsDrawerOpen(false)}
-            className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-300 ${
-              isActive('/dashboard') ? 'bg-primary/20 text-primary scale-105' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            className={`flex flex-col items-center justify-center min-w-[60px] h-12 rounded-xl transition-all duration-200 active:scale-95 ${
+              isActive('/dashboard') ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 active:bg-white/10'
             }`}
           >
             <span className="material-symbols-outlined text-[20px]">grid_view</span>
-            <span className="text-[9px] font-bold mt-1">Home</span>
+            <span className="text-[10px] font-bold mt-0.5 leading-none">Home</span>
           </Link>
           <Link 
             href="/dashboard/queue" 
             onClick={() => setIsDrawerOpen(false)}
-            className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl relative transition-all duration-300 ${
-              isActive('/dashboard/queue') ? 'bg-primary/20 text-primary scale-105' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            className={`flex flex-col items-center justify-center min-w-[60px] h-12 rounded-xl relative transition-all duration-200 active:scale-95 ${
+              isActive('/dashboard/queue') ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 active:bg-white/10'
             }`}
           >
             <span className="material-symbols-outlined text-[20px]">people</span>
-            <span className="text-[9px] font-bold mt-1">Queue</span>
+            <span className="text-[10px] font-bold mt-0.5 leading-none">Queue</span>
             {activeQueueCount > 0 && (
-              <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-primary rounded-full border-2 border-[#0A0E17]"></span>
+              <span className="absolute -top-0.5 right-1 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full border-2 border-[#0A0E17] flex items-center justify-center">{activeQueueCount > 9 ? '9+' : activeQueueCount}</span>
             )}
           </Link>
           <Link 
             href="/dashboard/orders" 
             onClick={() => setIsDrawerOpen(false)}
-            className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-300 ${
-              isActive('/dashboard/orders') ? 'bg-primary/20 text-primary scale-105' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            className={`flex flex-col items-center justify-center min-w-[60px] h-12 rounded-xl transition-all duration-200 active:scale-95 ${
+              isActive('/dashboard/orders') ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 active:bg-white/10'
             }`}
           >
             <span className="material-symbols-outlined text-[20px]">receipt_long</span>
-            <span className="text-[9px] font-bold mt-1">Orders</span>
+            <span className="text-[10px] font-bold mt-0.5 leading-none">Orders</span>
           </Link>
           <Link 
             href="/dashboard/kitchen" 
             onClick={() => setIsDrawerOpen(false)}
-            className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-300 ${
-              isActive('/dashboard/kitchen') ? 'bg-primary/20 text-primary scale-105' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            className={`flex flex-col items-center justify-center min-w-[60px] h-12 rounded-xl transition-all duration-200 active:scale-95 ${
+              isActive('/dashboard/kitchen') ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 active:bg-white/10'
             }`}
           >
             <span className="material-symbols-outlined text-[20px]">soup_kitchen</span>
-            <span className="text-[9px] font-bold mt-1">Kitchen</span>
+            <span className="text-[10px] font-bold mt-0.5 leading-none">Kitchen</span>
           </Link>
           <button 
+            aria-label="More menu"
+            aria-expanded={isDrawerOpen}
             onClick={() => setIsDrawerOpen(!isDrawerOpen)}
-            className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all duration-300 ${
-              isDrawerOpen ? 'bg-white/10 text-white scale-105' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            className={`flex flex-col items-center justify-center min-w-[60px] h-12 rounded-xl transition-all duration-200 active:scale-95 ${
+              isDrawerOpen ? 'bg-white text-[#0A0E17] shadow-lg' : 'text-slate-400 active:bg-white/10'
             }`}
           >
-            <span className="material-symbols-outlined text-[20px]">menu</span>
-            <span className="text-[9px] font-bold mt-1">More</span>
+            <span className="material-symbols-outlined text-[20px]">{isDrawerOpen ? 'close' : 'menu'}</span>
+            <span className="text-[10px] font-bold mt-0.5 leading-none">{isDrawerOpen ? 'Close' : 'More'}</span>
           </button>
         </nav>
       </div>

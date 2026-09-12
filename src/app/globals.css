@@ -123,10 +123,31 @@
 
 @layer base {
   html,body{margin:0;padding:0;}
-  body{overscroll-behavior:none;}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
+  body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;text-rendering:optimizeLegibility;}
   main>:first-child{margin-top:0!important;}
   main>:last-child{margin-bottom:0!important;}
+  /* Improve tap targets on mobile - Apple recommends 44px */
+  button,a,input,select{ -webkit-tap-highlight-color: rgba(37,99,235,0.15); }
+  /* Prevent iOS zoom on focus for inputs <16px */
+  input,select,textarea{font-size:max(16px, 0.875rem);}
+  @media(min-width:768px){
+    input,select,textarea{font-size:0.875rem;}
+  }
 }
 
 ::-webkit-scrollbar{display:none;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+.hide-scrollbar{scrollbar-width:none;-ms-overflow-style:none;}
+.hide-scrollbar::-webkit-scrollbar{display:none;}
+/* Safe area helpers */
+.safe-pb{padding-bottom: env(safe-area-inset-bottom);}
+.safe-pt{padding-top: env(safe-area-inset-top);}
+/* Mobile thumb-friendly */
+@media(max-width:767px){
+  button{ min-height: 44px; }
+  /* Cards breathe more on phone */
+  .card-tap{transition: transform 0.15s ease, box-shadow 0.15s ease;}
+  .card-tap:active{transform: scale(0.98);}
+}
 

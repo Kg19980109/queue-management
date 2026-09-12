@@ -6,6 +6,14 @@ export const metadata: Metadata = {
   description: 'Multi-tenant restaurant SaaS platform foundation',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover' as const,
+  themeColor: '#0A0E17',
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -20,7 +28,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
-      <body className="bg-background font-body-md text-on-surface antialiased">
+      <body className="bg-background font-body-md text-on-surface antialiased min-h-[100dvh] supports-[min-height:100dvh]:min-h-[100dvh]">
         {children}
       </body>
     </html>

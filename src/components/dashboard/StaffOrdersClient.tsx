@@ -319,17 +319,17 @@ export function StaffOrdersClient({
         </form>
       </div>
 
-      {/* Orders Grid */}
+      {/* Orders Grid - single col on phone, 2 on tablet for thumb reach */}
       {orders.length === 0 ? (
-        <div className="bg-[#111827] border border-white/5 rounded-2xl p-12 text-center space-y-3 shadow-sm">
-          <div className="text-4xl">📦</div>
+        <div className="bg-[#111827] border border-white/5 rounded-2xl p-10 sm:p-12 text-center space-y-3 shadow-sm">
+          <div className="text-3xl sm:text-4xl">📦</div>
           <h3 className="text-base font-bold text-white">No Orders Found</h3>
           <p className="text-xs text-slate-400">
-            There are no orders matching your current filter criteria.
+            No orders matching your filter.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-4">
           {orders.map((order) => (
             <OrderCard
               key={order.id}

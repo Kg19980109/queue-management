@@ -246,15 +246,15 @@ export function KitchenDisplayClient({
   return (
     <div className="space-y-6">
       {orders.length === 0 ? (
-        <div className="bg-[#111827] border border-white/5 rounded-2xl p-16 text-center space-y-3 shadow-sm">
-          <div className="text-5xl">👨‍🍳</div>
-          <h3 className="text-lg font-bold text-white">Kitchen Ticket Queue Clear</h3>
-          <p className="text-xs text-slate-400">
-            There are currently no active orders waiting for preparation.
+        <div className="bg-[#111827] border border-white/5 rounded-2xl p-10 sm:p-16 text-center space-y-3 shadow-sm">
+          <div className="text-4xl sm:text-5xl">👨‍🍳</div>
+          <h3 className="text-base sm:text-lg font-bold text-white">Kitchen Queue Clear</h3>
+          <p className="text-xs sm:text-sm text-slate-400">
+            No active orders waiting for preparation.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
           {orders.map((order) => (
             <KitchenTicket
               key={order.id}

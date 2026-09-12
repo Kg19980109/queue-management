@@ -22,11 +22,11 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
   const decrementParty = () => setPartySize((prev) => Math.max(prev - 1, minParty));
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-      <div className="text-center space-y-1">
-        <h2 className="text-xl font-bold text-white tracking-tight">Join Digital Waiting Line</h2>
-        <p className="text-xs text-slate-400">
-          Save your spot from your phone. We&apos;ll notify you when your table is getting close.
+    <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-5 sm:space-y-6">
+      <div className="text-center space-y-1.5">
+        <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">Join Digital Waiting Line</h2>
+        <p className="text-[13px] sm:text-xs text-slate-400 leading-relaxed px-2">
+          Save your spot from your phone. We&apos;ll notify you when your table is close.
         </p>
       </div>
 
@@ -109,11 +109,11 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
           </span>
         </div>
 
-        {/* Submit Button */}
+        {/* Submit Button - sticky thumb zone */}
         <button
           type="submit"
           disabled={isPending}
-          className="w-full py-4 mt-2 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-base rounded-2xl transition-all duration-300 glow-bg hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full h-[52px] sm:h-auto sm:py-4 mt-1 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 active:from-emerald-600 active:to-teal-500 text-slate-950 font-black text-[15px] sm:text-base rounded-2xl transition-all duration-200 shadow-lg shadow-emerald-500/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 touch-manipulation"
         >
           {isPending ? (
             <>
@@ -121,9 +121,10 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
               Joining Line...
             </>
           ) : (
-            'JOIN THE QUEUE'
+            'JOIN THE QUEUE — Save My Spot'
           )}
         </button>
+        <p className="text-center text-[11px] text-slate-500 leading-relaxed">No app download needed • Free • Takes 10 seconds</p>
       </form>
     </div>
   );

@@ -60,41 +60,43 @@ export default async function RestaurantAdminDashboardPage() {
   else if (hour < 17) greeting = 'Good afternoon';
 
   return (
-    <div className="flex flex-col w-full text-slate-300 font-sans p-4 md:p-8 gap-6 md:gap-8">
+    <div className="flex flex-col w-full text-slate-300 font-sans p-4 sm:p-6 md:p-8 gap-5 sm:gap-6 md:gap-8">
       
       {/* Top Section: Greeting and Quick Action */}
-      <section className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6 relative z-10">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-            <span className="text-primary border border-primary/20 bg-primary/10 px-2 py-0.5 rounded-full">Shift Telemetry</span>
-            <span className="text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Normal Service</span>
+      <section className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-4 sm:gap-6 relative z-10">
+        <div className="flex flex-col gap-2 sm:gap-3 min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+            <span className="text-primary border border-primary/20 bg-primary/10 px-2 py-1 rounded-full text-[10px]">Shift Telemetry</span>
+            <span className="text-emerald-400 border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 rounded-full flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Normal Service</span>
           </div>
-          <div className="relative pb-2 w-full max-w-3xl">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl leading-none font-black text-white tracking-widest uppercase font-headline-xl">
+          <div className="relative w-full">
+            <h1 className="text-[22px] sm:text-3xl lg:text-4xl leading-tight sm:leading-none font-black text-white tracking-tight sm:tracking-widest uppercase font-headline-xl break-words">
               {greeting}, {restaurant.name}
             </h1>
           </div>
-          <p className="text-slate-400 text-xs sm:text-sm font-medium">Here is your live floor and queue performance for today&apos;s service.</p>
+          <p className="text-slate-400 text-[13px] sm:text-sm font-medium leading-relaxed">Live floor and queue performance for today&apos;s service.</p>
         </div>
         
         {/* Quick Action Block */}
-        <div className="flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
-          <span className="text-2xl sm:text-3xl hidden sm:inline">👋</span>
-          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            <div className="flex-1 sm:flex-none flex flex-col items-end justify-center px-4 py-2 rounded-xl bg-[#111827] border border-white/5 text-slate-300">
-              <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1"><span className="material-symbols-outlined text-[10px] sm:text-[12px] text-emerald-400">bolt</span> Turnover:</span>
-              <span className="text-xs sm:text-sm font-bold text-white">~{restaurant.avg_service_time_mins || 15}m</span>
+        <div className="flex items-center gap-3 w-full lg:w-auto shrink-0">
+          <div className="flex-1 lg:flex-none flex items-center justify-between sm:justify-end gap-3">
+            <div className="flex items-center gap-3 px-3 sm:px-4 py-2.5 rounded-xl bg-[#111827] border border-white/5 text-slate-300">
+              <span className="material-symbols-outlined text-[16px] text-emerald-400">bolt</span>
+              <div className="flex flex-col leading-none">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Turnover</span>
+                <span className="text-sm font-bold text-white">~{restaurant.avg_service_time_mins || 15}m</span>
+              </div>
             </div>
-            <Link href="/dashboard/queue" className="flex flex-col items-center justify-center px-6 py-2 rounded-xl bg-primary hover:bg-blue-500 transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)] border border-blue-400/30 text-white font-bold text-sm">
-              <span className="text-xs font-normal opacity-70 mb-0.5">+</span>
-              Add Walk-In
+            <Link href="/dashboard/queue" className="shrink-0 flex items-center justify-center gap-1.5 px-5 h-11 rounded-xl bg-primary hover:bg-blue-500 active:bg-blue-600 transition-colors shadow-[0_0_15px_rgba(37,99,235,0.3)] border border-blue-400/30 text-white font-bold text-sm active:scale-95">
+              <span className="material-symbols-outlined text-[18px]">person_add</span>
+              <span>Add Walk-In</span>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* 4 Command OS KPI Cards */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
+      {/* 4 Command OS KPI Cards - scrollable on very small, grid on larger */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6 relative z-10">
         
         {/* KPI 1: Active Queue */}
         <div className="bg-[#111827] p-5 rounded-2xl border border-white/5 flex flex-col justify-between shadow-sm relative overflow-hidden">
