@@ -174,19 +174,19 @@ export function CustomerMenuBrowser({
 
   return (
     <div className="space-y-5 pb-28">
-      {/* Search + Category Tabs */}
+      {/* Search + Category Tabs - wow */}
       <div className="space-y-3">
-        <div className="relative">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-[18px]">search</span>
+        <div className="relative group">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-400 transition-colors text-[18px]">search</span>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search dishes..."
-            className="w-full h-11 pl-10 pr-4 rounded-2xl bg-slate-900 border border-white/10 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30"
+            className="w-full h-11 pl-10 pr-4 rounded-2xl bg-slate-900 border border-white/10 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
           />
           {q && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
-              <span className="material-symbols-outlined text-[18px]">close</span>
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors">
+              <span className="material-symbols-outlined text-[16px]">close</span>
             </button>
           )}
         </div>
@@ -233,17 +233,18 @@ export function CustomerMenuBrowser({
             </div>
 
             <div className="space-y-3">
-              {cat.items.map((item) => {
+              {cat.items.map((item, idx) => {
                 const inCart = cart.find((i) => i.menuItemId === item.id);
 
                 return (
                     <div
                       key={item.id}
-                      className={`bg-slate-900 border rounded-2xl p-3 sm:p-4 flex gap-3 transition-all ${
+                      className={`bg-slate-900 border rounded-2xl p-3 sm:p-4 flex gap-3 transition-all animate-staggerIn hover:scale-[1.01] hover:shadow-lg ${
                         item.available
-                          ? 'border-white/10 hover:border-white/15 hover:shadow-md'
+                          ? 'border-white/10 hover:border-emerald-500/20 hover:shadow-emerald-500/5'
                           : 'border-white/5 opacity-60'
                       }`}
+                      style={{animationDelay:`${idx*40}ms`}}
                     >
                       <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-800 border border-white/5 shrink-0 flex items-center justify-center">
                         {item.imageUrl ? (<img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />) : (<span className="material-symbols-outlined text-slate-600 text-[28px]">lunch_dining</span>)}

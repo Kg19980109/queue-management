@@ -69,21 +69,24 @@ export default async function CustomerMenuPage({
       <div className="w-full max-w-md mx-auto space-y-5 sm:space-y-6">
         <RestaurantHeader restaurant={restaurant} />
 
-        <div className="flex items-center justify-between bg-slate-900/60 border border-slate-800 rounded-2xl p-3.5">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px] text-emerald-400">restaurant_menu</span>
+        <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800/80 border border-slate-700/50 rounded-2xl p-3.5 shadow-lg relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-blue-500/5 pointer-events-none"></div>
+          <div className="flex items-center gap-2 relative">
+            <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow"><span className="material-symbols-outlined text-white text-[18px]">restaurant_menu</span></span>
             <span className="text-xs font-black text-white uppercase tracking-widest">
               Food Menu
             </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 font-bold">{menuCategories.flatMap(c=>c.items).length} items</span>
+            <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-500 text-white font-black shadow">{menuCategories.flatMap(c=>c.items).length} items • Live</span>
           </div>
-          {qtoken && (
+          {qtoken ? (
             <a
               href={`/q/${slug}/status/${qtoken}`}
-              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
+              className="relative text-xs font-black text-white bg-emerald-500 hover:bg-emerald-600 px-3 py-1.5 rounded-full flex items-center gap-1 shadow transition-colors"
             >
-              <span className="material-symbols-outlined text-[14px]">arrow_back</span> Ticket
+              <span className="material-symbols-outlined text-[14px]">confirmation_number</span> Ticket
             </a>
+          ) : (
+            <span className="text-[11px] font-bold text-slate-500">Browse & order</span>
           )}
         </div>
 

@@ -121,11 +121,15 @@ export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCa
         <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
         <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        {/* Central Circular Pass */}
-        <div className="relative z-10 w-48 h-48 rounded-full flex flex-col items-center justify-center border border-white/10 mt-2 mb-6">
-           <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${gradientColors} transition-colors duration-700`}></div>
+        {/* Central Circular Pass - WOW animated token */}
+        <div className="relative z-10 w-48 h-48 rounded-full flex flex-col items-center justify-center mt-2 mb-6 animate-float">
+           {/* Spinning gradient ring */}
+           <div className="absolute inset-0 rounded-full p-[3px] animate-ringSpin" style={{background: `conic-gradient(from 0deg, ${isNotified ? '#a855f7, #ec4899, #a855f7' : isCalled ? '#3b82f6, #06b6d4, #3b82f6' : isSeated ? '#10b981, #06b6d4, #10b981' : '#10b981, #3b82f6, #10b981'})`, WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)', WebkitMaskComposite: 'xor', maskComposite: 'exclude'}}></div>
+           {/* Glow pulse behind */}
+           <div className={`absolute inset-2 rounded-full ${glowColors} blur-2xl animate-glowPulse pointer-events-none`}></div>
+           <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${gradientColors} transition-colors duration-700 border border-white/10`}></div>
            <svg className="absolute inset-0 w-full h-full rotate-[-90deg]">
-             <circle cx="96" cy="96" r="94" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="2" />
+             <circle cx="96" cy="96" r="94" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2" />
              <circle cx="96" cy="96" r="94" fill="none" stroke="url(#gradient)" strokeWidth="4" strokeDasharray="590" strokeDashoffset={isWaiting ? '295' : isCalled ? '150' : isNotified ? '50' : '0'} strokeLinecap="round" className="transition-all duration-1000" />
              <defs>
                {svgGradient}
@@ -133,10 +137,10 @@ export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCa
            </svg>
            
             <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-[0.2em] mt-2">Your Pass</span>
-            <span className="text-4xl sm:text-5xl font-black text-white tracking-tighter my-1 truncate max-w-[150px] text-center">{displayNum}</span>
-            <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 mt-1 border ${isTerminal ? 'bg-slate-800 border-white/10 text-slate-300' : 'bg-emerald-950/50 border-emerald-500/30 text-emerald-400'}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isTerminal ? 'bg-slate-400' : 'bg-emerald-400'}`}></span>
-              <span className="text-[9px] font-bold uppercase tracking-widest">{isTerminal ? status.status : 'Confirmed'}</span>
+            <span className="text-4xl sm:text-5xl font-black text-white tracking-tighter my-1 truncate max-w-[150px] text-center animate-numberPop drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]">{displayNum}</span>
+            <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 mt-1 border backdrop-blur ${isTerminal ? 'bg-slate-800 border-white/10 text-slate-300' : 'bg-emerald-500 text-white border-emerald-400 shadow-lg shadow-emerald-500/20 animate-pulse'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isTerminal ? 'bg-slate-400' : 'bg-white animate-ping'}`}></span>
+              <span className="text-[9px] font-black uppercase tracking-widest">{isTerminal ? status.status : 'Confirmed • Live'}</span>
             </div>
         </div>
 
@@ -148,22 +152,25 @@ export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCa
           {statusSubtitle}
         </p>
 
-        {/* Queue Insights Grid - lucrative & easy to read */}
+        {/* Queue Insights Grid - wow, animated stagger */}
         <div className="grid grid-cols-3 gap-2 w-full relative z-10 mb-6">
-          <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 text-center backdrop-blur">
+          <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] border border-white/10 rounded-2xl p-3 text-center backdrop-blur shimmer animate-staggerIn" style={{animationDelay:'0ms'}}>
+            <div className="w-6 h-6 mx-auto rounded-lg bg-white/10 flex items-center justify-center mb-1"><span className="material-symbols-outlined text-white text-[14px]">leaderboard</span></div>
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Position</div>
-            <div className="text-xl font-black text-white mt-1">{status.position ? `#${status.position}` : '—'}</div>
-            <div className="text-[11px] text-slate-500">{status.position === 1 ? 'You’re next!' : status.position ? `of queue` : '—'}</div>
+            <div className="text-xl font-black text-white mt-1 animate-numberPop">{status.position ? `#${status.position}` : '—'}</div>
+            <div className="text-[10px] text-emerald-400 font-bold">{status.position === 1 ? '⭐ You’re next!' : status.position ? `in line` : '—'}</div>
           </div>
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3 text-center">
+          <div className="bg-gradient-to-br from-emerald-500/15 to-emerald-600/5 border border-emerald-500/30 rounded-2xl p-3 text-center shadow-sm shadow-emerald-500/10 animate-staggerIn" style={{animationDelay:'80ms'}}>
+            <div className="w-6 h-6 mx-auto rounded-lg bg-emerald-500/20 flex items-center justify-center mb-1"><span className="material-symbols-outlined text-emerald-400 text-[14px]">groups</span></div>
             <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Ahead</div>
             <div className="text-xl font-black text-emerald-400 mt-1">{status.peopleAhead !== null ? status.peopleAhead : '—'}</div>
-            <div className="text-[11px] text-emerald-300/70">{status.peopleAhead === 0 ? 'No one!' : 'parties'}</div>
+            <div className="text-[10px] text-emerald-300 font-bold">{status.peopleAhead === 0 ? 'No one! 🎉' : status.peopleAhead === 1 ? '1 party' : 'parties'}</div>
           </div>
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-3 text-center">
-            <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Wait</div>
+          <div className="bg-gradient-to-br from-blue-500/15 to-indigo-500/10 border border-blue-500/30 rounded-2xl p-3 text-center shadow-sm shadow-blue-500/10 animate-staggerIn" style={{animationDelay:'160ms'}}>
+            <div className="w-6 h-6 mx-auto rounded-lg bg-blue-500/20 flex items-center justify-center mb-1"><span className="material-symbols-outlined text-blue-400 text-[14px]">schedule</span></div>
+            <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Est. Wait</div>
             <div className="text-xl font-black text-blue-400 mt-1">{estWaitMins ? `~${estWaitMins}m` : '—'}</div>
-            <div className="text-[11px] text-blue-300/70">estimated</div>
+            <div className="text-[10px] text-blue-300 font-bold">live estimate</div>
           </div>
         </div>
 

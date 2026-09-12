@@ -199,3 +199,19 @@ html.light [class*="bg-emerald"] .text-white { color: #ffffff !important; }
 html.light .bg-\[\#111827\].border{ background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important; }
 html.light .shadow-2xl{ box-shadow: 0 8px 28px rgba(15,23,42,0.08) !important; }
 
+/* ========== WOW ANIMATIONS - customer pages ========== */
+@keyframes scaleIn { 0%{transform:scale(0.8);opacity:0} 100%{transform:scale(1);opacity:1} }
+@keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+@keyframes ringSpin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+@keyframes glowPulse { 0%,100%{opacity:0.4;transform:scale(1)} 50%{opacity:0.7;transform:scale(1.05)} }
+@keyframes numberPop { 0%{transform:scale(0.9)} 50%{transform:scale(1.08)} 100%{transform:scale(1)} }
+@keyframes staggerIn { 0%{opacity:0;transform:translateY(12px)} 100%{opacity:1;transform:translateY(0)} }
+.animate-float{ animation: float 3s ease-in-out infinite; }
+.animate-glowPulse{ animation: glowPulse 2.5s ease-in-out infinite; }
+.animate-numberPop{ animation: numberPop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.animate-staggerIn{ animation: staggerIn 0.5s ease forwards; }
+.animate-ringSpin{ animation: ringSpin 8s linear infinite; }
+.shimmer{ position:relative; overflow:hidden; }
+.shimmer::after{ content:""; position:absolute; inset:0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent); transform:translateX(-100%); animation: shimmer 2.2s infinite; }
+
