@@ -76,7 +76,7 @@ export function QRManagerClient({
             No app needed · join in 10 seconds
           </p>
 
-          <div className="mt-6 p-3 bg-white rounded-2xl shadow-lg relative z-10">
+          <div className="mt-6 p-3 bg-white rounded-2xl shadow-lg border border-slate-100 relative z-10">
             <div id="qr-svg-wrap" className="bg-white rounded-xl overflow-hidden">
               <QRCodeSVG
                 id="qr-svg"

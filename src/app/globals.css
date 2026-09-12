@@ -151,37 +151,51 @@
   .card-tap:active{transform: scale(0.98);}
 }
 
-/* ========== LIGHT MODE - colorful, polished ========== */
-html.light body{ background: #f8fafc; color: #0f172a; }
+/* ========== LIGHT MODE - colorful, not washed ========== */
+html.light body{ background: #eef2f7; color: #0f172a; }
 html.light .bg-\[\#0A0E17\]{ background-color: #ffffff !important; border-color: #e2e8f0 !important; }
-html.light .bg-\[\#0A0E17\]\/80{ background-color: rgba(255,255,255,0.85) !important; backdrop-filter: blur(12px); border-color: #e2e8f0 !important; }
-html.light .bg-\[\#0A0E17\]\/90{ background-color: rgba(255,255,255,0.92) !important; border-color: #e2e8f0 !important; }
-html.light .bg-\[\#111827\]{ background-color: #ffffff !important; border-color: #e2e8f0 !important; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
-html.light .bg-\[\#111827\]\/80{ background-color: rgba(255,255,255,0.9) !important; border-color: #e2e8f0 !important; }
+html.light .bg-\[\#0A0E17\]\/80{ background-color: rgba(255,255,255,0.92) !important; backdrop-filter: blur(12px); border-color: #e2e8f0 !important; }
+html.light .bg-\[\#0A0E17\]\/90{ background-color: rgba(255,255,255,0.96) !important; border-color: #e2e8f0 !important; }
+html.light .bg-\[\#111827\]{ background-color: #ffffff !important; border-color: #e2e8f0 !important; box-shadow: 0 2px 12px rgba(15,23,42,0.07), 0 1px 3px rgba(15,23,42,0.05) !important; }
+html.light .bg-\[\#111827\]\/80{ background-color: #ffffff !important; border-color: #e2e8f0 !important; }
 html.light .bg-\[\#111827\]\/90{ background-color: #ffffff !important; border-color: #e2e8f0 !important; }
-html.light .bg-\[\#1A2333\]{ background-color: #f1f5f9 !important; }
+html.light .bg-\[\#1A2333\]{ background-color: #f1f5f9 !important; border-color: #e2e8f0 !important; }
 html.light .bg-\[\#1A2333\]\/80{ background-color: #f1f5f9 !important; }
-html.light .bg-slate-950{ background-color: #f8fafc !important; }
-html.light .bg-slate-900{ background-color: #ffffff !important; }
-html.light .bg-slate-900\/60{ background-color: #ffffff !important; }
+html.light .bg-slate-950{ background-color: #eef2f7 !important; }
+html.light .bg-slate-900{ background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+html.light .bg-slate-900\/60{ background-color: #ffffff !important; border-color: #e2e8f0 !important; }
 html.light .bg-slate-900\/80{ background-color: #ffffff !important; }
 html.light .bg-slate-800{ background-color: #f1f5f9 !important; }
-html.light .text-white{ color: #0f172a !important; }
+/* Text - scoped so buttons keep white text */
+html.light .bg-\[\#111827\] .text-white,
+html.light .bg-\[\#0A0E17\] .text-white,
+html.light .bg-white .text-white,
+html.light .bg-slate-900 .text-white,
+html.light h1.text-white, html.light h2.text-white, html.light h3.text-white { color: #0f172a !important; }
 html.light .text-slate-100{ color: #1e293b !important; }
 html.light .text-slate-200{ color: #334155 !important; }
-html.light .text-slate-300{ color: #334155 !important; }
+html.light .text-slate-300{ color: #475569 !important; }
 html.light .text-slate-400{ color: #64748b !important; }
 html.light .text-slate-500{ color: #64748b !important; }
-html.light .border-white\/5{ border-color: rgba(15,23,42,0.08) !important; }
-html.light .border-white\/10{ border-color: rgba(15,23,42,0.12) !important; }
-html.light .border-white\/20{ border-color: rgba(15,23,42,0.15) !important; }
-html.light .bg-white\/5{ background-color: rgba(15,23,42,0.05) !important; }
-html.light .bg-white\/10{ background-color: rgba(15,23,42,0.08) !important; }
+html.light .border-white\/5{ border-color: #e2e8f0 !important; }
+html.light .border-white\/10{ border-color: #e2e8f0 !important; }
+html.light .border-white\/20{ border-color: #cbd5e1 !important; }
+html.light .bg-white\/5{ background-color: #f1f5f9 !important; }
+html.light .bg-white\/10{ background-color: #e2e8f0 !important; }
 html.light .bg-white{ background-color: #ffffff !important; }
-html.light .from-emerald-500\/10{ --tw-gradient-from: rgba(16,185,129,0.08) !important; }
-html.light .to-blue-600\/10{ --tw-gradient-to: rgba(37,99,235,0.06) !important; }
-/* Keep QR white box white in light mode */
+/* Keep QR white box white */
 html.light #qr-svg-wrap{ background: #ffffff !important; }
-/* Light mode cards pop with soft shadow and color */
-html.light .shadow-2xl{ box-shadow: 0 8px 32px rgba(0,0,0,0.08) !important; }
+/* Preserve white text on colored buttons/badges */
+html.light .bg-primary .text-white,
+html.light .bg-blue-600 .text-white,
+html.light .bg-emerald-500 .text-white,
+html.light .bg-emerald-600 .text-white,
+html.light .bg-purple-600 .text-white,
+html.light .bg-rose-500 .text-white,
+html.light .bg-amber-500 .text-white,
+html.light [class*="bg-blue-500"] .text-white,
+html.light [class*="bg-emerald"] .text-white { color: #ffffff !important; }
+/* Colorful KPI tints in light mode */
+html.light .bg-\[\#111827\].border{ background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important; }
+html.light .shadow-2xl{ box-shadow: 0 8px 28px rgba(15,23,42,0.08) !important; }
 
