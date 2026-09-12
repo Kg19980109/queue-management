@@ -5,6 +5,7 @@ import { loginAction } from './actions';
 import { motion } from 'framer-motion';
 import { Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(loginAction, null);
@@ -15,9 +16,12 @@ export default function LoginPage() {
       <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-500/10 blur-[100px] rounded-full pointer-events-none" />
 
-      <Link href="/" className="absolute top-8 left-8 text-sm font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-2">
-        &larr; Back to Platform
-      </Link>
+      <div className="absolute top-8 left-8 right-8 flex items-center justify-between">
+        <Link href="/" className="text-sm font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+          &larr; Back to Platform
+        </Link>
+        <ThemeToggle />
+      </div>
 
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}

@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ChevronRight, Layers, Zap, Shield, Smartphone } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function HomePage() {
   return (
@@ -19,7 +20,8 @@ export default function HomePage() {
           </div>
           <span className="font-bold text-xl tracking-tight text-white">QueueFlow</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
             Sign In
           </Link>

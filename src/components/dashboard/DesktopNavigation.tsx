@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface DesktopNavigationProps {
   activeQueueCount: number;
@@ -120,6 +121,10 @@ export default function DesktopNavigation({ activeQueueCount, children }: Deskto
         </div>
       </div>
       <div className="p-4 flex flex-col gap-2 border-t border-white/5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Theme</span>
+          <ThemeToggle />
+        </div>
         <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded bg-primary text-white flex items-center justify-center font-bold text-sm">

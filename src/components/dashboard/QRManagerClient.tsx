@@ -58,25 +58,26 @@ export function QRManagerClient({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Left: QR Preview - cool, print-ready */}
-        <div className="bg-white rounded-[28px] p-6 sm:p-8 flex flex-col items-center shadow-2xl print:shadow-none relative overflow-hidden">
-          {/* subtle brand header inside white card */}
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-6 h-6 rounded-lg bg-[#0A0E17] flex items-center justify-center">
+        {/* Left: QR Preview - balanced, not full white */}
+        <div className="bg-[#111827] border border-white/5 rounded-[28px] p-6 sm:p-8 flex flex-col items-center shadow-2xl relative overflow-hidden">
+          {/* subtle glow */}
+          <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-96 h-40 bg-emerald-500/10 blur-[50px] rounded-full pointer-events-none"></div>
+          <div className="flex items-center gap-2 mb-5 relative z-10">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-blue-600 flex items-center justify-center shadow">
               <span className="material-symbols-outlined text-white text-[14px]">restaurant</span>
             </div>
-            <span className="font-black tracking-widest text-[11px] text-[#0A0E17] uppercase">{restaurantName}</span>
+            <span className="font-black tracking-widest text-[11px] text-white uppercase">{restaurantName}</span>
           </div>
 
-          <h2 className="text-[18px] font-black text-[#0A0E17] text-center leading-tight">
+          <h2 className="text-[18px] font-black text-white text-center leading-tight relative z-10">
             Scan to Join Queue
           </h2>
-          <p className="text-[11px] text-slate-500 text-center mt-1 max-w-[260px]">
+          <p className="text-[11px] text-slate-400 text-center mt-1 max-w-[260px] relative z-10">
             No app needed · join in 10 seconds
           </p>
 
-          <div className="mt-6 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-            <div id="qr-svg-wrap" className="bg-white">
+          <div className="mt-6 p-3 bg-white rounded-2xl shadow-lg relative z-10">
+            <div id="qr-svg-wrap" className="bg-white rounded-xl overflow-hidden">
               <QRCodeSVG
                 id="qr-svg"
                 value={qrUrl}
@@ -86,7 +87,6 @@ export function QRManagerClient({
                 bgColor="#ffffff"
                 fgColor="#0A0E17"
               />
-              {/* Hidden canvas for PNG export */}
               <div className="hidden">
                 <QRCodeCanvas
                   id="qr-canvas"
@@ -101,25 +101,25 @@ export function QRManagerClient({
             </div>
           </div>
 
-          <div className="mt-5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 text-white font-mono text-[11px] max-w-full truncate">
+          <div className="mt-5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white font-mono text-[11px] max-w-full truncate relative z-10">
             <span className="material-symbols-outlined text-[14px] text-emerald-400">link</span>
             <span className="truncate">{qrUrl.replace(/^https?:\/\//, '')}</span>
           </div>
 
-          <div className="mt-6 flex items-center gap-6 text-[#0A0E17]">
+          <div className="mt-6 flex items-center gap-5 relative z-10">
             <span className="flex flex-col items-center gap-1">
-              <span className="w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center"><span className="material-symbols-outlined text-emerald-600 text-[16px]">bolt</span></span>
-              <span className="text-[10px] font-bold uppercase tracking-widest">No App</span>
+              <span className="w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center"><span className="material-symbols-outlined text-emerald-400 text-[16px]">bolt</span></span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">No App</span>
             </span>
-            <span className="w-px h-8 bg-slate-200"></span>
+            <span className="w-px h-8 bg-white/10"></span>
             <span className="flex flex-col items-center gap-1">
-              <span className="w-7 h-7 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center"><span className="material-symbols-outlined text-blue-600 text-[16px]">notifications</span></span>
-              <span className="text-[10px] font-bold uppercase tracking-widest">SMS Alert</span>
+              <span className="w-7 h-7 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center"><span className="material-symbols-outlined text-blue-400 text-[16px]">notifications</span></span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">SMS Alert</span>
             </span>
-            <span className="w-px h-8 bg-slate-200"></span>
+            <span className="w-px h-8 bg-white/10"></span>
             <span className="flex flex-col items-center gap-1">
-              <span className="w-7 h-7 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center"><span className="material-symbols-outlined text-amber-600 text-[16px]">restaurant</span></span>
-              <span className="text-[10px] font-bold uppercase tracking-widest">Pre-Order</span>
+              <span className="w-7 h-7 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center"><span className="material-symbols-outlined text-amber-400 text-[16px]">restaurant</span></span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Pre-Order</span>
             </span>
           </div>
         </div>
