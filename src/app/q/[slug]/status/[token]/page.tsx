@@ -113,7 +113,8 @@ export default async function CustomerQueueStatusPage({
           <div className="px-3">
              <PartyPreferencesCard 
                customerName={status.customerName} 
-               phone={null} 
+               phone={null}
+               partySize={status.partySize}
              />
              <KitchenPreOrderCard queueNumber={displayNum} restaurantSlug={slug} token={token} categories={menuCategories} />
              <ComplimentaryPourCard />
