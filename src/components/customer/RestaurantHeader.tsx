@@ -17,27 +17,32 @@ export function RestaurantHeader({ restaurant, waitingCount }: RestaurantHeaderP
   };
 
   return (
-    <div className="flex flex-col items-center text-center space-y-3 sm:space-y-4 pt-2 sm:pt-4 pb-2">
-      {/* Logo / Initials Fallback */}
-      {restaurant.logoUrl ? (
-        <img
-          src={restaurant.logoUrl}
-          alt={restaurant.name}
-          className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover border-2 border-emerald-500/30 shadow-lg shadow-emerald-500/10"
-        />
-      ) : (
-        <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border-2 border-emerald-500/30 flex items-center justify-center text-emerald-400 font-extrabold text-xl sm:text-2xl shadow-xl shadow-emerald-500/10 tracking-wider">
-          {getInitials(restaurant.name)}
-        </div>
-      )}
+    <div className="flex flex-col items-center text-center space-y-3 sm:space-y-4 pt-2 sm:pt-4 pb-1">
+      {/* Logo / Initials Fallback with animated ring */}
+      <div className="relative">
+        {restaurant.logoUrl ? (
+          <img
+            src={restaurant.logoUrl}
+            alt={restaurant.name}
+            className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover border-2 border-emerald-500/30 shadow-lg shadow-emerald-500/10"
+          />
+        ) : (
+          <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-500 p-[1.5px] shadow-xl shadow-emerald-500/20">
+            <div className="w-full h-full rounded-2xl bg-slate-900 flex items-center justify-center text-emerald-400 font-black text-xl sm:text-2xl tracking-wider">
+              {getInitials(restaurant.name)}
+            </div>
+          </div>
+        )}
+        {restaurant.queueEnabled && <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-slate-950 flex items-center justify-center"><span className="w-2 h-2 bg-white rounded-full animate-pulse"></span></span>}
+      </div>
 
       {/* Title & Info */}
-      <div className="space-y-1 px-4">
-        <h1 className="text-[22px] sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
+      <div className="space-y-1.5 px-4">
+        <h1 className="text-[22px] sm:text-[26px] font-black text-white tracking-tight leading-tight">
           {restaurant.name}
         </h1>
         {restaurant.description && (
-          <p className="text-[13px] sm:text-sm text-slate-400 max-w-sm mx-auto leading-relaxed line-clamp-2">
+          <p className="text-[12px] sm:text-[13px] text-slate-400 max-w-sm mx-auto leading-relaxed line-clamp-2">
             {restaurant.description}
           </p>
         )}
@@ -52,12 +57,12 @@ export function RestaurantHeader({ restaurant, waitingCount }: RestaurantHeaderP
         )}
 
         {restaurant.queueEnabled ? (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold shadow-sm shadow-emerald-500/10">
             <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            {waitingCount !== undefined ? `${waitingCount} in line` : 'Queue Open'}
+            {waitingCount !== undefined ? `${waitingCount} parties • Live` : 'Queue Open'}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold">

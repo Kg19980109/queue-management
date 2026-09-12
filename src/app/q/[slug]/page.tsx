@@ -48,6 +48,7 @@ export default async function PublicRestaurantQueuePage({
 
   const activeEntries = await QueueService.getActiveQueue(restaurant.id);
   const waitingCount = activeEntries.filter((e) => e.status === 'WAITING').length;
+  const avgWaitMins = 15;
   const menuCategories = await PublicRestaurantService.getPublicMenuPreview(restaurant.id);
 
   return (
@@ -67,7 +68,7 @@ export default async function PublicRestaurantQueuePage({
         {/* Queue Open vs Closed Content */}
         <div className="animate-fade-in-up stagger-2">
           {restaurant.queueEnabled ? (
-            <QueueJoinForm restaurant={restaurant} />
+            <QueueJoinForm restaurant={restaurant} waitingCount={waitingCount} avgWaitMins={avgWaitMins} />
           ) : (
             <div className="rounded-3xl bg-slate-900/80 border border-slate-800 p-6 sm:p-8 text-center space-y-3 backdrop-blur">
               <div className="text-4xl sm:text-5xl mb-2">🛑</div>

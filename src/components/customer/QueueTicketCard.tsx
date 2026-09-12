@@ -112,7 +112,9 @@ export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCa
 
   return (
     <div className="w-full px-1">
-      <div className="relative bg-[#111827] border border-white/5 rounded-[32px] p-6 shadow-2xl flex flex-col items-center justify-center overflow-hidden">
+      <div className="relative bg-[#111827] border border-white/5 rounded-[32px] p-6 shadow-2xl flex flex-col items-center justify-center overflow-hidden backdrop-blur-xl">
+        {/* Lucrative animated border shine for active */}
+        {!isTerminal && <div className="absolute inset-0 rounded-[32px] bg-gradient-to-r from-emerald-500/10 via-transparent to-blue-500/10 opacity-50 pointer-events-none animate-pulse"></div>}
         
         {/* Glow Effects */}
         <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 ${glowColors} rounded-full blur-3xl pointer-events-none transition-colors duration-700`}></div>
@@ -146,27 +148,46 @@ export function QueueTicketCard({ status, token, restaurantSlug }: QueueTicketCa
           {statusSubtitle}
         </p>
 
-        {/* Time / Table Status Row */}
-        <div className="flex items-center gap-3 relative z-10 w-full justify-center mb-8 h-8">
+        {/* Queue Insights Grid - lucrative & easy to read */}
+        <div className="grid grid-cols-3 gap-2 w-full relative z-10 mb-6">
+          <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 text-center backdrop-blur">
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Position</div>
+            <div className="text-xl font-black text-white mt-1">{status.position ? `#${status.position}` : '—'}</div>
+            <div className="text-[11px] text-slate-500">{status.position === 1 ? 'You’re next!' : status.position ? `of queue` : '—'}</div>
+          </div>
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3 text-center">
+            <div className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Ahead</div>
+            <div className="text-xl font-black text-emerald-400 mt-1">{status.peopleAhead !== null ? status.peopleAhead : '—'}</div>
+            <div className="text-[11px] text-emerald-300/70">{status.peopleAhead === 0 ? 'No one!' : 'parties'}</div>
+          </div>
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-3 text-center">
+            <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Wait</div>
+            <div className="text-xl font-black text-blue-400 mt-1">{estWaitMins ? `~${estWaitMins}m` : '—'}</div>
+            <div className="text-[11px] text-blue-300/70">estimated</div>
+          </div>
+        </div>
+
+        {/* Time / Table Status Row with animation */}
+        <div className="flex items-center gap-2 relative z-10 w-full justify-center mb-6 h-10">
            {isWaiting ? (
-             <div className="bg-[#1A2234] border border-white/5 rounded-full px-4 py-2 flex items-center gap-2">
-                <span className="material-symbols-outlined text-[14px] text-slate-400">schedule</span>
-                <span className="text-xs font-bold text-slate-300">~{estWaitMins || '?'} mins wait</span>
+             <div className="bg-[#1A2234] border border-emerald-500/20 rounded-full px-4 py-2 flex items-center gap-2 shadow-sm animate-[pulse_2s_ease-in-out_infinite]">
+                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-ping"></span>
+                <span className="text-xs font-black text-emerald-400 tracking-wide">Live • Updating</span>
              </div>
            ) : isCalled ? (
-             <div className="bg-blue-950/30 border border-blue-500/30 rounded-full px-4 py-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>
-                <span className="text-xs font-bold text-blue-400">Prepping Table</span>
+             <div className="bg-blue-600 text-white rounded-full px-5 py-2.5 flex items-center gap-2 shadow-lg shadow-blue-500/25 animate-[bounce_1s_ease_infinite]">
+                <span className="material-symbols-outlined text-[16px] animate-pulse">campaign</span>
+                <span className="text-xs font-black tracking-wide">Prepping Your Table</span>
              </div>
            ) : isNotified ? (
-             <div className="bg-purple-950/30 border border-purple-500/30 rounded-full px-4 py-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse"></span>
-                <span className="text-xs font-bold text-purple-400">Come to Host</span>
+             <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full px-5 py-2.5 flex items-center gap-2 shadow-lg shadow-purple-500/30 animate-pulse">
+                <span className="material-symbols-outlined text-[16px]">notifications_active</span>
+                <span className="text-xs font-black tracking-wide">Come to Host Stand NOW</span>
              </div>
            ) : isSeated ? (
-             <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-full px-4 py-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-                <span className="text-xs font-bold text-emerald-400">Seated</span>
+             <div className="bg-emerald-500 text-white rounded-full px-5 py-2.5 flex items-center gap-2 shadow-lg">
+                <span className="material-symbols-outlined text-[16px]">celebration</span>
+                <span className="text-xs font-black tracking-wide">You’re Seated — Enjoy!</span>
              </div>
            ) : null}
         </div>
