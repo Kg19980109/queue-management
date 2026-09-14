@@ -302,3 +302,74 @@ Concurrent same-key intents resolve via UNIQUE(idempotency_key): exactly one
 row wins, the loser gets a safe error and retries into the idempotent path
 (pre-existing check-then-insert race, invariant preserved, not redesigned).
 Orders from idempotent replays carry no token and redirect to the ticket.
+
+## 12. Final API, Concurrency & Security Audit (Phase 3E)
+
+### 12.1 Privilege-escalation flaws found, reproduced, and fixed
+With throwaway low-privilege JWTs, all of the following were DEMONSTRATED
+pre-fix and are BLOCKED post-fix (`20260925000000_phase3e_rpc_least_privilege.sql`,
+EXECUTE restricted to service_role — the only caller the app uses):
+- `seat_queue_entry_atomic` seated any entry with NULL actor (auth skipped).
+- `transition_queue_entry_atomic` cancelled any entry (zero auth checks).
+- `set_queue_operating_state` CLOSED any restaurant (cross-tenant DoS).
+- `expire_overdue_called_queue_entries` was authenticated-callable globally.
+- `deduct_inventory_atomic` (both overloads) was ANON-callable: anonymous
+  stock drain demonstrated live (100 -> 75 kg).
+- `claim_outbox_events` / `recover_stale_outbox_events` were ANON-callable:
+  an anonymous claim returned a REAL payment event payload and stalled it.
+- `is_super_admin` / `has_permission` lost anon EXECUTE (enumeration oracles
+  narrowed; authenticated retained for middleware use).
+- Untouched by design: `join_queue_atomic` (public join, validated
+  in-function), `get_recent_5am_cutoff` (pure), metrics RPCs (auth.uid()
+  tenant checks inside), `recommend_tables_for_queue_entry` (read-only;
+  the action now passes the session actor so QUEUE_VIEW is enforced).
+
+### 12.2 FSM enforced at the database layer
+`20260925000002_phase3e_queue_fsm_trigger.sql`: BEFORE UPDATE trigger on
+`queue_entries.status` rejects impossible jumps (incl. legacy
+COMPLETED/REMOVED/SKIPPED and terminal resurrection) for every role. Matrix
+== app canonical FSM + direct seat edges. (A column-level REVOKE was tried
+first and reverted: PostgreSQL privileges are purely additive, so it cannot
+subtract from the table grant — documented here so nobody retries it.)
+`20260925000001_phase3e_schema_constraints.sql`: user_profiles INSERT
+self-only, token_hash + payments idempotency scoped per restaurant
+(data-safe: global uniqueness implies scoped), orders status checks VALIDATEd
+(legacy rows verified clean).
+
+### 12.3 Lost-update fix
+`OrderService.updateOrderStatus` now writes conditionally on the observed
+status — concurrent confirm/cancel conflict instead of overwriting (exactly
+one winner, single event, loser gets ORDER_STATE_CONFLICT and retries into
+the idempotent no-op).
+
+### 12.4 Action-layer impersonation closed
+All dashboard queue/order actions resolve the actor from the server session
+(`resolveActionActor`/`requireActionActor`); client actor ids are fallback
+only. `recommendTablesAction` now passes the session actor (previously
+unchecked). Join route + join action cross-check client restaurantId against
+the slug-derived restaurant. Public q/actions carry the same rate limits as
+their /api/q counterparts with generic errors. Staff money/webhook routes
+return generic errors. Login (20/min/IP) and health (60/min/IP) rate-limited.
+
+### 12.5 Config hardening
+Razorpay `valid_test_signature` / `valid_test_webhook_signature` bypasses now
+apply outside production only (a customer could otherwise mark their own
+payment SUCCEEDED without paying). Platform admin creation generates a random
+password instead of `password123`. Placeholder Supabase credentials fail fast
+in production (middleware 500 + env boot error). Console mock provider no
+longer logs recipient/message PII in production. DATABASE_URL documented in
+.env.example. No real secrets found in-tree; .env.local stays gitignored.
+
+### 12.6 Suspended restaurants
+`assertRestaurantActive` gates `getAuthorizedRestaurantContext` and both
+login branches (platform super-admin paths unaffected). Live-tested for
+ACTIVE/SUSPENDED/ARCHIVED/missing.
+
+### 12.7 Accepted residual risks (NOT redesigned this phase)
+RLS enforces tenancy, not RBAC/FSM for direct staff-JWT writes (insider
+level; all app paths go through checked services/RPCs; audit-logged).
+Event/ledger tables accept member-forged actor metadata (append-only
+otherwise). No full CSP (would break inline scripts/Razorpay widget; headers
+present: Referrer-Policy, nosniff, HSTS, frame DENY/SAMEORIGIN for /q).
+RLS helper boolean oracles remain authenticated-callable (enumeration only).
+Redis fail-open retained. Webhook has no rate limit (HMAC-first, cheap reject).

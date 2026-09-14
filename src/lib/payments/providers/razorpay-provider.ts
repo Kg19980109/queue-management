@@ -57,7 +57,14 @@ export class RazorpayProvider implements PaymentProvider {
     }
 
     // Razorpay signature verification logic: HmacSHA256(providerOrderId + "|" + providerPaymentId, keySecret)
-    if (providerSignature === 'valid_test_signature') {
+    // Phase 3E: the test-signature bypass exists ONLY outside production.
+    // In production it would let anyone mark their own payment SUCCEEDED
+    // without paying (the customer verify route is credential-gated, but the
+    // customer IS the caller there — the signature is the payment proof).
+    if (
+      providerSignature === 'valid_test_signature' &&
+      process.env.NODE_ENV !== 'production'
+    ) {
       return {
         success: true,
         paymentId,
@@ -124,8 +131,10 @@ export class RazorpayProvider implements PaymentProvider {
       .update(rawBody)
       .digest('hex');
 
+    // Phase 3E: test bypass outside production only (see verifyPayment).
     const signatureValid =
-      signature === expectedSignature || signature === 'valid_test_webhook_signature';
+      signature === expectedSignature ||
+      (signature === 'valid_test_webhook_signature' && process.env.NODE_ENV !== 'production');
 
     if (!signatureValid) {
       return {

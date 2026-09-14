@@ -75,6 +75,21 @@ function parseEnv(): { public: PublicEnv; server: ServerEnv } {
     );
   }
 
+  // Phase 3E: placeholder credentials must never silently run in production
+  // (they would fail obscurely at the database instead of fast at boot).
+  if (serverResult.data.NODE_ENV === 'production') {
+    const placeholders = [
+      publicResult.data.NEXT_PUBLIC_SUPABASE_URL,
+      publicResult.data.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      serverResult.data.SUPABASE_SERVICE_ROLE_KEY,
+    ];
+    if (placeholders.some((v) => v.includes('placeholder'))) {
+      throw new Error(
+        'Invalid Server Environment Variables: placeholder Supabase credentials are not allowed in production.'
+      );
+    }
+  }
+
   return {
     public: publicResult.data,
     server: serverResult.data,

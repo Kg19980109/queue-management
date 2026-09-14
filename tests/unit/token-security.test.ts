@@ -5,6 +5,7 @@ import {
 } from '@/lib/utils/token-utils';
 import { fingerprintQueueToken, getClientIp } from '@/lib/rate-limit';
 import { customerJson } from '@/lib/customer-response';
+import { ticketCookieName } from '@/lib/customer-ticket-cookie';
 
 describe('Phase 3D: token generation & fingerprint invariants', () => {
   it('generates qtoken_ + 64 hex chars from cryptographic randomness', () => {
@@ -85,6 +86,22 @@ describe('Phase 3D: customer responses are private/no-store', () => {
     expect(res.headers.get('Retry-After')).toBe('60');
     const body = (await res.json()) as { error: string };
     expect(body.error).not.toMatch(/ratelimit:|qtoken_|token_hash/i);
+  });
+});
+
+describe('Phase 3E: ticket cookie names are injection-safe', () => {
+  it('accepts normal slugs', () => {
+    expect(ticketCookieName('spice-house')).toBe('qf_t_spice-house');
+    expect(ticketCookieName('A1')).toBe('qf_t_a1');
+  });
+
+  it('rejects cookie-injection and oversized slugs', () => {
+    expect(ticketCookieName('x; Path=/; HttpOnly=false')).toBeNull();
+    expect(ticketCookieName('a"b')).toBeNull();
+    expect(ticketCookieName('')).toBeNull();
+    expect(ticketCookieName('a'.repeat(65))).toBeNull();
+    expect(ticketCookieName('slug/with/slashes')).toBeNull();
+    expect(ticketCookieName(null as unknown as string)).toBeNull();
   });
 });
 

@@ -18,11 +18,20 @@ import { cookies } from 'next/headers';
  * exposure for navigations that do not need the token in the URL.
  */
 
-function cookieNameForSlug(slug: string): string | null {
+/**
+ * Sanitized HttpOnly cookie name for a restaurant slug. Returns null for
+ * anything outside [a-z0-9-]{1,64} so attacker-controlled slugs can never
+ * inject cookie names, paths, or attributes. Pure function — unit tested.
+ */
+export function ticketCookieName(slug: string): string | null {
   if (!slug || typeof slug !== 'string') return null;
   const clean = slug.trim().toLowerCase();
   if (!/^[a-z0-9-]{1,64}$/.test(clean)) return null;
   return `qf_t_${clean}`;
+}
+
+function cookieNameForSlug(slug: string): string | null {
+  return ticketCookieName(slug);
 }
 
 function isProduction(): boolean {

@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(result);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Failed to issue refund';
-    return NextResponse.json({ error: message }, { status: 400 });
+  } catch {
+    // Phase 3E: raw service/DB errors must never reach callers.
+    return NextResponse.json({ error: 'Failed to issue refund' }, { status: 400 });
   }
 }

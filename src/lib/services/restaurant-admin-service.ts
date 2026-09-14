@@ -71,6 +71,11 @@ const _getAuthorizedRestaurantContext = cache(
       throw new AuthorizationError('Access denied. Active Restaurant Admin membership required.');
     }
 
+    // Phase 3E: suspended/archived restaurants cannot operate, even with a
+    // valid ACTIVE membership. Platform super-admin paths do not use this
+    // context and are unaffected.
+    await RestaurantAdminService.assertRestaurantActive(membership.restaurant_id);
+
     return {
       userId: user.id,
       restaurantId: membership.restaurant_id,
@@ -89,6 +94,23 @@ export class RestaurantAdminService {
    * regardless of how many services call this method.
    */
   static getAuthorizedRestaurantContext = _getAuthorizedRestaurantContext;
+
+  /**
+   * Phase 3E: assert a restaurant is lifecycle-ACTIVE (not SUSPENDED /
+   * ARCHIVED). Live-testable without a session (takes an explicit id);
+   * called by getAuthorizedRestaurantContext and loginAction.
+   */
+  static async assertRestaurantActive(restaurantId: string): Promise<void> {
+    const adminClient = createAdminClient();
+    const { data: restaurant } = await adminClient
+      .from('restaurants')
+      .select('status')
+      .eq('id', restaurantId)
+      .maybeSingle();
+    if (!restaurant || restaurant.status !== 'ACTIVE') {
+      throw new AuthorizationError('This restaurant is not currently active.');
+    }
+  }
 
 
   /**

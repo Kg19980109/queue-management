@@ -1,4 +1,5 @@
 import 'server-only';
+import crypto from 'crypto';
 import { createServerClient } from '@/lib/db/supabase/server';
 import { createAdminClient } from '@/lib/db/supabase/admin';
 import { AuthorizationService } from '@/lib/services/authorization-service';
@@ -502,10 +503,17 @@ export class PlatformService {
     if (existingUser) {
       targetUserId = existingUser.id;
     } else {
-      // Create user via Supabase Auth Admin API
+      // Create user via Supabase Auth Admin API.
+      // Phase 3E: never fall back to a guessable default password. When the
+      // platform operator omits one, generate a cryptographic random value —
+      // the account owner sets a real password via recovery/invitation.
+      const effectivePassword =
+        password && password.length >= 6
+          ? password
+          : crypto.randomBytes(24).toString('hex');
       const { data: authUser, error: authErr } = await adminClient.auth.admin.createUser({
         email: email.toLowerCase().trim(),
-        password: password || 'password123',
+        password: effectivePassword,
         email_confirm: true,
         user_metadata: {
           role: 'RESTAURANT_ADMIN',

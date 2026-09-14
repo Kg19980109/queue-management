@@ -365,6 +365,11 @@ export class QueueService {
       if (error.message.includes('QUEUE_ENTRY_TERMINAL')) {
         throw new Error('QUEUE_ENTRY_TERMINAL: Cannot seat a queue entry in a terminal state');
       }
+      // Phase 3E: surface FSM rejections verbatim before the SEATED-substring
+      // fallback below (which would otherwise mislabel them as ALREADY_SEATED).
+      if (error.message.includes('INVALID_QUEUE_TRANSITION')) {
+        throw new Error(error.message);
+      }
       if (error.message.includes('QUEUE_ENTRY_ALREADY_SEATED') || error.message.includes('SEATED')) {
         throw new Error('QUEUE_ENTRY_ALREADY_SEATED');
       }

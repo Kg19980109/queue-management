@@ -31,8 +31,11 @@ export class ConsoleNotificationProvider implements NotificationProvider {
 
     const providerMsgId = `mock_${this.channelName.toLowerCase()}_${Date.now()}`;
 
-    // Simulate channel dispatch log
-    console.log(`[NOTIFICATION DISPATCH] Channel: ${this.channelName} | Type: ${payload.notificationType} | Recipient: ${payload.recipient || 'N/A'} | Message: "${payload.message}"`);
+    // Phase 3E: recipient + message body are PII — stdout logging is
+    // development-only. Production keeps the persisted record only.
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[NOTIFICATION DISPATCH] Channel: ${this.channelName} | Type: ${payload.notificationType} | Recipient: ${payload.recipient || 'N/A'} | Message: "${payload.message}"`);
+    }
 
     const { data: record, error } = await supabase
       .from('notifications')

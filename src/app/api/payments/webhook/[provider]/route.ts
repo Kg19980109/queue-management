@@ -17,8 +17,9 @@ export async function POST(
     const result = await PaymentService.handleWebhookEvent(rawBody, headersRecord, provider);
 
     if (!result.success && !result.handled && result.message?.includes('signature')) {
+      // Phase 3E: provider internals must never leak to callers.
       return NextResponse.json(
-        { error: result.message || 'Webhook verification failed' },
+        { error: 'Webhook verification failed' },
         { status: 400 }
       );
     }
@@ -29,8 +30,7 @@ export async function POST(
       duplicate: result.duplicate,
       status: result.status,
     });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Webhook error';
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Webhook error' }, { status: 500 });
   }
 }

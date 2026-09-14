@@ -1,6 +1,6 @@
 import 'server-only';
-import { NextResponse } from 'next/server';
 import { checkRateLimit, RateLimitEndpointClass, getClientIp, generateQueueJoinIdentifier } from '@/lib/rate-limit';
+import { customerJson } from '@/lib/customer-response';
 import { QueueService } from '@/lib/services/queue-service';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
 import { logger } from '@/lib/logging/logger';
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const partySize = parseInt(formData.get('partySize') as string || '1', 10);
 
     if (!restaurantId || !restaurantSlug) {
-      return NextResponse.json({ error: 'Invalid restaurant context.' }, { status: 400 });
+      return customerJson({ error: 'Invalid restaurant context.' }, 400);
     }
 
     // Rate limiting: queue join ~5 requests/minute/IP/restaurant
@@ -33,70 +33,77 @@ export async function POST(request: Request) {
     const rateResult = await checkRateLimit(rateLimitConfig);
 
     if (!rateResult.allowed) {
-      return NextResponse.json(
+      return customerJson(
         { error: 'Too many requests. Please try again shortly.' },
-        { status: 429 }
+        429,
+        { 'Retry-After': '60' }
       );
     }
 
     // Basic authorization/validation (tenant isolation, operating hours, capacity)
     const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(restaurantSlug);
     if (!restaurant) {
-      return NextResponse.json({ error: 'Restaurant not found.' }, { status: 404 });
+      return customerJson({ error: 'Restaurant not found.' }, 404);
+    }
+
+    // Phase 3E: the client-supplied restaurantId must match the slug-derived
+    // restaurant — never join a different tenant than the one displayed.
+    if (restaurant.id !== restaurantId) {
+      return customerJson({ error: 'Invalid restaurant context.' }, 400);
     }
 
     if (restaurant.queueEnabled === false) {
-      return NextResponse.json({ error: 'Queue is currently disabled for this restaurant.' }, { status: 403 });
+      return customerJson({ error: 'Queue is currently disabled for this restaurant.' }, 403);
     }
 
     // Authoritative join — database constraint remains authoritative
     try {
       const result = await QueueService.joinQueue({
-        restaurantId,
+        restaurantId: restaurant.id,
         customerName,
         customerPhone: customerPhone || undefined,
         partySize,
       });
 
       // Success — return token for UI redirect
-      return NextResponse.json({ success: true, rawToken: result.rawToken, entryId: result.entry?.id });
+      return customerJson({ success: true, rawToken: result.rawToken, entryId: result.entry?.id }, 200);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
 
       // Duplicate active entry — customer already waiting
       if (message.includes('DUPLICATE_ACTIVE_ENTRY')) {
-        return NextResponse.json(
+        return customerJson(
           { error: "You are already waiting in line for this restaurant! Check your existing ticket." },
-          { status: 409 }
+          409
         );
       }
       if (message.includes('QUEUE_OUTSIDE_OPERATING_HOURS')) {
-        return NextResponse.json(
+        return customerJson(
           { error: 'The queue is currently closed. Please check the operating hours and try again later.' },
-          { status: 400 }
+          400
         );
       }
       if (message.includes('QUEUE_PAUSED')) {
-        return NextResponse.json(
+        return customerJson(
           { error: 'The queue is temporarily paused. Please check back shortly.' },
-          { status: 400 }
+          400
         );
       }
       if (message.includes('QUEUE_FULL')) {
-        return NextResponse.json(
+        return customerJson(
           { error: 'The queue is currently full. Please try again shortly.' },
-          { status: 400 }
+          400
         );
       }
 
       // Generic error — do not expose database details
-      return NextResponse.json({ error: 'Failed to join queue. Please try again.' }, { status: 500 });
+      return customerJson({ error: 'Failed to join queue. Please try again.' }, 500);
     }
   } catch (err) {
     logger.error('Queue join API error', {
       operation: 'queue_join_api_error',
       error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
+    return customerJson({ error: 'Internal server error.' }, 500);
   }
 }

@@ -6,7 +6,56 @@ import {
   setTicketCookie,
   clearTicketCookie,
 } from '@/lib/customer-ticket-cookie';
+import {
+  checkRateLimit,
+  RateLimitEndpointClass,
+  RateLimitLimit,
+  fingerprintQueueToken,
+  generateQueueJoinIdentifier,
+  getActionClientIp,
+} from '@/lib/rate-limit';
+import { logger } from '@/lib/logging/logger';
 import { redirect } from 'next/navigation';
+
+/**
+ * Phase 3E: Server Actions bypass HTTP-route rate limiters, so abuse
+ * protection lives INSIDE each public action. Keys mirror the /api/q/*
+ * routes; raw tokens never enter Redis (fingerprints only).
+ */
+async function limitJoinAttempt(restaurantId: string): Promise<string | null> {
+  const result = await checkRateLimit({
+    identifier: generateQueueJoinIdentifier(restaurantId, await getActionClientIp()),
+    limit: RateLimitLimit.QUEUE_JOIN,
+    windowSeconds: 60,
+    endpointClass: RateLimitEndpointClass.STATE_CHANGING,
+  });
+  return result.allowed ? null : 'Too many requests. Please try again shortly.';
+}
+
+async function limitTokenAttempt(
+  kind: 'cancel' | 'status',
+  rawToken: string
+): Promise<string | null> {
+  let fingerprint: string;
+  try {
+    fingerprint = fingerprintQueueToken(rawToken);
+  } catch {
+    return null; // Unfingerprintable input fails closed at validation below.
+  }
+  const result = await checkRateLimit({
+    identifier:
+      kind === 'cancel'
+        ? `rl:queue:cancel:${fingerprint}`
+        : `rl:queue:status:${fingerprint}`,
+    limit: kind === 'cancel' ? RateLimitLimit.QUEUE_CANCEL : RateLimitLimit.QUEUE_STATUS,
+    windowSeconds: 60,
+    endpointClass:
+      kind === 'cancel'
+        ? RateLimitEndpointClass.STATE_CHANGING
+        : RateLimitEndpointClass.TOKEN_AUTHENTICATED,
+  });
+  return result.allowed ? null : 'Too many requests. Please try again shortly.';
+}
 
 export interface JoinQueueState {
   success?: boolean;
@@ -32,9 +81,22 @@ export async function joinQueuePublicAction(
     return { error: 'Please enter your name.' };
   }
 
+  // Phase 3E: rate-limit before any DB work (mirrors /api/q/join).
+  const joinLimited = await limitJoinAttempt(restaurantId);
+  if (joinLimited) {
+    return { error: joinLimited };
+  }
+
   try {
+    // Phase 3E: the slug-derived restaurant is authoritative for tenant
+    // resolution — the client restaurantId must match it.
+    const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(restaurantSlug);
+    if (!restaurant || restaurant.id !== restaurantId) {
+      return { error: 'Invalid restaurant context.' };
+    }
+
     const result = await QueueService.joinQueue({
-      restaurantId,
+      restaurantId: restaurant.id,
       customerName,
       customerPhone: customerPhone || undefined,
       partySize,
@@ -69,12 +131,23 @@ export async function joinQueuePublicAction(
       return { error: 'The selected party size is not accepted by this restaurant.' };
     }
 
-    return { error: message || 'Failed to join queue. Please try again.' };
+    // Generic fallback — raw service/DB errors must never reach customers.
+    logger.warn('Public queue join failed', {
+      operation: 'public_queue_join',
+      metadata: { error: message },
+    });
+    return { error: 'Failed to join queue. Please try again.' };
   }
 }
 
 export async function cancelQueuePublicAction(token: string, restaurantSlug: string): Promise<void> {
   try {
+    // Phase 3E: rate-limit before any DB work (mirrors /api/q/cancel).
+    const limited = await limitTokenAttempt('cancel', token);
+    if (limited) {
+      throw new Error(limited);
+    }
+
     const status = await QueueService.getQueueStatusByToken(token);
     if (!status) {
       throw new Error('Queue entry not found.');
@@ -93,7 +166,17 @@ export async function cancelQueuePublicAction(token: string, restaurantSlug: str
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
       throw error;
     }
-    throw error instanceof Error ? error : new Error('Failed to cancel queue entry.');
+    const message = error instanceof Error ? error.message : 'Failed to cancel queue entry.';
+    // Only the friendly rate-limit message passes through; everything else
+    // (DB/FSM internals, tenant details) is logged, never surfaced.
+    if (message === 'Too many requests. Please try again shortly.') {
+      throw new Error(message);
+    }
+    logger.warn('Public queue cancel failed', {
+      operation: 'public_queue_cancel',
+      metadata: { error: message },
+    });
+    throw new Error('Failed to cancel queue entry.');
   }
 
   redirect(`/q/${restaurantSlug}/status/${token}?cancelled=true`);
@@ -139,6 +222,12 @@ export async function syncTicketCookieAction(
 
 export async function delayQueuePublicAction(token: string, restaurantSlug: string): Promise<void> {
   try {
+    // Phase 3E: unauthenticated event writes are abuse-sensitive — limit first.
+    const limited = await limitTokenAttempt('cancel', token);
+    if (limited) {
+      throw new Error(limited);
+    }
+
     const status = await QueueService.getQueueStatusByToken(token);
     if (!status) {
       throw new Error('Queue entry not found.');
@@ -148,7 +237,7 @@ export async function delayQueuePublicAction(token: string, restaurantSlug: stri
     if (!restaurant || restaurant.id !== status.restaurantId) {
       throw new Error('Tenant isolation mismatch.');
     }
-    
+
     const { createAdminClient } = await import('@/lib/db/supabase/admin');
     const supabase = createAdminClient();
 
@@ -164,7 +253,15 @@ export async function delayQueuePublicAction(token: string, restaurantSlug: stri
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
       throw error;
     }
-    throw error instanceof Error ? error : new Error('Failed to request delay.');
+    const message = error instanceof Error ? error.message : 'Failed to request delay.';
+    if (message === 'Too many requests. Please try again shortly.') {
+      throw new Error(message);
+    }
+    logger.warn('Public queue delay failed', {
+      operation: 'public_queue_delay',
+      metadata: { error: message },
+    });
+    throw new Error('Failed to request delay.');
   }
 
   redirect(`/q/${restaurantSlug}/status/${token}?delayed=true`);

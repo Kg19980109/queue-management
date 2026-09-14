@@ -392,16 +392,23 @@ export class OrderService {
     // 4. Perform Order Status Update
     const { data: updated, error: updateErr } = await supabase
       .from('orders')
+      // Phase 3E: conditional write on the observed status. Concurrent
+      // transitions conflict instead of silently overwriting each other
+      // (lost update + duplicate contradictory events). The loser retries
+      // into the idempotent no-op path when already at target.
       .update({
         status: targetStatus,
         updated_at: new Date().toISOString(),
       })
       .eq('id', current.id)
+      .eq('status', currentStatus)
       .select()
       .single();
 
     if (updateErr || !updated) {
-      throw new DomainError('Failed to update order status');
+      throw new DomainError(
+        `ORDER_STATE_CONFLICT: order changed concurrently (was ${currentStatus}). Please refresh and retry.`
+      );
     }
 
     // 5. Append Order Event Audit Log

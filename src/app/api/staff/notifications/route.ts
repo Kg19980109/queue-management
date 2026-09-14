@@ -26,8 +26,8 @@ export async function GET(req: NextRequest) {
     const notifications = await NotificationService.getStaffNotifications(restaurantId);
 
     return NextResponse.json({ notifications });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch staff notifications';
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    // Phase 3E: raw service/DB errors must never reach callers.
+    return NextResponse.json({ error: 'Failed to fetch staff notifications' }, { status: 500 });
   }
 }

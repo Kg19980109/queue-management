@@ -11,6 +11,23 @@ export async function GET(request: Request) {
   const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
   const startTime = Date.now();
 
+  // Phase 3E: unauthenticated DB/Redis probe — bound abuse surface.
+  // 60/min per IP is far above any legitimate monitor cadence.
+  try {
+    const { checkRateLimit, RateLimitEndpointClass, getClientIp } = await import('@/lib/rate-limit');
+    const healthLimit = await checkRateLimit({
+      identifier: `health:${getClientIp(request)}`,
+      limit: 60,
+      windowSeconds: 60,
+      endpointClass: RateLimitEndpointClass.READ_ONLY,
+    });
+    if (!healthLimit.allowed) {
+      return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
+    }
+  } catch {
+    // Rate-limiter failure must never take down the health probe itself.
+  }
+
   try {
     const env = getEnv();
 

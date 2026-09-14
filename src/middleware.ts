@@ -39,10 +39,22 @@ export async function middleware(request: NextRequest) {
   response.headers.set('X-Content-Type-Options', 'nosniff');
 
   // 2. Supabase Auth Session Refreshing (required by @supabase/ssr to keep tokens fresh)
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+  // Phase 3E: fail fast on unconfigured credentials in production instead of
+  // silently running against placeholder values.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (!supabaseUrl ||
+      !supabaseAnonKey ||
+      supabaseUrl.includes('placeholder') ||
+      supabaseAnonKey.includes('placeholder'))
+  ) {
+    return new NextResponse('Service configuration error.', { status: 500 });
+  }
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+  // Non-production keeps the historical placeholder fallback for local/dev.
+  const supabase = createServerClient(supabaseUrl || 'https://placeholder-project.supabase.co', supabaseAnonKey || 'placeholder-anon-key', {
     cookies: {
       getAll() {
         return request.cookies.getAll();

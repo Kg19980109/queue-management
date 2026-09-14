@@ -12,6 +12,36 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import type { TableStatus, ZoneStatus, InventoryUnit, QueueStatus } from '@/types/database.types';
 
+/**
+ * Phase 3E: resolve the acting staff user from the server session.
+ * Client-supplied actor ids (bound args / hidden form fields) are NEVER
+ * trusted for authorization or audit attribution — a staff caller could
+ * otherwise impersonate another user (including an admin) and inherit
+ * their permissions. Falls back to the client value only when no session
+ * exists (server-to-server/internal callers).
+ */
+async function resolveActionActor(clientActorId?: string): Promise<string | undefined> {
+  try {
+    const { requireAuth } = await import('@/lib/auth/session');
+    const user = await requireAuth();
+    return user.id;
+  } catch {
+    return clientActorId;
+  }
+}
+
+/**
+ * Session-derived actor for mutations whose service layer requires a
+ * non-empty actor id. Fails closed when neither session nor fallback exists.
+ */
+async function requireActionActor(clientActorId?: string): Promise<string> {
+  const resolved = await resolveActionActor(clientActorId);
+  if (!resolved) {
+    throw new Error('Authentication required.');
+  }
+  return resolved;
+}
+
 export async function updateProfileFormAction(_prevState: unknown, formData: FormData) {
   try {
     const input = {
@@ -385,15 +415,9 @@ export async function updateQueueStatusAction(entryId: string, newStatus: QueueS
     if (!effectiveReason && reason instanceof FormData) {
       effectiveReason = (reason.get('reason') as string) || undefined;
     }
-    let effectiveActorId: string | undefined = typeof actorUserId === 'string' ? actorUserId : undefined;
-    // If actorUserId is actually FormData (when called without userId via bind), resolve via auth
-    if (!effectiveActorId || typeof effectiveActorId !== 'string' || effectiveActorId.length < 10) {
-      try {
-        const { requireAuth } = await import('@/lib/auth/session');
-        const user = await requireAuth();
-        effectiveActorId = user.id;
-      } catch {}
-    }
+    const clientActorId: string | undefined = typeof actorUserId === 'string' ? actorUserId : undefined;
+    // Phase 3E: session identity always wins over the client-supplied id.
+    const effectiveActorId = await resolveActionActor(clientActorId);
     await QueueService.updateQueueStatus({ entryId, newStatus, actorUserId: effectiveActorId, reason: effectiveReason });
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
@@ -413,7 +437,7 @@ export async function markNoShowAction(formData: FormData): Promise<void> {
 
 export async function toggleQueueOpenAction(restaurantId: string, open: boolean, actorUserId: string): Promise<void> {
   try {
-    await QueueService.toggleQueueOpen(restaurantId, open, actorUserId);
+    await QueueService.toggleQueueOpen(restaurantId, open, await requireActionActor(actorUserId));
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
       throw error;
@@ -425,7 +449,7 @@ export async function toggleQueueOpenAction(restaurantId: string, open: boolean,
 
 export async function setQueueOperatingStateAction(restaurantId: string, newState: 'OPEN' | 'PAUSED' | 'CLOSING_SOON' | 'CLOSED', actorUserId: string, reason?: string): Promise<void> {
   try {
-    await QueueService.setQueueOperatingState(restaurantId, newState as unknown as import('@/types/database.types').QueueOperatingState, actorUserId, reason);
+    await QueueService.setQueueOperatingState(restaurantId, newState as unknown as import('@/types/database.types').QueueOperatingState, await requireActionActor(actorUserId), reason);
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
       throw error;
@@ -482,7 +506,7 @@ export async function updateQueueSettingsFormAction(formData: FormData): Promise
       callTimeoutMinutes: parseInt((formData.get('callTimeoutMinutes') as string) || '15', 10),
     };
 
-    await QueueService.updateQueueSettings(restaurantId, settings, actorUserId);
+    await QueueService.updateQueueSettings(restaurantId, settings, await requireActionActor(actorUserId));
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
       throw error;
@@ -494,7 +518,7 @@ export async function updateQueueSettingsFormAction(formData: FormData): Promise
 
 export async function seatQueueEntryAction(entryId: string, tableId: string, actorUserId?: string): Promise<void> {
   try {
-    await QueueService.seatQueueEntry(entryId, tableId, actorUserId);
+    await QueueService.seatQueueEntry(entryId, tableId, await resolveActionActor(actorUserId));
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
       throw error;
@@ -515,7 +539,7 @@ export async function updateETASettingsFormAction(formData: FormData): Promise<v
       almostYourTurnThreshold: parseInt((formData.get('almostYourTurnThreshold') as string) || '3', 10),
     };
 
-    await QueueService.updateETASettings(restaurantId, settings, actorUserId);
+    await QueueService.updateETASettings(restaurantId, settings, await requireActionActor(actorUserId));
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
       throw error;
@@ -588,7 +612,7 @@ export async function updateOrderStatusAction(
     orderId,
     targetStatus,
     restaurantId,
-    userId,
+    userId: await resolveActionActor(userId),
   });
   revalidatePath('/dashboard/orders');
   revalidatePath('/dashboard/kitchen');
@@ -605,7 +629,7 @@ export async function updateKitchenStatusAction(
     orderId,
     targetStatus,
     restaurantId,
-    userId,
+    userId: await resolveActionActor(userId),
   });
   revalidatePath('/dashboard/kitchen');
   revalidatePath('/dashboard/orders');
@@ -613,7 +637,11 @@ export async function updateKitchenStatusAction(
 }
 
 export async function recommendTablesAction(queueEntryId: string): Promise<Array<{ id: string; table_number: string; capacity: number; restaurant_zones?: { name: string } | null }>> {
-  const result = await QueueService.recommendTablesForQueueEntry(queueEntryId);
+  // Phase 3E: bind the recommendation read to the caller's session so the
+  // service enforces QUEUE_VIEW on the entry's restaurant (previously no
+  // actor was passed, skipping the check entirely).
+  const actorId = await resolveActionActor(undefined);
+  const result = await QueueService.recommendTablesForQueueEntry(queueEntryId, actorId);
   return (result as unknown as Array<{ table_id: string; table_number: string; capacity: number; zone_name: string | null }>).map(r => ({
     id: r.table_id,
     table_number: r.table_number,
