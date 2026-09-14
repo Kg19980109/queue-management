@@ -431,6 +431,33 @@ export async function setQueueOperatingStateFormAction(formData: FormData): Prom
   await setQueueOperatingStateAction(restaurantId, newState, actorUserId, reason);
 }
 
+export async function updateQueueScheduleFormAction(formData: FormData): Promise<void> {
+  try {
+    const { RestaurantAdminService } = await import('@/lib/services/restaurant-admin-service');
+    const { QueueScheduleService } = await import('@/lib/services/queue-schedule-service');
+    const { restaurantId } = await RestaurantAdminService.getAuthorizedRestaurantContext();
+    const { requireAuth } = await import('@/lib/auth/session');
+    const user = await requireAuth();
+    const days: Array<{ day_of_week: number; opens_at: string; closes_at: string; is_closed: boolean }> = [];
+    for (let d = 0; d <= 6; d++) {
+      days.push({
+        day_of_week: d,
+        opens_at: (formData.get(`opens_${d}`) as string) || '00:00',
+        closes_at: (formData.get(`closes_${d}`) as string) || '23:59',
+        is_closed: formData.get(`closed_${d}`) === 'on',
+      });
+    }
+    await QueueScheduleService.updateSchedule(restaurantId, user.id, days);
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
+    throw error instanceof Error ? error : new Error('Failed to update queue schedule.');
+  }
+  revalidatePath('/dashboard/queue');
+  revalidatePath('/dashboard', 'layout');
+}
+
 export async function updateQueueSettingsFormAction(formData: FormData): Promise<void> {
   try {
     const restaurantId = formData.get('restaurantId') as string;

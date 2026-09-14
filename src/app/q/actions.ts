@@ -44,6 +44,9 @@ export async function joinQueuePublicAction(
 
     const message = error instanceof Error ? error.message : String(error);
 
+    if (message.includes('QUEUE_OUTSIDE_OPERATING_HOURS')) {
+      return { error: 'The queue is currently closed. Please check the operating hours and try again later.' };
+    }
     if (message.includes('QUEUE_PAUSED')) {
       return { error: 'The queue is temporarily paused. Please check back shortly.' };
     }

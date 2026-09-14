@@ -80,3 +80,14 @@ export function useRestaurantRealtime(restaurantId: string, enabled = true) {
     fallbackIntervalMs: 60000,
   });
 }
+
+export function useQueueScheduleRealtime(restaurantId: string, enabled = true) {
+  return useRealtimeChannel({
+    channelName: `restaurant:${restaurantId}:schedule`,
+    table: 'restaurant_queue_hours',
+    filter: `restaurant_id=eq.${restaurantId}`,
+    restaurantId,
+    enabled: !!restaurantId && enabled,
+    fallbackIntervalMs: 60000,
+  });
+}

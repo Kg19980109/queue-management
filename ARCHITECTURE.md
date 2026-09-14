@@ -112,3 +112,21 @@ To prevent distributed transaction failures during external API calls, QueueFlow
 - `StaffNotificationBell` renders unread operational alerts on staff dashboards (`/dashboard`).
 
 
+
+---
+
+## 7. Queue Operating Hours & Effective Availability (Phase 2E)
+
+Queue entry state ≠ Restaurant queue operating state ≠ Restaurant lifecycle ≠ Schedule.
+
+- **Queue entry state** (`queue_entries.status`): `WAITING → NOTIFIED → CALLED → SEATED`, `WAITING/NOTIFIED/CALLED → CANCELLED/EXPIRED`, `CALLED → NO_SHOW`. Terminal: `SEATED/CANCELLED/NO_SHOW/EXPIRED/COMPLETED/REMOVED/SKIPPED`.
+- **Restaurant lifecycle** (`restaurants.status`): `ACTIVE / SUSPENDED / ARCHIVED`. Only `ACTIVE` allows joins.
+- **Queue master** (`restaurants.queue_enabled`): `false` blocks all joins regardless of operating state.
+- **Manual queue state** (`restaurants.queue_operating_state`): `OPEN / PAUSED / CLOSING_SOON / CLOSED`. Staff-controlled via `set_queue_operating_state`. `OPEN/CLOSING_SOON` allow joins (CLOSING_SOON is a warning), `PAUSED/CLOSED` block. Existing entries are never mutated by state changes.
+- **Schedule** (`restaurant_queue_hours`): weekly, `day_of_week 0=Sunday..6=Saturday`, `opens_at/closes_at` in restaurant-local time (`restaurants.timezone`, IANA), `is_closed` for closed days. Cross-midnight (`opens_at > closes_at`, e.g. 22:00→01:00) means open tonight + spill past midnight. `opens_at = closes_at` is invalid unless `is_closed`. Default for existing restaurants: `00:00–23:59` open every day (preserves legacy behavior).
+- **FULL** is derived: `active(WAITING/NOTIFIED/CALLED) >= max_queue_capacity`. Never stored; `join_queue_atomic` enforces via `FOR UPDATE` + `COUNT`.
+- **Effective joinability precedence**: lifecycle `ACTIVE` > `queue_enabled=true` > manual `PAUSED/CLOSED` block > scheduled hours > `OPEN/CLOSING_SOON` allow. Manual `PAUSED/CLOSED` always wins over schedule; schedule never reopens a paused queue.
+- **Join enforcement**: `join_queue_atomic` checks all of the above in-DB (server time `timezone(tz, NOW())`, today's row + yesterday spill). Outside hours raises `QUEUE_OUTSIDE_OPERATING_HOURS`. Customer sees "Queue is currently closed" + "Opens at 6:00 PM" via `getNextQueueOpening` (7-day scan, null if none).
+- **Next opening**: `QueueScheduleService.getNextOpening` (read-only, same-day → next-day → closed days → cross-midnight aware).
+- **Health**: outside scheduled hours → `CLOSED`; manual `PAUSED` → `PAUSED`; manual `CLOSED` → `CLOSED`. Priority: lifecycle/disabled `CLOSED` > manual `PAUSED` > manual `CLOSED` > scheduled `CLOSED` > `CRITICAL` > `BUSY` > `EMPTY` > `HEALTHY`.
+- **No auto-scheduler**: `evaluateAvailability`/`getNextQueueOpening` exist, but automatic background opening/closing is NOT active until the Production Reliability stage. Schedule evaluation is read-only; join path uses authoritative DB check.

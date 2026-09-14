@@ -148,6 +148,7 @@ export interface Database {
           logo_url: string | null;
           queue_enabled: boolean;
           queue_operating_state: QueueOperatingState;
+          closing_soon_minutes: number;
           max_queue_capacity: number;
           min_party_size: number;
           max_party_size: number;
@@ -562,6 +563,24 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['audit_logs']['Insert']>;
+      };
+      restaurant_queue_hours: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          day_of_week: number;
+          opens_at: string;
+          closes_at: string;
+          is_closed: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['restaurant_queue_hours']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['restaurant_queue_hours']['Insert']>;
       };
     };
     Functions: {

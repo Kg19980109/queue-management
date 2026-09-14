@@ -54,9 +54,21 @@ export default async function PublicRestaurantQueuePage({
   const operatingState = restaurant.queueOperatingState || 'OPEN';
   const queueEnabled = restaurant.queueEnabled;
   const avgWaitMins = 15;
-  const menuCategories = await PublicRestaurantService.getPublicMenuPreview(restaurant.id);
+  const [menuCategories, availability] = await Promise.all([
+    PublicRestaurantService.getPublicMenuPreview(restaurant.id),
+    // Effective availability: lifecycle > queue_enabled > manual PAUSED/CLOSED > schedule
+    (async () => {
+      try {
+        const { QueueScheduleService } = await import('@/lib/services/queue-schedule-service');
+        return await QueueScheduleService.evaluateAvailability(restaurant.id);
+      } catch { return null; }
+    })(),
+  ]);
 
-  const canJoin = queueEnabled && operatingState === 'OPEN' && !isFull || operatingState === 'CLOSING_SOON' && queueEnabled && !isFull;
+  const scheduledClosed = availability ? !availability.scheduledOpen : false;
+  const nextOpening = availability?.nextOpening || null;
+  // Manual PAUSED/CLOSED take precedence over schedule; schedule never reopens a paused queue
+  const canJoin = queueEnabled && !isFull && (operatingState === 'OPEN' || operatingState === 'CLOSING_SOON') && !scheduledClosed;
 
   return (
     <main className="min-h-[100dvh] relative overflow-hidden bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-100">
@@ -91,13 +103,13 @@ export default async function PublicRestaurantQueuePage({
           ) : (
             <div className="rounded-3xl bg-slate-900/80 border border-slate-800 p-6 sm:p-8 text-center space-y-3 backdrop-blur">
               <div className="text-4xl sm:text-5xl mb-2">
-                {!queueEnabled || operatingState === 'CLOSED' ? '🛑' : isFull ? '👥' : operatingState === 'PAUSED' ? '⏸️' : '🛑'}
+                {!queueEnabled || operatingState === 'CLOSED' || scheduledClosed ? '🛑' : isFull ? '👥' : operatingState === 'PAUSED' ? '⏸️' : '🛑'}
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                {!queueEnabled || operatingState === 'CLOSED' ? 'Queue Currently Closed' : isFull ? 'Queue Currently Full' : operatingState === 'PAUSED' ? 'Queue Temporarily Paused' : 'Queue Not Available'}
+                {!queueEnabled || operatingState === 'CLOSED' || scheduledClosed ? 'Queue Currently Closed' : isFull ? 'Queue Currently Full' : operatingState === 'PAUSED' ? 'Queue Temporarily Paused' : 'Queue Not Available'}
               </h2>
               <p className="text-[13px] sm:text-sm text-slate-400 leading-relaxed max-w-[280px] mx-auto">
-                {!queueEnabled || operatingState === 'CLOSED'
+                {!queueEnabled || operatingState === 'CLOSED' || scheduledClosed
                   ? `${restaurant.name} is not accepting new entries right now. Please check back later or ask the host.`
                   : isFull
                   ? `The queue is at capacity (${activeQueueCount}/${restaurant.maxQueueCapacity}). Please check back shortly — spots open as guests are seated.`
@@ -105,6 +117,11 @@ export default async function PublicRestaurantQueuePage({
                   ? 'The queue is temporarily paused. Please check back shortly.'
                   : 'Queue not available at the moment.'}
               </p>
+              {scheduledClosed && nextOpening && (
+                <p className="text-[13px] font-bold text-emerald-400">
+                  Opens {nextOpening.dayOffset === 0 ? 'today' : nextOpening.dayLabel} at {nextOpening.opensAt12h}
+                </p>
+              )}
               {isFull && <p className="text-[11px] text-emerald-400 font-bold">We’ll notify you here when spots open</p>}
             </div>
           )}

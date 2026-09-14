@@ -107,6 +107,9 @@ export class QueueService {
     });
 
     if (error) {
+      if (error.message.includes('QUEUE_OUTSIDE_OPERATING_HOURS')) {
+        throw new Error('QUEUE_OUTSIDE_OPERATING_HOURS');
+      }
       if (error.message.includes('QUEUE_PAUSED')) {
         throw new Error('QUEUE_PAUSED');
       }
@@ -723,16 +726,18 @@ export class QueueService {
   /**
    * Get queue health - server-side aggregation, no browser fetching of all rows
    */
-  static async getQueueHealth(restaurantId: string, actorUserId?: string): Promise<QueueHealth> {
+  static async getQueueHealth(restaurantId: string, actorUserId?: string): Promise<QueueHealth & { scheduledOpen: boolean; nextOpening: { dayOffset: number; dayLabel: string; opensAt: string; opensAt12h: string } | null }> {
     if (actorUserId) {
       await AuthorizationService.requirePermission({ userId: actorUserId, restaurantId, permission: PERMISSIONS.QUEUE_VIEW });
     }
     const supabase = createAdminClient();
-    const { data: restaurant, error: restErr } = await supabase.from('restaurants').select('queue_enabled, queue_operating_state, max_queue_capacity, call_timeout_minutes').eq('id', restaurantId).single();
+    const { data: restaurant, error: restErr } = await supabase.from('restaurants').select('queue_enabled, queue_operating_state, max_queue_capacity, call_timeout_minutes, timezone, status').eq('id', restaurantId).single();
     if (restErr || !restaurant) throw new Error('Restaurant not found');
     const queueEnabled = restaurant.queue_enabled;
     const operatingState = (restaurant as unknown as { queue_operating_state: QueueOperatingState }).queue_operating_state || 'OPEN';
     const maxCapacity = restaurant.max_queue_capacity;
+    const tz = (restaurant as unknown as { timezone?: string }).timezone || 'Asia/Kolkata';
+    const lifecycle = (restaurant as unknown as { status?: string }).status || 'ACTIVE';
 
     // Parallel aggregates
     const [
@@ -785,15 +790,31 @@ export class QueueService {
 
     const isFull = activeCount >= maxCapacity;
 
-    // Health classification priority: CLOSED > PAUSED > CRITICAL > BUSY > EMPTY > HEALTHY
+    // Scheduled hours (read-only for health; authoritative join still enforced in DB)
+    let scheduledOpen = true;
+    let nextOpening: { dayOffset: number; dayLabel: string; opensAt: string; opensAt12h: string } | null = null;
+    try {
+      const { QueueScheduleService } = await import('@/lib/services/queue-schedule-service');
+      const schedule = await QueueScheduleService.getSchedule(restaurantId);
+      const { getLocalDayTime, isOpenBySchedule } = await import('@/lib/services/queue-schedule-service');
+      const { dow, minutes } = getLocalDayTime(tz);
+      scheduledOpen = isOpenBySchedule(schedule, dow, minutes);
+      nextOpening = QueueScheduleService.getNextOpening(schedule, tz);
+    } catch { scheduledOpen = true; }
+
+    // Health classification priority: lifecycle/disabled CLOSED > manual PAUSED > manual CLOSED > scheduled CLOSED > CRITICAL > BUSY > EMPTY > HEALTHY
+    // Manual PAUSED/CLOSED take precedence over schedule (schedule never reopens a paused queue).
     let health: QueueHealthState = 'HEALTHY';
     let healthReason = 'Queue is healthy';
-    if (!queueEnabled || operatingState === 'CLOSED') {
+    if (lifecycle !== 'ACTIVE' || !queueEnabled || operatingState === 'CLOSED') {
       health = 'CLOSED';
-      healthReason = 'Queue is closed';
+      healthReason = lifecycle !== 'ACTIVE' ? 'Restaurant unavailable' : !queueEnabled ? 'Queue is closed' : 'Queue is closed';
     } else if (operatingState === 'PAUSED') {
       health = 'PAUSED';
       healthReason = 'Queue is paused';
+    } else if (!scheduledOpen) {
+      health = 'CLOSED';
+      healthReason = nextOpening ? `Closed · Opens ${nextOpening.dayOffset === 0 ? 'today' : nextOpening.dayLabel} ${nextOpening.opensAt12h}` : 'Closed · Outside operating hours';
     } else if (activeCount === 0) {
       health = 'EMPTY';
       healthReason = 'No active queue';
@@ -811,7 +832,7 @@ export class QueueService {
       activeCount, waitingCount, notifiedCount, calledCount, seatedCount, noShowCountToday,
       avgWaitMins, oldestWaitingAgeMins, overdueCount,
       availableTables, occupiedTables, cleaningTables, reservedTables, outOfServiceTables, totalTables,
-      operatingState, queueEnabled, isFull, health, healthReason,
+      operatingState, queueEnabled, isFull, health, healthReason, scheduledOpen, nextOpening,
     };
   }
 }
