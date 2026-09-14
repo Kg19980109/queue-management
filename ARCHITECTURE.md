@@ -147,7 +147,10 @@ Queue entry state ≠ Restaurant queue operating state ≠ Restaurant lifecycle 
 - `GET/POST /api/cron/notifications?limit=50` — `NotificationWorker.runBatch(limit)`.
 - `GET/POST /api/cron/queue-maintenance?limit=50` — `QueueService.expireOverdueCalledEntries(limit)` only. No `restaurant_id` parameter accepted (400); scope is internal across all restaurants.
 - Both share `authenticateCronRequest` (`src/lib/cron-auth.ts`): `Authorization: Bearer <CRON_SECRET>` only (never query string), constant-time compare, 401 on invalid, 503 when `CRON_SECRET` unset. No stack traces to callers.
-- `vercel.json` schedules both every minute (`* * * * *`). Each invocation starts, processes a bounded batch, finishes, returns. No in-memory locks, no `setInterval`, no filesystem state — Postgres coordinates.
+- Scheduling is FREE via `pg_cron` inside Postgres (no Vercel cron — removed for cost):
+  - `queue-maintenance-every-minute` calls `expire_overdue_called_queue_entries(50)` directly in-DB every minute (no HTTP, no secret). See `20260922000000_phase3a_pg_cron.sql`.
+  - `notifications-every-minute` triggers `POST /api/cron/notifications` via `pg_net` (needs `APP_URL` + `CRON_SECRET`, one-time manual setup SQL in the same migration file).
+- Each invocation starts, processes a bounded batch, finishes, returns. No in-memory locks, no `setInterval`, no filesystem state — Postgres coordinates. The API routes remain for manual runs and pg_net triggers.
 
 ### 8.3 Automatic No-Show Is Now ACTIVE
 `expire_overdue_called_queue_entries(p_limit)` (server `NOW()`, `CALLED` + `called_at + call_timeout_minutes` elapsed only) transitions to `NO_SHOW` with `no_show_reason='CUSTOMER_DID_NOT_RESPOND'`, server `no_show_at`, plus `queue_events` + `outbox_events` atomically, `SKIP LOCKED` concurrent-safe, idempotent re-runs. It does NOT create a second outbox event in the route — the RPC already does. `WAITING/NOTIFIED/SEATED/terminal` rows are never touched.

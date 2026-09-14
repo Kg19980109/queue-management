@@ -39,21 +39,31 @@ describe('Phase 3A: Live cron handler verification', () => {
     );
     expect(withParam.status).toBe(400);
 
-    const join = await QueueService.joinQueue({ restaurantId: RID, customerName: 'Cron Live Verify', partySize: 2 });
-    await sb.rpc('transition_queue_entry_atomic', { p_queue_entry_id: join.entry.id, p_target_status: 'CALLED', p_actor_user_id: null, p_reason: null });
-    await client.query(`UPDATE public.queue_entries SET called_at = NOW() - INTERVAL '20 minutes' WHERE id = $1`, [join.entry.id]);
+    // NOTE: the live pg_cron job (every minute) may legitimately expire our backdated
+    // row before the route call runs. Retry with a fresh entry so we always verify
+    // the ROUTE handler itself performs the expiry (bounded retries).
+    let verified = false;
+    for (let attempt = 0; attempt < 3 && !verified; attempt++) {
+      const join = await QueueService.joinQueue({ restaurantId: RID, customerName: 'Cron Live Verify', partySize: 2 });
+      await sb.rpc('transition_queue_entry_atomic', { p_queue_entry_id: join.entry.id, p_target_status: 'CALLED', p_actor_user_id: null, p_reason: null });
+      await client.query(`UPDATE public.queue_entries SET called_at = NOW() - INTERVAL '20 minutes' WHERE id = $1`, [join.entry.id]);
 
-    const good = await GET(
-      new NextRequest('http://localhost/api/cron/queue-maintenance?limit=50', { headers: { authorization: 'Bearer local-verify-secret' } })
-    );
-    expect(good.status).toBe(200);
-    const body = await good.json();
-    expect(body.success).toBe(true);
-    expect(body.result.expiredCount).toBeGreaterThanOrEqual(1);
+      const good = await GET(
+        new NextRequest('http://localhost/api/cron/queue-maintenance?limit=50', { headers: { authorization: 'Bearer local-verify-secret' } })
+      );
+      expect(good.status).toBe(200);
+      const body = await good.json();
+      expect(body.success).toBe(true);
 
-    const { data: entry } = await sb.from('queue_entries').select('status, no_show_reason').eq('id', join.entry.id).single();
-    expect(entry?.status).toBe('NO_SHOW');
-    expect(entry?.no_show_reason).toBe('CUSTOMER_DID_NOT_RESPOND');
+      const { data: entry } = await sb.from('queue_entries').select('status, no_show_reason').eq('id', join.entry.id).single();
+      if (entry?.status === 'NO_SHOW' && entry?.no_show_reason === 'CUSTOMER_DID_NOT_RESPOND') {
+        expect(body.result.expiredCount).toBeGreaterThanOrEqual(1);
+        verified = true;
+      }
+      // else: pg_cron beat us to this row (already NO_SHOW with same reason — the
+      // scheduler demonstrably works); retry with a fresh entry.
+    }
+    expect(verified).toBe(true);
   }, 30000);
 
   it('notifications route: valid auth processes bounded batch', async () => {

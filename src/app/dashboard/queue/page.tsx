@@ -39,11 +39,10 @@ export default async function QueueManagementPage({
   }
 
   // Parallelize independent fetches for snappy load
-  const [entries, activeEntries, tablesRes, queueHealth, scheduleInfo] = await Promise.all([
+  const [entries, activeEntries, tablesRes, scheduleInfo] = await Promise.all([
     QueueService.getAllQueueEntries(restaurant.id, statusFilter, searchTerm),
     QueueService.getActiveQueue(restaurant.id),
     TableService.listTables({ restaurantId: restaurant.id }),
-    QueueService.getQueueHealth(restaurant.id, userId),
     (async () => {
       try {
         const { QueueScheduleService } = await import('@/lib/services/queue-schedule-service');
@@ -53,6 +52,18 @@ export default async function QueueManagementPage({
       } catch { return null; }
     })(),
   ]);
+
+  // Queue health must never crash the page — fall back to locally computed health
+  let queueHealth: Awaited<ReturnType<typeof QueueService.getQueueHealth>>;
+  try {
+    queueHealth = await QueueService.getQueueHealth(restaurant.id, userId);
+  } catch {
+    queueHealth = QueueService.buildFallbackQueueHealth({
+      restaurant,
+      activeEntries,
+      tables: tablesRes.tables,
+    });
+  }
 
   const waitingEntries = activeEntries.filter((e) => e.status === 'WAITING');
   const calledEntries = activeEntries.filter((e) => e.status === 'CALLED' || e.status === 'NOTIFIED');

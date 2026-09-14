@@ -70,12 +70,10 @@ describe('Phase 3A: Outbox Concurrency + Queue Maintenance', () => {
       aggregateId: 'lease-test-1',
       payload: { test: true },
     });
-    const claimed = await OutboxService.getPendingEvents(10);
-    expect(claimed.some((e: { id: string }) => e.id === id)).toBe(true);
-
-    // Simulate crash: backdate updated_at beyond lease
+    // Simulate a crashed worker holding the claim: move ONLY our row to stale
+    // PROCESSING directly (no global claim, so parallel test files are unaffected).
     await client.query(
-      `UPDATE public.outbox_events SET updated_at = NOW() - INTERVAL '31 minutes' WHERE id = $1`,
+      `UPDATE public.outbox_events SET status = 'PROCESSING', updated_at = NOW() - INTERVAL '31 minutes' WHERE id = $1`,
       [id]
     );
     const recovered = await OutboxService.recoverStaleEvents(30);

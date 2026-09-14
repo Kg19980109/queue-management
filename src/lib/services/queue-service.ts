@@ -773,7 +773,9 @@ export class QueueService {
     const calledCount = calledRes.count || 0;
     const seatedCount = seatedRes.count || 0;
     const noShowCountToday = noShowRes.count || 0;
-    const oldestWaitingAgeMins = (oldestRes as unknown as { data: { joined_at: string } | null })?.data?.joined_at ? Math.floor((Date.now() - new Date((oldestRes as unknown as { data: { joined_at: string } }).data.joined_at).getTime())/60000) : null;
+    // maybeSingle() returns { data: row | null } — the row itself holds joined_at
+    const oldestRow = (oldestRes as unknown as { data: { joined_at: string } | null }).data;
+    const oldestWaitingAgeMins = oldestRow?.joined_at ? Math.floor((Date.now() - new Date(oldestRow.joined_at).getTime())/60000) : null;
     const tables = (tablesRes as unknown as { data: Array<{ status: string }> | null })?.data || [];
     const availableTables = tables.filter((t: { status: string }) => t.status === 'AVAILABLE').length;
     const occupiedTables = tables.filter((t: { status: string }) => t.status === 'OCCUPIED').length;
@@ -834,5 +836,109 @@ export class QueueService {
       availableTables, occupiedTables, cleaningTables, reservedTables, outOfServiceTables, totalTables,
       operatingState, queueEnabled, isFull, health, healthReason, scheduledOpen, nextOpening,
     };
+  }
+
+  /**
+   * Pure, dependency-free fallback health computed from already-fetched rows.
+   * NEVER throws — used by pages so a health failure can never crash the UI.
+   * Same classification priority as getQueueHealth, without schedule lookup
+   * (scheduledOpen defaults to true when unknown).
+   */
+  static buildFallbackQueueHealth(input: {
+    restaurant: {
+      queue_enabled?: boolean | null;
+      queue_operating_state?: string | null;
+      max_queue_capacity?: number | null;
+      call_timeout_minutes?: number | null;
+      status?: string | null;
+    };
+    activeEntries: Array<{ status: string; joined_at?: string; called_at?: string | null; created_at?: string }>;
+    tables: Array<{ status: string }>;
+  }): QueueHealth & { scheduledOpen: boolean; nextOpening: null } {
+    try {
+      const queueEnabled = input.restaurant.queue_enabled ?? true;
+      const operatingState = ((input.restaurant.queue_operating_state || 'OPEN') as QueueOperatingState);
+      const maxCapacity = input.restaurant.max_queue_capacity ?? 100;
+      const timeoutMins = input.restaurant.call_timeout_minutes ?? 15;
+      const lifecycle = input.restaurant.status || 'ACTIVE';
+      const now = Date.now();
+
+      const entries = Array.isArray(input.activeEntries) ? input.activeEntries : [];
+      const tables = Array.isArray(input.tables) ? input.tables : [];
+
+      const waitingCount = entries.filter((e) => e.status === 'WAITING').length;
+      const notifiedCount = entries.filter((e) => e.status === 'NOTIFIED').length;
+      const calledCount = entries.filter((e) => e.status === 'CALLED').length;
+      const activeCount = waitingCount + notifiedCount + calledCount;
+      const seatedCount = entries.filter((e) => e.status === 'SEATED').length;
+      const dayAgo = now - 24 * 60 * 60 * 1000;
+      const noShowCountToday = entries.filter((e) => {
+        if (e.status !== 'NO_SHOW') return false;
+        if (!e.created_at) return true;
+        const t = new Date(e.created_at).getTime();
+        return Number.isNaN(t) || t >= dayAgo;
+      }).length;
+
+      const waitingAges = entries
+        .filter((e) => e.status === 'WAITING' && e.joined_at)
+        .map((e) => now - new Date(e.joined_at as string).getTime())
+        .filter((ms) => !Number.isNaN(ms) && ms >= 0);
+      const oldestWaitingAgeMins = waitingAges.length > 0 ? Math.floor(Math.max(...waitingAges) / 60000) : null;
+
+      const overdueCount = entries.filter((e) => {
+        if (e.status !== 'CALLED' || !e.called_at) return false;
+        const calledMs = new Date(e.called_at).getTime();
+        if (Number.isNaN(calledMs)) return false;
+        return now - calledMs > timeoutMins * 60 * 1000;
+      }).length;
+
+      const availableTables = tables.filter((t) => t.status === 'AVAILABLE').length;
+      const occupiedTables = tables.filter((t) => t.status === 'OCCUPIED').length;
+      const cleaningTables = tables.filter((t) => t.status === 'CLEANING').length;
+      const reservedTables = tables.filter((t) => t.status === 'RESERVED').length;
+      const outOfServiceTables = tables.filter((t) => t.status === 'OUT_OF_SERVICE').length;
+      const totalTables = tables.length;
+
+      const avgWaitMins = activeCount > 0 && oldestWaitingAgeMins !== null ? oldestWaitingAgeMins : null;
+      const isFull = activeCount >= maxCapacity;
+
+      let health: QueueHealthState = 'HEALTHY';
+      let healthReason = 'Queue is healthy';
+      if (lifecycle !== 'ACTIVE' || !queueEnabled || operatingState === 'CLOSED') {
+        health = 'CLOSED';
+        healthReason = lifecycle !== 'ACTIVE' ? 'Restaurant unavailable' : 'Queue is closed';
+      } else if (operatingState === 'PAUSED') {
+        health = 'PAUSED';
+        healthReason = 'Queue is paused';
+      } else if (activeCount === 0) {
+        health = 'EMPTY';
+        healthReason = 'No active queue';
+      } else if (activeCount >= maxCapacity * 0.9 || overdueCount > 0 || (activeCount > 0 && availableTables === 0)) {
+        health = 'CRITICAL';
+        if (overdueCount > 0) healthReason = `${overdueCount} overdue called`;
+        else if (availableTables === 0) healthReason = 'No available tables';
+        else healthReason = `Queue ${Math.round((activeCount / maxCapacity) * 100)}% full`;
+      } else if (activeCount >= maxCapacity * 0.6) {
+        health = 'BUSY';
+        healthReason = `Queue ${Math.round((activeCount / maxCapacity) * 100)}% full`;
+      }
+
+      return {
+        activeCount, waitingCount, notifiedCount, calledCount, seatedCount, noShowCountToday,
+        avgWaitMins, oldestWaitingAgeMins, overdueCount,
+        availableTables, occupiedTables, cleaningTables, reservedTables, outOfServiceTables, totalTables,
+        operatingState, queueEnabled, isFull, health, healthReason, scheduledOpen: true, nextOpening: null,
+      };
+    } catch {
+      // Absolute last resort — a health card must never crash the page
+      return {
+        activeCount: 0, waitingCount: 0, notifiedCount: 0, calledCount: 0, seatedCount: 0, noShowCountToday: 0,
+        avgWaitMins: null, oldestWaitingAgeMins: null, overdueCount: 0,
+        availableTables: 0, occupiedTables: 0, cleaningTables: 0, reservedTables: 0, outOfServiceTables: 0, totalTables: 0,
+        operatingState: 'OPEN' as QueueOperatingState, queueEnabled: true, isFull: false,
+        health: 'EMPTY' as QueueHealthState, healthReason: 'No active queue',
+        scheduledOpen: true, nextOpening: null,
+      };
+    }
   }
 }
