@@ -19,6 +19,7 @@ import {
 } from '@/app/dashboard/actions';
 import { SeatCustomerModal, SeatableTableItem } from '@/components/dashboard/SeatCustomerModal';
 import { AddQueueGuestModal } from '@/components/dashboard/AddQueueGuestModal';
+import { logger } from '@/lib/logging/logger';
 import Link from 'next/link';
 
 export default async function QueueManagementPage({
@@ -32,17 +33,39 @@ export default async function QueueManagementPage({
 
   const { userId, restaurantId } = await RestaurantAdminService.getAuthorizedRestaurantContext();
   const supabase = createAdminClient();
-  const { data: restaurant } = await supabase.from('restaurants').select('*').eq('id', restaurantId).single();
+  // maybeSingle (not single): a missing row must render the fallback UI,
+  // never throw a 500.
+  const { data: restaurant } = await supabase.from('restaurants').select('*').eq('id', restaurantId).maybeSingle();
 
   if (!restaurant) {
     return <div className="p-space-xl text-error">No managed restaurant assigned.</div>;
   }
 
-  // Parallelize independent fetches for snappy load
+  // Parallelize independent fetches for snappy load.
+  // Each section degrades independently: a transient DB failure in one fetch
+  // renders that section empty instead of 500ing the entire page.
   const [entries, activeEntries, tablesRes, scheduleInfo] = await Promise.all([
-    QueueService.getAllQueueEntries(restaurant.id, statusFilter, searchTerm),
-    QueueService.getActiveQueue(restaurant.id),
-    TableService.listTables({ restaurantId: restaurant.id }),
+    QueueService.getAllQueueEntries(restaurant.id, statusFilter, searchTerm).catch((err) => {
+      logger.warn('Queue page: entries fetch failed, degrading to empty', {
+        operation: 'dashboard_queue_page',
+        metadata: { section: 'entries', error: err instanceof Error ? err.message : String(err) },
+      });
+      return [];
+    }),
+    QueueService.getActiveQueue(restaurant.id).catch((err) => {
+      logger.warn('Queue page: active queue fetch failed, degrading to empty', {
+        operation: 'dashboard_queue_page',
+        metadata: { section: 'activeEntries', error: err instanceof Error ? err.message : String(err) },
+      });
+      return [];
+    }),
+    TableService.listTables({ restaurantId: restaurant.id }).catch((err) => {
+      logger.warn('Queue page: tables fetch failed, degrading to empty', {
+        operation: 'dashboard_queue_page',
+        metadata: { section: 'tables', error: err instanceof Error ? err.message : String(err) },
+      });
+      return TableService.emptyTablesResult();
+    }),
     (async () => {
       try {
         const { QueueScheduleService } = await import('@/lib/services/queue-schedule-service');

@@ -92,6 +92,29 @@ export class TableService {
   }
 
   /**
+   * Zeroed tables result with the exact shape of listTables().
+   * Degrade-gracefully fallback so a transient tables fetch failure never
+   * 500s a page — the UI renders empty tables sections instead.
+   */
+  static emptyTablesResult() {
+    return {
+      tables: [] as never[],
+      stats: {
+        total: 0,
+        available: 0,
+        occupied: 0,
+        cleaning: 0,
+        reserved: 0,
+        outOfService: 0,
+      },
+      total: 0,
+      page: 1,
+      limit: 50,
+      totalPages: 0,
+    };
+  }
+
+  /**
    * Fetch tables for authorized restaurant along with status summary counts.
    */
   static async listTables(params: {

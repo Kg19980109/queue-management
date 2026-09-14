@@ -5,6 +5,7 @@ import { RestaurantHeader } from '@/components/customer/RestaurantHeader';
 import { QueueJoinForm } from '@/components/customer/QueueJoinForm';
 import { MenuPreviewSection } from '@/components/customer/MenuPreviewSection';
 import { QueueResumeBanner } from '@/components/customer/QueueResumeBanner';
+import { logger } from '@/lib/logging/logger';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({
@@ -47,7 +48,18 @@ export default async function PublicRestaurantQueuePage({
     );
   }
 
-  const activeEntries = await QueueService.getActiveQueue(restaurant.id);
+  // A transient queue fetch failure must degrade (empty counts, join still
+  // possible) instead of 500ing the customer page.
+  let activeEntries: Awaited<ReturnType<typeof QueueService.getActiveQueue>>;
+  try {
+    activeEntries = await QueueService.getActiveQueue(restaurant.id);
+  } catch (err) {
+    logger.warn('Customer queue page: active queue fetch failed, degrading to empty', {
+      operation: 'public_queue_page',
+      metadata: { error: err instanceof Error ? err.message : String(err) },
+    });
+    activeEntries = [];
+  }
   const waitingCount = activeEntries.filter((e) => e.status === 'WAITING').length;
   const activeQueueCount = activeEntries.filter((e) => ['WAITING','NOTIFIED','CALLED'].includes(e.status)).length;
   const isFull = activeQueueCount >= restaurant.maxQueueCapacity;
