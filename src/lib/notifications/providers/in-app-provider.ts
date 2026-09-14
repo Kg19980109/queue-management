@@ -8,6 +8,23 @@ export class InAppNotificationProvider implements NotificationProvider {
   async send(payload: SendNotificationPayload): Promise<NotificationResult> {
     const supabase = createAdminClient();
 
+    // Idempotency guard: an outbox event re-encountered after a crash must not duplicate rows
+    if (payload.idempotencyKey) {
+      const { data: existing } = await supabase
+        .from('notifications')
+        .select('id, provider_message_id')
+        .eq('idempotency_key', payload.idempotencyKey)
+        .maybeSingle();
+      if (existing) {
+        return {
+          success: true,
+          notificationId: existing.id,
+          providerMessageId: existing.provider_message_id || undefined,
+          status: 'DELIVERED',
+        };
+      }
+    }
+
     const { data: record, error } = await supabase
       .from('notifications')
       .insert({
@@ -31,6 +48,22 @@ export class InAppNotificationProvider implements NotificationProvider {
       .single();
 
     if (error || !record) {
+      // Unique conflict on idempotency_key means a concurrent worker already wrote it
+      if (error && (error.code === '23505' || error.message.includes('unique_notifications_idempotency'))) {
+        const { data: existing } = await supabase
+          .from('notifications')
+          .select('id, provider_message_id')
+          .eq('idempotency_key', payload.idempotencyKey || '')
+          .maybeSingle();
+        if (existing) {
+          return {
+            success: true,
+            notificationId: existing.id,
+            providerMessageId: existing.provider_message_id || undefined,
+            status: 'DELIVERED',
+          };
+        }
+      }
       return {
         success: false,
         status: 'FAILED',

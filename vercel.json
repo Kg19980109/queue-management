@@ -1,3 +1,13 @@
 {
-  "regions": ["bom1"]
+  "regions": ["bom1"],
+  "crons": [
+    {
+      "path": "/api/cron/notifications",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/queue-maintenance",
+      "schedule": "* * * * *"
+    }
+  ]
 }

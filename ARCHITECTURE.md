@@ -130,3 +130,30 @@ Queue entry state ≠ Restaurant queue operating state ≠ Restaurant lifecycle 
 - **Next opening**: `QueueScheduleService.getNextOpening` (read-only, same-day → next-day → closed days → cross-midnight aware).
 - **Health**: outside scheduled hours → `CLOSED`; manual `PAUSED` → `PAUSED`; manual `CLOSED` → `CLOSED`. Priority: lifecycle/disabled `CLOSED` > manual `PAUSED` > manual `CLOSED` > scheduled `CLOSED` > `CRITICAL` > `BUSY` > `EMPTY` > `HEALTHY`.
 - **No auto-scheduler**: `evaluateAvailability`/`getNextQueueOpening` exist, but automatic background opening/closing is NOT active until the Production Reliability stage. Schedule evaluation is read-only; join path uses authoritative DB check.
+
+---
+
+## 8. Production Outbox Worker + Scheduled Queue Maintenance (Phase 3A)
+
+### 8.1 Worker Architecture
+`Postgres transaction → outbox_events → scheduled worker → claim → process → notification/provider → mark delivered OR retry`.
+
+- **Claiming**: `claim_outbox_events(p_limit)` atomically `UPDATE … SET status='PROCESSING' … FOR UPDATE SKIP LOCKED … RETURNING`, bounded batch (default 50, max 100). Two workers never receive the same event.
+- **Lease/recovery**: `PROCESSING` rows untouched for 30+ min are stale; `recover_stale_outbox_events()` moves them to `PENDING` (retry+1, exponential backoff) or terminal `FAILED` at max retries. Lease column is `updated_at` (no new columns needed).
+- **Retry**: `(2 ^ retry_count) * 30s`, capped at 1 hour. Terminal `FAILED` preserves `last_error`, never deletes the event.
+- **Idempotency**: every dispatched notification carries `idempotencyKey = outbox event id`; `notifications.idempotency_key` has a unique partial index; providers check-then-insert and treat `23505` conflicts as success. Re-encountering an event never duplicates internal state.
+
+### 8.2 Cron Routes & Auth
+- `GET/POST /api/cron/notifications?limit=50` — `NotificationWorker.runBatch(limit)`.
+- `GET/POST /api/cron/queue-maintenance?limit=50` — `QueueService.expireOverdueCalledEntries(limit)` only. No `restaurant_id` parameter accepted (400); scope is internal across all restaurants.
+- Both share `authenticateCronRequest` (`src/lib/cron-auth.ts`): `Authorization: Bearer <CRON_SECRET>` only (never query string), constant-time compare, 401 on invalid, 503 when `CRON_SECRET` unset. No stack traces to callers.
+- `vercel.json` schedules both every minute (`* * * * *`). Each invocation starts, processes a bounded batch, finishes, returns. No in-memory locks, no `setInterval`, no filesystem state — Postgres coordinates.
+
+### 8.3 Automatic No-Show Is Now ACTIVE
+`expire_overdue_called_queue_entries(p_limit)` (server `NOW()`, `CALLED` + `called_at + call_timeout_minutes` elapsed only) transitions to `NO_SHOW` with `no_show_reason='CUSTOMER_DID_NOT_RESPOND'`, server `no_show_at`, plus `queue_events` + `outbox_events` atomically, `SKIP LOCKED` concurrent-safe, idempotent re-runs. It does NOT create a second outbox event in the route — the RPC already does. `WAITING/NOTIFIED/SEATED/terminal` rows are never touched.
+
+### 8.4 Provider Behavior
+`IN_APP` persists `DELIVERED`; all other channels (`SMS/WHATSAPP/EMAIL/PUSH`) use the console mock (`SENT`) until real credentials are configured — the worker never pretends external delivery happened, failures are recorded and retried per policy.
+
+### 8.5 Observability
+Each cron run logs `correlationId`, worker name, start/end, batch size, processed/succeeded/failed, duration (and `expiredCount` for maintenance) via the structured logger with redaction. No tokens, phones, message contents, or auth headers are logged.

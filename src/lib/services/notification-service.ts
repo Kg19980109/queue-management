@@ -185,7 +185,14 @@ export class NotificationService {
     }
 
     // Dispatch through appropriate channel providers
+    // Idempotency: bind each notification to its source outbox event so a
+    // duplicate encounter (crash between send and markCompleted) does not
+    // create a second internal notification row. Providers enforce the
+    // unique idempotency_key constraint and treat conflicts as success.
     for (const notifPayload of notificationsToDispatch) {
+      if (!notifPayload.idempotencyKey) {
+        notifPayload.idempotencyKey = event.id;
+      }
       const provider = NotificationProviderFactory.getProvider(notifPayload.channel);
       const result = await provider.send(notifPayload);
 

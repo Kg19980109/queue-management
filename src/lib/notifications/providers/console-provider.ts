@@ -12,6 +12,23 @@ export class ConsoleNotificationProvider implements NotificationProvider {
 
   async send(payload: SendNotificationPayload): Promise<NotificationResult> {
     const supabase = createAdminClient();
+
+    if (payload.idempotencyKey) {
+      const { data: existing } = await supabase
+        .from('notifications')
+        .select('id, provider_message_id')
+        .eq('idempotency_key', payload.idempotencyKey)
+        .maybeSingle();
+      if (existing) {
+        return {
+          success: true,
+          notificationId: existing.id,
+          providerMessageId: existing.provider_message_id || undefined,
+          status: 'SENT',
+        };
+      }
+    }
+
     const providerMsgId = `mock_${this.channelName.toLowerCase()}_${Date.now()}`;
 
     // Simulate channel dispatch log
@@ -37,6 +54,21 @@ export class ConsoleNotificationProvider implements NotificationProvider {
       .single();
 
     if (error || !record) {
+      if (error && (error.code === '23505' || error.message.includes('unique_notifications_idempotency'))) {
+        const { data: existing } = await supabase
+          .from('notifications')
+          .select('id, provider_message_id')
+          .eq('idempotency_key', payload.idempotencyKey || '')
+          .maybeSingle();
+        if (existing) {
+          return {
+            success: true,
+            notificationId: existing.id,
+            providerMessageId: existing.provider_message_id || undefined,
+            status: 'SENT',
+          };
+        }
+      }
       return {
         success: false,
         status: 'FAILED',

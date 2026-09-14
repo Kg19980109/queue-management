@@ -1,74 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
 import { NotificationWorker } from '@/lib/workers/notification-worker';
-import { getEnv } from '@/lib/config/env';
+import { authenticateCronRequest } from '@/lib/cron-auth';
 import { logger } from '@/lib/logging/logger';
 
 /**
  * CRON WORKER ENDPOINT — PROTECTED BY CRON_SECRET
  *
- * This endpoint processes the outbox event queue and dispatches notifications.
- * It MUST only be invoked by the platform scheduler (Vercel Cron, etc.) or
- * internal infrastructure using the shared CRON_SECRET bearer token.
- *
- * Public invocation is explicitly denied.
+ * Processes the outbox event queue and dispatches notifications.
+ * Bounded batch (default 50, max 100). Database is the coordination layer;
+ * duplicate invocations are safe via atomic claiming + lease recovery.
  */
 async function handleCronRequest(req: NextRequest): Promise<NextResponse> {
-  const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
+  const auth = authenticateCronRequest(req, 'cron_notifications');
+  if (!auth.ok) return auth.response;
+  const { correlationId } = auth;
+  const startTime = Date.now();
 
-  // 1. Validate CRON_SECRET bearer token
-  const env = getEnv();
-  const cronSecret = env.server.CRON_SECRET;
-
-  if (!cronSecret) {
-    logger.error('CRON_SECRET is not configured — worker endpoint is disabled', {
-      operation: 'cron_worker',
-      correlationId,
-    });
-    return NextResponse.json({ error: 'Worker endpoint not configured' }, { status: 503 });
-  }
-
-  const authHeader = req.headers.get('authorization') || '';
-  const providedSecret = authHeader.startsWith('Bearer ')
-    ? authHeader.slice('Bearer '.length).trim()
-    : '';
-
-  // Constant-time comparison to prevent timing attacks
-  const secretBytes = Buffer.from(cronSecret, 'utf8');
-  const providedBytes = Buffer.from(providedSecret, 'utf8');
-
-  const isValid =
-    secretBytes.length === providedBytes.length &&
-    timingSafeEqual(secretBytes, providedBytes);
-
-  if (!isValid) {
-    logger.warn('Unauthorized cron worker invocation rejected', {
-      operation: 'cron_worker',
-      correlationId,
-    });
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // 2. Parse optional batch size limit
   try {
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 100);
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '50', 10) || 50, 1), 100);
 
-    logger.info('Cron worker batch starting', {
-      operation: 'cron_worker',
+    logger.info('Cron notifications batch starting', {
+      operation: 'cron_notifications',
       correlationId,
       metadata: { limit },
     });
 
     const result = await NotificationWorker.runBatch(limit);
 
-    logger.info('Cron worker batch completed', {
-      operation: 'cron_worker',
+    logger.info('Cron notifications batch completed', {
+      operation: 'cron_notifications',
       correlationId,
       metadata: {
         processed: result.processedCount,
         succeeded: result.successCount,
         failed: result.failedCount,
+        recoveredStale: result.recoveredStaleCount,
+        durationMs: Date.now() - startTime,
       },
     });
 
@@ -84,10 +52,10 @@ async function handleCronRequest(req: NextRequest): Promise<NextResponse> {
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Worker execution error';
-    logger.error('Cron worker batch failed', {
-      operation: 'cron_worker',
+    logger.error('Cron notifications batch failed', {
+      operation: 'cron_notifications',
       correlationId,
-      metadata: { error: message },
+      metadata: { error: message, durationMs: Date.now() - startTime },
     });
     return NextResponse.json({ error: 'Worker execution failed' }, { status: 500 });
   }
