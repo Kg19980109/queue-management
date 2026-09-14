@@ -65,11 +65,12 @@ export default function CustomerPaymentPage({
         return;
       }
 
-      // Online payment attempt
+      // Online payment attempt (orderToken authorizes: hash -> order row)
       const intentRes = await fetch('/api/payments/intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          orderToken,
           restaurantId: order.restaurant_id,
           orderId: order.id,
           paymentMethod: 'ONLINE',
@@ -85,11 +86,12 @@ export default function CustomerPaymentPage({
 
       const intentData = await intentRes.json();
 
-      // Trigger verification
+      // Trigger verification (orderToken binds the payment to its order)
       const verifyRes = await fetch('/api/payments/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          orderToken,
           paymentId: intentData.paymentId,
           providerPaymentId: `pay_rzp_${Date.now()}`,
           providerOrderId: intentData.providerOrderId,

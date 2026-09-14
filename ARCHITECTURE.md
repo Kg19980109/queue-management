@@ -262,3 +262,43 @@ token-hash auth, slug cross-check, rate limit, minimization, and no-store.
 `PublicQueueStatusResponse` carries only display number, status, position,
 ETA, party size, safe restaurant info (no phone, no token, no internals).
 Order API returns id/number/totals/items/names only (no phone, no raw token).
+
+## 11. Customer Payment Authorization (Phase 3D Correction)
+
+### 11.1 Vulnerability closed
+`/api/payments/intent` and `/api/payments/verify` previously authorized by
+unguessable UUID alone (orderId / paymentId + restaurantId from the caller,
+IP rate limit only). Anyone holding a victim's order/payment UUID could
+create payment attempts against the order (provider calls, row spam,
+reconciliation noise) and submit bogus provider payloads flipping the
+victim's payment to FAILED. Success still required the provider secret, so
+funds were never directly stealable — but payment state was vandalizable.
+
+### 11.2 New authorization chain (order token as customer credential)
+Anonymous payment access now follows the same hash-derived model as every
+other customer operation:
+  body.orderToken -> SHA-256 -> orders.order_token_hash -> order row ->
+  client orderId/restaurantId cross-checked against the derived row ->
+  eligibility (not CANCELLED, not already PAID) -> intent/verify using
+  SERVER-DERIVED ids.
+The order token is used (not the queue token) because it is the live
+credential already present on the payment page by construction
+(`src/lib/customer-order-auth.ts`: `authorizeCustomerOrder`,
+`isOrderPayable`). The `/q/[slug]/payment/[orderToken]` URL is unchanged:
+the parameter is a real, live, accurately-named credential — not deprecated,
+not unnecessary — so no routing/UX breakage. Raw order tokens remain
+unpersisted (NULL) per 3D hygiene.
+
+### 11.3 Rate limiting & responses
+Intent and verify keep their per-IP buckets and add per-credential buckets
+(`rl:payment:intent:<fp>`, `rl:payment:verify:<fp>`, fingerprint-only),
+checked before any DB work. All responses go through `customerJson()`
+(private/no-store); auth/eligibility failures share one generic 404
+(`Order not found.`). Staff/admin service methods are signature-unchanged;
+the Razorpay webhook path (own signature verification) is untouched.
+
+### 11.4 Residual notes
+Concurrent same-key intents resolve via UNIQUE(idempotency_key): exactly one
+row wins, the loser gets a safe error and retries into the idempotent path
+(pre-existing check-then-insert race, invariant preserved, not redesigned).
+Orders from idempotent replays carry no token and redirect to the ticket.
