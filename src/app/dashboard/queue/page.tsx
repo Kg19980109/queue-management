@@ -11,6 +11,7 @@ function getWaitTimeMins(joinedAt: string) {
 import {
   updateQueueStatusAction,
   toggleQueueOpenAction,
+  setQueueOperatingStateFormAction,
   updateQueueSettingsFormAction,
   updateETASettingsFormAction,
 } from '@/app/dashboard/actions';
@@ -48,6 +49,8 @@ export default async function QueueManagementPage({
   const calledCount = calledEntries.length;
   const totalGuests = activeEntries.reduce((sum, e) => sum + e.party_size, 0);
   const queueEnabled = restaurant.queue_enabled ?? true;
+  const operatingState = (restaurant as unknown as { queue_operating_state: string }).queue_operating_state || 'OPEN';
+  const isFull = activeEntries.filter(e => ['WAITING','NOTIFIED','CALLED'].includes(e.status)).length >= (restaurant.max_queue_capacity ?? 100);
 
   // Best next guest logic (first waiting)
   const nextUp = waitingEntries.length > 0 ? waitingEntries[0] : null;
@@ -145,6 +148,34 @@ export default async function QueueManagementPage({
             <AddQueueGuestModal />
           </div>
         </div>
+      </div>
+
+      {/* Queue Operating Controls */}
+      <div className="p-4 rounded-2xl bg-[#111827] border border-white/5 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+            <span className="material-symbols-outlined text-[16px] text-emerald-400">tune</span>
+            Queue Intake Control
+          </h3>
+          <span className={`px-2.5 py-1 rounded-full text-xs font-black border ${operatingState === 'OPEN' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : operatingState === 'PAUSED' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : operatingState === 'CLOSING_SOON' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 animate-pulse' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
+            {operatingState} {isFull && operatingState === 'OPEN' ? '• FULL' : ''}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {(['OPEN','PAUSED','CLOSING_SOON','CLOSED'] as const).map((state) => (
+            <form key={state} action={setQueueOperatingStateFormAction}>
+              <input type="hidden" name="restaurantId" value={restaurant.id} />
+              <input type="hidden" name="newState" value={state} />
+              <input type="hidden" name="actorUserId" value={userId} />
+              <button type="submit" className={`w-full h-11 rounded-xl text-xs font-black border transition-all active:scale-95 ${operatingState === state ? 'bg-white text-slate-900 border-white shadow-md' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white'}`}>
+                {state.replace('_',' ')}
+              </button>
+            </form>
+          ))}
+        </div>
+        <p className="text-[11px] leading-relaxed text-slate-500">
+          <b className="text-slate-400">OPEN:</b> joins allowed • <b className="text-amber-400">PAUSED</b> new joins blocked (existing intact) • <b className="text-blue-400">CLOSING_SOON</b> warning but still allows joins • <b className="text-rose-400">CLOSED</b> joins blocked • <b className="text-slate-400">FULL</b> auto when {activeEntries.filter(e=>['WAITING','NOTIFIED','CALLED'].includes(e.status)).length}/{restaurant.max_queue_capacity} active
+        </p>
       </div>
 
       {/* Real-time KPI Dynamic Ribbon - horizontal scroll on mobile, grid on desktop */}

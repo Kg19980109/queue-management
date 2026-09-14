@@ -11,6 +11,7 @@ export interface PublicRestaurantInfo {
   city: string | null;
   logoUrl: string | null;
   queueEnabled: boolean;
+  queueOperatingState: 'OPEN' | 'PAUSED' | 'CLOSING_SOON' | 'CLOSED';
   maxQueueCapacity: number;
   minPartySize: number;
   maxPartySize: number;
@@ -32,7 +33,7 @@ export class PublicRestaurantService {
 
         const { data: restaurant, error } = await supabase
           .from('restaurants')
-          .select('id, name, slug, description, phone, address, city, logo_url, queue_enabled, max_queue_capacity, min_party_size, max_party_size, call_timeout_minutes, status')
+          .select('id, name, slug, description, phone, address, city, logo_url, queue_enabled, queue_operating_state, max_queue_capacity, min_party_size, max_party_size, call_timeout_minutes, status')
           .eq('slug', slug.trim().toLowerCase())
           .eq('status', 'ACTIVE')
           .maybeSingle();
@@ -51,6 +52,7 @@ export class PublicRestaurantService {
           city: restaurant.city,
           logoUrl: restaurant.logo_url,
           queueEnabled: restaurant.queue_enabled,
+          queueOperatingState: (restaurant as unknown as { queue_operating_state: 'OPEN' | 'PAUSED' | 'CLOSING_SOON' | 'CLOSED' }).queue_operating_state || 'OPEN',
           maxQueueCapacity: restaurant.max_queue_capacity,
           minPartySize: restaurant.min_party_size,
           maxPartySize: restaurant.max_party_size,

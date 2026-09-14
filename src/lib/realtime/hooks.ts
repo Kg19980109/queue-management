@@ -69,3 +69,14 @@ export function useNotificationRealtime(restaurantId: string, enabled = true) {
     fallbackIntervalMs: 60000,
   });
 }
+
+export function useRestaurantRealtime(restaurantId: string, enabled = true) {
+  return useRealtimeChannel({
+    channelName: `restaurant:${restaurantId}:restaurant`,
+    table: 'restaurants',
+    filter: `id=eq.${restaurantId}`,
+    restaurantId,
+    enabled: !!restaurantId && enabled,
+    fallbackIntervalMs: 60000,
+  });
+}

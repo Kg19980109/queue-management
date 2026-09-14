@@ -84,7 +84,17 @@ function parseEnv(): { public: PublicEnv; server: ServerEnv } {
 let parsedEnvCache: { public: PublicEnv; server: ServerEnv } | null = null;
 
 export function getEnv(): { public: PublicEnv; server: ServerEnv } {
+  // In test, always re-parse to handle dotenv per-file loading and vitest process reuse
+  if (process.env.NODE_ENV === 'test') {
+    return parseEnv();
+  }
   if (!parsedEnvCache) {
+    parsedEnvCache = parseEnv();
+  } else if (
+    parsedEnvCache.public.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder-project') &&
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder-project')
+  ) {
     parsedEnvCache = parseEnv();
   }
   return parsedEnvCache;

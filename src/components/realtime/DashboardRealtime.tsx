@@ -1,17 +1,19 @@
 'use client';
 
-import { useDashboardRealtime, useTableRealtime } from '@/lib/realtime/hooks';
+import { useDashboardRealtime, useTableRealtime, useRestaurantRealtime } from '@/lib/realtime/hooks';
 import { RealtimeIndicator } from './RealtimeIndicator';
 
 export function DashboardRealtime({ restaurantId }: { restaurantId: string }) {
   const { connectionState } = useDashboardRealtime(restaurantId);
-  // Also subscribe to tables for dashboard floor metrics
+  // Also subscribe to tables and restaurant operating state for dashboard metrics
   useTableRealtime(restaurantId);
+  useRestaurantRealtime(restaurantId);
   return <RealtimeIndicator state={connectionState} compact />;
 }
 
 export function DashboardRealtimeSilent({ restaurantId }: { restaurantId: string }) {
   useDashboardRealtime(restaurantId);
   useTableRealtime(restaurantId);
+  useRestaurantRealtime(restaurantId);
   return null;
 }

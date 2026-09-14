@@ -103,6 +103,7 @@ export type TransactionPaymentStatus =
 export type PaymentMethod = 'ONLINE' | 'PAY_AT_RESTAURANT' | 'CASH' | 'MANUAL';
 export type NotificationChannel = 'IN_APP' | 'SMS' | 'WHATSAPP' | 'EMAIL' | 'PUSH';
 export type NotificationStatus = 'PENDING' | 'SENT' | 'FAILED' | 'DELIVERED';
+export type QueueOperatingState = 'OPEN' | 'PAUSED' | 'CLOSING_SOON' | 'CLOSED';
 
 /**
  * Outbox event processing states.
@@ -146,6 +147,7 @@ export interface Database {
           status: RestaurantStatus;
           logo_url: string | null;
           queue_enabled: boolean;
+          queue_operating_state: QueueOperatingState;
           max_queue_capacity: number;
           min_party_size: number;
           max_party_size: number;

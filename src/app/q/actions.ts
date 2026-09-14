@@ -44,11 +44,14 @@ export async function joinQueuePublicAction(
 
     const message = error instanceof Error ? error.message : String(error);
 
+    if (message.includes('QUEUE_PAUSED')) {
+      return { error: 'The queue is temporarily paused. Please check back shortly.' };
+    }
     if (message.includes('QUEUE_CLOSED')) {
       return { error: 'The queue for this restaurant is currently closed. Please check back later.' };
     }
     if (message.includes('QUEUE_FULL')) {
-      return { error: 'The queue is currently at maximum capacity. Please try again shortly.' };
+      return { error: 'The queue is currently full. Please try again shortly.' };
     }
     if (message.includes('DUPLICATE_ACTIVE_ENTRY')) {
       return {

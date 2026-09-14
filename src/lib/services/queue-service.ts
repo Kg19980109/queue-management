@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/db/supabase/admin';
-import { QueueStatus } from '@/types/database.types';
+import { QueueStatus, QueueOperatingState } from '@/types/database.types';
 import { generateQueueToken, hashQueueToken } from '@/lib/utils/token-utils';
 import { ETAService, RestaurantETAConfig } from '@/lib/services/eta-service';
 import { AuthorizationService } from '@/lib/services/authorization-service';
@@ -82,6 +82,9 @@ export class QueueService {
     });
 
     if (error) {
+      if (error.message.includes('QUEUE_PAUSED')) {
+        throw new Error('QUEUE_PAUSED');
+      }
       if (error.message.includes('QUEUE_CLOSED')) {
         throw new Error('QUEUE_CLOSED');
       }
@@ -620,5 +623,46 @@ export class QueueService {
     });
 
     return updated;
+  }
+
+  /**
+   * Get current queue operating state for restaurant (for public display)
+   */
+  static async getQueueOperatingState(restaurantId: string): Promise<{ operatingState: QueueOperatingState; queueEnabled: boolean; isFull: boolean }> {
+    const supabase = createAdminClient();
+    const { data: restaurant, error } = await supabase.from('restaurants').select('queue_enabled, queue_operating_state, max_queue_capacity').eq('id', restaurantId).single();
+    if (error || !restaurant) throw new Error('Restaurant not found');
+    const operatingState = (restaurant as unknown as { queue_operating_state: QueueOperatingState }).queue_operating_state || 'OPEN';
+    const queueEnabled = restaurant.queue_enabled;
+    const { count } = await supabase.from('queue_entries').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId).in('status', ['WAITING','NOTIFIED','CALLED']);
+    const isFull = (count || 0) >= restaurant.max_queue_capacity;
+    return { operatingState, queueEnabled, isFull };
+  }
+
+  /**
+   * Set queue operating state (OPEN/PAUSED/CLOSING_SOON/CLOSED) — authoritative, idempotent, audited
+   */
+  static async setQueueOperatingState(restaurantId: string, newState: QueueOperatingState, actorUserId: string, reason?: string) {
+    const supabase = createAdminClient();
+    await AuthorizationService.requirePermission({ userId: actorUserId, restaurantId, permission: PERMISSIONS.QUEUE_MANAGE });
+    const { data, error } = await supabase.rpc('set_queue_operating_state', {
+      p_restaurant_id: restaurantId,
+      p_new_state: newState,
+      p_actor_user_id: actorUserId,
+      p_reason: reason || null,
+    });
+    if (error) {
+      if (error.message.includes('QUEUE_STATE_CONFLICT')) throw new Error('QUEUE_STATE_CONFLICT');
+      if (error.message.includes('INVALID_OPERATING_STATE')) throw new Error('INVALID_OPERATING_STATE');
+      throw new Error(`Failed to set queue operating state: ${error.message}`);
+    }
+    // Invalidate public cache so QR page reflects new state quickly
+    try {
+      const { CacheService, CacheKeys } = await import('@/lib/cache');
+      // Find slug for cache invalidation
+      const { data: rest } = await supabase.from('restaurants').select('slug').eq('id', restaurantId).single();
+      if (rest) await CacheService.invalidate(CacheKeys.publicRestaurant(rest.slug));
+    } catch {}
+    return data;
   }
 }

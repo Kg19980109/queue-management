@@ -1,6 +1,16 @@
 -- Phase 2 Queue Hardening: canonical FSM, seat eligibility, restaurant status, broadcast
 -- Postgres is truth, no Redis
 
+-- Ensure restaurants queue_operating_state is in realtime publication for dashboard sync
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='restaurants') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.restaurants;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  CREATE PUBLICATION supabase_realtime FOR TABLE public.restaurants;
+END $$;
+ALTER TABLE public.restaurants REPLICA IDENTITY FULL;
+
 -- 1. Harden join_queue_atomic: check restaurant.status = ACTIVE
 CREATE OR REPLACE FUNCTION public.join_queue_atomic(
   p_restaurant_id UUID,

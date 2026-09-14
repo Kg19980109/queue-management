@@ -389,6 +389,27 @@ export async function toggleQueueOpenAction(restaurantId: string, open: boolean,
   revalidatePath('/dashboard/queue');
 }
 
+export async function setQueueOperatingStateAction(restaurantId: string, newState: 'OPEN' | 'PAUSED' | 'CLOSING_SOON' | 'CLOSED', actorUserId: string, reason?: string): Promise<void> {
+  try {
+    await QueueService.setQueueOperatingState(restaurantId, newState as unknown as import('@/types/database.types').QueueOperatingState, actorUserId, reason);
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
+    throw error instanceof Error ? error : new Error('Failed to set queue operating state.');
+  }
+  revalidatePath('/dashboard/queue');
+  revalidatePath('/dashboard', 'layout');
+}
+
+export async function setQueueOperatingStateFormAction(formData: FormData): Promise<void> {
+  const restaurantId = formData.get('restaurantId') as string;
+  const newState = formData.get('newState') as 'OPEN' | 'PAUSED' | 'CLOSING_SOON' | 'CLOSED';
+  const actorUserId = formData.get('actorUserId') as string;
+  const reason = (formData.get('reason') as string) || undefined;
+  await setQueueOperatingStateAction(restaurantId, newState, actorUserId, reason);
+}
+
 export async function updateQueueSettingsFormAction(formData: FormData): Promise<void> {
   try {
     const restaurantId = formData.get('restaurantId') as string;

@@ -49,8 +49,14 @@ export default async function PublicRestaurantQueuePage({
 
   const activeEntries = await QueueService.getActiveQueue(restaurant.id);
   const waitingCount = activeEntries.filter((e) => e.status === 'WAITING').length;
+  const activeQueueCount = activeEntries.filter((e) => ['WAITING','NOTIFIED','CALLED'].includes(e.status)).length;
+  const isFull = activeQueueCount >= restaurant.maxQueueCapacity;
+  const operatingState = restaurant.queueOperatingState || 'OPEN';
+  const queueEnabled = restaurant.queueEnabled;
   const avgWaitMins = 15;
   const menuCategories = await PublicRestaurantService.getPublicMenuPreview(restaurant.id);
+
+  const canJoin = queueEnabled && operatingState === 'OPEN' && !isFull || operatingState === 'CLOSING_SOON' && queueEnabled && !isFull;
 
   return (
     <main className="min-h-[100dvh] relative overflow-hidden bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-100">
@@ -70,17 +76,36 @@ export default async function PublicRestaurantQueuePage({
           <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
         </div>
 
-        {/* Queue Open vs Closed Content */}
+        {/* Queue Operating State Content */}
         <div className="animate-fade-in-up stagger-2">
-          {restaurant.queueEnabled ? (
-            <QueueJoinForm restaurant={restaurant} waitingCount={waitingCount} avgWaitMins={avgWaitMins} />
+          {canJoin ? (
+            <>
+              {operatingState === 'CLOSING_SOON' && (
+                <div className="mb-4 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-bold text-center flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">schedule</span>
+                  Closing soon — join now while you can!
+                </div>
+              )}
+              <QueueJoinForm restaurant={restaurant} waitingCount={waitingCount} avgWaitMins={avgWaitMins} />
+            </>
           ) : (
             <div className="rounded-3xl bg-slate-900/80 border border-slate-800 p-6 sm:p-8 text-center space-y-3 backdrop-blur">
-              <div className="text-4xl sm:text-5xl mb-2">🛑</div>
-              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">Queue Currently Closed</h2>
+              <div className="text-4xl sm:text-5xl mb-2">
+                {!queueEnabled || operatingState === 'CLOSED' ? '🛑' : isFull ? '👥' : operatingState === 'PAUSED' ? '⏸️' : '🛑'}
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+                {!queueEnabled || operatingState === 'CLOSED' ? 'Queue Currently Closed' : isFull ? 'Queue Currently Full' : operatingState === 'PAUSED' ? 'Queue Temporarily Paused' : 'Queue Not Available'}
+              </h2>
               <p className="text-[13px] sm:text-sm text-slate-400 leading-relaxed max-w-[280px] mx-auto">
-                {restaurant.name} is not accepting new entries right now. Please check back later or ask the host.
+                {!queueEnabled || operatingState === 'CLOSED'
+                  ? `${restaurant.name} is not accepting new entries right now. Please check back later or ask the host.`
+                  : isFull
+                  ? `The queue is at capacity (${activeQueueCount}/${restaurant.maxQueueCapacity}). Please check back shortly — spots open as guests are seated.`
+                  : operatingState === 'PAUSED'
+                  ? 'The queue is temporarily paused. Please check back shortly.'
+                  : 'Queue not available at the moment.'}
               </p>
+              {isFull && <p className="text-[11px] text-emerald-400 font-bold">We’ll notify you here when spots open</p>}
             </div>
           )}
         </div>
