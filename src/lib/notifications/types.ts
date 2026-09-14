@@ -5,8 +5,11 @@ export type NotificationType =
   | 'QUEUE_JOINED'
   | 'QUEUE_POSITION_UPDATED'
   | 'QUEUE_ALMOST_TURN'
+  | 'QUEUE_NOTIFIED'
   | 'QUEUE_CALLED'
+  | 'QUEUE_SEATED'
   | 'QUEUE_CANCELLED'
+  | 'QUEUE_NO_SHOW'
   | 'QUEUE_EXPIRED'
   // Order Types
   | 'ORDER_PLACED'

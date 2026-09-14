@@ -173,11 +173,11 @@ describe('Phase 10: Queue Operations, Deterministic ETA Engine & Atomic Seating 
       const entryId = join.entry.id;
 
       // WAITING -> NOTIFIED
-      const notified = await QueueService.updateQueueStatus({ entryId, newStatus: 'NOTIFIED' });
+      const notified = await QueueService.updateQueueStatus({ entryId, newStatus: 'NOTIFIED', actorUserId: TEST_ACTOR_ID });
       expect(notified.status).toBe('NOTIFIED');
 
       // NOTIFIED -> CALLED
-      const called = await QueueService.updateQueueStatus({ entryId, newStatus: 'CALLED' });
+      const called = await QueueService.updateQueueStatus({ entryId, newStatus: 'CALLED', actorUserId: TEST_ACTOR_ID });
       expect(called.status).toBe('CALLED');
 
       // CALLED -> SEATED (via seatQueueEntry)
@@ -199,7 +199,7 @@ describe('Phase 10: Queue Operations, Deterministic ETA Engine & Atomic Seating 
 
       // Try invalid transition SEATED -> WAITING
       await expect(
-        QueueService.updateQueueStatus({ entryId, newStatus: 'WAITING' })
+        QueueService.updateQueueStatus({ entryId, newStatus: 'WAITING', actorUserId: TEST_ACTOR_ID })
       ).rejects.toThrow(/INVALID_QUEUE_TRANSITION/i);
     });
 
@@ -209,7 +209,7 @@ describe('Phase 10: Queue Operations, Deterministic ETA Engine & Atomic Seating 
         customerName: 'Charlie Cancel',
         partySize: 2,
       });
-      const cancelled = await QueueService.updateQueueStatus({ entryId: joinCancel.entry.id, newStatus: 'CANCELLED' });
+      const cancelled = await QueueService.updateQueueStatus({ entryId: joinCancel.entry.id, newStatus: 'CANCELLED', actorUserId: TEST_ACTOR_ID });
       expect(cancelled.status).toBe('CANCELLED');
 
       const joinNoShow = await QueueService.joinQueue({
@@ -218,8 +218,8 @@ describe('Phase 10: Queue Operations, Deterministic ETA Engine & Atomic Seating 
         partySize: 2,
       });
       // Must call customer before marking NO_SHOW
-      await QueueService.updateQueueStatus({ entryId: joinNoShow.entry.id, newStatus: 'CALLED' });
-      const noShow = await QueueService.updateQueueStatus({ entryId: joinNoShow.entry.id, newStatus: 'NO_SHOW' });
+      await QueueService.updateQueueStatus({ entryId: joinNoShow.entry.id, newStatus: 'CALLED', actorUserId: TEST_ACTOR_ID });
+      const noShow = await QueueService.updateQueueStatus({ entryId: joinNoShow.entry.id, newStatus: 'NO_SHOW', actorUserId: TEST_ACTOR_ID });
       expect(noShow.status).toBe('NO_SHOW');
     });
   });

@@ -3,8 +3,10 @@ import dotenv from 'dotenv';
 import { Client } from 'pg';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
 import { QueueService } from '@/lib/services/queue-service';
+import { resetEnvCacheForTesting } from '@/lib/config/env';
 
 dotenv.config({ path: '.env.local' });
+resetEnvCacheForTesting();
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -90,7 +92,7 @@ describe('Phase 9: Customer QR Experience, Public Services & Tenant Isolation Te
     expect(status?.customerName).toBe('Priya Patel');
     expect(status?.partySize).toBe(3);
     expect(status?.status).toBe('WAITING');
-    expect(status?.displayNumber).toMatch(/^Q-\d+/);
+    expect(status?.displayNumber).toMatch(/^\d+$/);
   });
 
   // ---------------------------------------------------------------------------

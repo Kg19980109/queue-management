@@ -33,32 +33,20 @@ export class NotificationService {
           queueEntryId: event.aggregate_id,
           channel: 'IN_APP',
           notificationType: 'QUEUE_JOINED',
-          title: 'Joined Digital Queue',
-          message: `You are in line! Position #${payload.position || 1}. We'll notify you as your turn approaches.`,
+          title: 'You’re in line!',
+          message: `Ticket ${payload.displayNumber || '#' + event.aggregate_id.slice(0,4)} confirmed for ${payload.customerName || 'you'} (${payload.partySize || ''} guests). We’ll buzz you when it’s almost your turn.`,
           metadata: payload,
         });
         break;
 
-      case 'QUEUE_POSITION_UPDATED':
-        notificationsToDispatch.push({
-          restaurantId,
-          queueEntryId: event.aggregate_id,
-          channel: 'IN_APP',
-          notificationType: 'QUEUE_POSITION_UPDATED',
-          title: 'Queue Position Update',
-          message: `Queue update: You are now #${payload.position} in line (${payload.peopleAhead} ahead).`,
-          metadata: payload,
-        });
-        break;
-
-      case 'QUEUE_ALMOST_TURN':
+      case 'QUEUE_NOTIFIED':
         notificationsToDispatch.push({
           restaurantId,
           queueEntryId: event.aggregate_id,
           channel: 'IN_APP',
           notificationType: 'QUEUE_ALMOST_TURN',
-          title: "You're Getting Close!",
-          message: `You are #${payload.position} in line! Please head towards the restaurant.`,
+          title: "Almost your turn!",
+          message: `Hi ${payload.customerName || ''}, you’re almost up! Ticket ${payload.displayNumber || ''} — please stay nearby and head toward the host stand.`,
           metadata: payload,
         });
         break;
@@ -69,8 +57,80 @@ export class NotificationService {
           queueEntryId: event.aggregate_id,
           channel: 'IN_APP',
           notificationType: 'QUEUE_CALLED',
-          title: "It's Your Turn!",
-          message: `Your table is ready! Please proceed to the host stand.`,
+          title: "Your table is ready!",
+          message: `Ticket ${payload.displayNumber || ''} — ${payload.customerName || 'your table'} is ready. Please come to the host stand now.`,
+          metadata: payload,
+        });
+        break;
+
+      case 'QUEUE_CANCELLED':
+        notificationsToDispatch.push({
+          restaurantId,
+          queueEntryId: event.aggregate_id,
+          channel: 'IN_APP',
+          notificationType: 'QUEUE_CANCELLED',
+          title: "Queue cancelled",
+          message: `Ticket ${payload.displayNumber || ''} was cancelled. You can re-join anytime from the QR.`,
+          metadata: payload,
+        });
+        break;
+
+      case 'QUEUE_NO_SHOW':
+        notificationsToDispatch.push({
+          restaurantId,
+          queueEntryId: event.aggregate_id,
+          channel: 'IN_APP',
+          notificationType: 'QUEUE_NO_SHOW',
+          title: "Marked as no-show",
+          message: `We missed you for ticket ${payload.displayNumber || ''}. If you’re still nearby, please check with the host to re-join.`,
+          metadata: payload,
+        });
+        break;
+
+      case 'QUEUE_SEATED':
+        notificationsToDispatch.push({
+          restaurantId,
+          queueEntryId: event.aggregate_id,
+          channel: 'IN_APP',
+          notificationType: 'QUEUE_SEATED',
+          title: "You’re seated!",
+          message: `Ticket ${payload.displayNumber || ''} — enjoy your meal!`,
+          metadata: payload,
+        });
+        break;
+
+      case 'QUEUE_EXPIRED':
+        notificationsToDispatch.push({
+          restaurantId,
+          queueEntryId: event.aggregate_id,
+          channel: 'IN_APP',
+          notificationType: 'QUEUE_EXPIRED',
+          title: "Queue expired",
+          message: `Ticket ${payload.displayNumber || ''} expired. Please scan the QR to join again.`,
+          metadata: payload,
+        });
+        break;
+
+      case 'QUEUE_POSITION_UPDATED':
+        notificationsToDispatch.push({
+          restaurantId,
+          queueEntryId: event.aggregate_id,
+          channel: 'IN_APP',
+          notificationType: 'QUEUE_POSITION_UPDATED',
+          title: 'Queue update',
+          message: `You are now #${payload.position} in line (${payload.peopleAhead} ahead).`,
+          metadata: payload,
+        });
+        break;
+
+      case 'QUEUE_ALMOST_TURN':
+        notificationsToDispatch.push({
+          restaurantId,
+          queueEntryId: event.aggregate_id,
+          channel: 'IN_APP',
+          notificationType: 'QUEUE_ALMOST_TURN',
+          title: "You’re getting close!",
+          message: `You are #${payload.position} in line! Please head towards the restaurant.`,
           metadata: payload,
         });
         break;

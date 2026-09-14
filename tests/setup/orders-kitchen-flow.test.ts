@@ -3,8 +3,10 @@ import dotenv from 'dotenv';
 import { Client } from 'pg';
 import { OrderService } from '@/lib/services/order-service';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
+import { resetEnvCacheForTesting } from '@/lib/config/env';
 
 dotenv.config({ path: '.env.local' });
+resetEnvCacheForTesting();
 
 const connectionString = process.env.DATABASE_URL;
 

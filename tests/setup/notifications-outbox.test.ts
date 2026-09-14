@@ -1,6 +1,14 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
+
+vi.mock('@/lib/services/authorization-service', () => ({
+  AuthorizationService: {
+    requirePermission: vi.fn().mockResolvedValue({ userId: '00000000-0000-0000-0000-000000000000', role: 'RESTAURANT_ADMIN', restaurantId: 'test', membershipId: 'test' }),
+  },
+}));
+import { resetEnvCacheForTesting } from '@/lib/config/env';
+resetEnvCacheForTesting();
 
 import { createAdminClient } from '@/lib/db/supabase/admin';
 import { QueueService } from '@/lib/services/queue-service';
@@ -17,8 +25,18 @@ describe('Phase 13: Notifications, Outbox Pattern & Background Worker Tests', ()
   let restaurantBId: string;
   let queueEntryId: string;
   let orderId: string;
+  let testActorId: string;
 
   beforeAll(async () => {
+    // Fix env cache for testing
+    const { Client } = await import('pg');
+    const pgClient = new Client({ connectionString: process.env.DATABASE_URL });
+    await pgClient.connect();
+    const userRes = await pgClient.query('SELECT id FROM auth.users LIMIT 1;');
+    await pgClient.end();
+    if (userRes.rows.length > 0) testActorId = userRes.rows[0].id;
+    else testActorId = '00000000-0000-0000-0000-000000000000';
+
     // Create test restaurants
     const { data: restA } = await supabase
       .from('restaurants')
@@ -67,15 +85,18 @@ describe('Phase 13: Notifications, Outbox Pattern & Background Worker Tests', ()
     });
 
     it('[OUTBOX TEST] updating queue status to CALLED emits QUEUE_CALLED outbox event', async () => {
+      // Create fresh entry for this test to ensure WAITING -> CALLED is valid (not idempotent)
+      const fresh = await QueueService.joinQueue({ restaurantId, customerName: 'Outbox CALLED Test', partySize: 2 });
+      const testEntryId = fresh.entry.id;
       await QueueService.updateQueueStatus({
-        entryId: queueEntryId,
+        entryId: testEntryId,
         newStatus: 'CALLED',
+        actorUserId: testActorId,
       });
-
       const { data: outboxEvents } = await supabase
         .from('outbox_events')
         .select('*')
-        .eq('aggregate_id', queueEntryId)
+        .eq('aggregate_id', testEntryId)
         .eq('event_type', 'QUEUE_CALLED');
 
       expect(outboxEvents).not.toBeNull();

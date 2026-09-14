@@ -2,10 +2,8 @@ import { createAdminClient } from '@/lib/db/supabase/admin';
 import { QueueStatus } from '@/types/database.types';
 import { generateQueueToken, hashQueueToken } from '@/lib/utils/token-utils';
 import { ETAService, RestaurantETAConfig } from '@/lib/services/eta-service';
-import { OutboxService } from '@/lib/services/outbox-service';
 import { AuthorizationService } from '@/lib/services/authorization-service';
 import { PERMISSIONS } from '@/lib/auth/permissions';
-import { logger } from '@/lib/logging/logger';
 import { z } from 'zod';
 
 export const JoinQueueSchema = z.object({
@@ -99,26 +97,7 @@ export class QueueService {
       throw new Error(`Queue join failed: ${error.message}`);
     }
 
-    // Publish Outbox Event for background notifications
-    try {
-      await OutboxService.publishEvent({
-        restaurantId: validated.restaurantId,
-        eventType: 'QUEUE_JOINED',
-        aggregateType: 'QUEUE',
-        aggregateId: entry.id,
-        payload: {
-          customerName: validated.customerName,
-          partySize: validated.partySize,
-          queueNumber: entry.queue_number,
-          displayNumber: entry.display_number,
-        },
-      });
-    } catch (outboxErr) {
-      logger.error('Outbox publish failed on joinQueue — event may be lost', {
-        operation: 'queue_join_outbox',
-        metadata: { error: outboxErr instanceof Error ? outboxErr.message : String(outboxErr) },
-      });
-    }
+    // Outbox for QUEUE_JOINED is now inserted atomically inside join_queue_atomic (with pg_notify), no separate publish needed
 
     return {
       entry,
@@ -149,13 +128,13 @@ export class QueueService {
     let position: number | null = null;
     let peopleAhead: number | null = null;
 
-    if (entry.status === 'WAITING' || entry.status === 'NOTIFIED') {
-      // Dynamic position calculation: count active WAITING entries ahead
+    if (['WAITING', 'NOTIFIED', 'CALLED'].includes(entry.status)) {
+      // Position counts all active (WAITING/NOTIFIED/CALLED) ahead deterministically by joined_at + id
       const { count, error: countError } = await supabase
         .from('queue_entries')
         .select('*', { count: 'exact', head: true })
         .eq('restaurant_id', entry.restaurant_id)
-        .eq('status', 'WAITING')
+        .in('status', ['WAITING', 'NOTIFIED', 'CALLED'])
         .or(`joined_at.lt.${entry.joined_at},and(joined_at.eq.${entry.joined_at},id.lt.${entry.id})`);
 
       if (!countError && count !== null) {
@@ -200,17 +179,55 @@ export class QueueService {
     };
   }
 
+  // Canonical FSM definition (authoritative, production-safe)
+  static readonly CANONICAL_TRANSITIONS: Record<string, string[]> = {
+    WAITING: ['NOTIFIED', 'CALLED', 'CANCELLED', 'EXPIRED'],
+    NOTIFIED: ['CALLED', 'CANCELLED', 'EXPIRED'],
+    CALLED: ['NO_SHOW', 'CANCELLED', 'EXPIRED'],
+    SEATED: [], // terminal - no transitions via updateQueueStatus (only via table lifecycle)
+    CANCELLED: [],
+    NO_SHOW: [],
+    EXPIRED: [],
+    COMPLETED: [], // legacy terminal
+    REMOVED: [], // legacy terminal
+    SKIPPED: [], // legacy terminal
+  };
+
+  static readonly TERMINAL_STATUSES = ['SEATED', 'CANCELLED', 'NO_SHOW', 'EXPIRED', 'COMPLETED', 'REMOVED', 'SKIPPED'];
+  static readonly LEGACY_STATUSES = ['COMPLETED', 'REMOVED', 'SKIPPED'];
+
+  static isTerminalStatus(status: string): boolean {
+    return (QueueService.TERMINAL_STATUSES as string[]).includes(status);
+  }
+
+  static isValidTransition(from: string, to: string): boolean {
+    if (from === to) return true;
+    const allowed = QueueService.CANONICAL_TRANSITIONS[from];
+    if (!allowed) return false;
+    return allowed.includes(to);
+  }
+
   /**
-   * Updates queue entry status with centralized FSM state transition validation.
+   * Centralized authoritative queue transition.
+   * All queue status changes MUST flow through this method.
+   * Validates FSM, handles idempotency, concurrency via conditional update, and ensures atomic side effects.
+   */
+  static async transitionQueue(input: UpdateQueueStatusInput & { requirePermission?: boolean; restaurantId?: string }) {
+    return QueueService.updateQueueStatus(input);
+  }
+
+  /**
+   * Updates queue entry status via atomic DB transaction (row lock + event + outbox + pg_notify).
+   * Single authoritative transition layer - all queue status changes MUST flow here.
    */
   static async updateQueueStatus(input: UpdateQueueStatusInput) {
     const validated = UpdateQueueStatusSchema.parse(input);
     const supabase = createAdminClient();
 
-    // 1. Fetch current entry
+    // Fast path: fetch current for auth and idempotency check (light)
     const { data: current, error: fetchErr } = await supabase
       .from('queue_entries')
-      .select('*')
+      .select('restaurant_id, status')
       .eq('id', validated.entryId)
       .single();
 
@@ -218,135 +235,58 @@ export class QueueService {
       throw new Error('QUEUE_ENTRY_NOT_FOUND');
     }
 
-    // 2. Validate FSM State Transition Rules
-    const currentStatus = current.status;
-    const targetStatus = validated.newStatus;
-
-    if (currentStatus === targetStatus) {
-      return current; // No-op if already in target state
+    if (current.status === validated.newStatus) {
+      // Idempotent - already in target
+      const { data: full } = await supabase.from('queue_entries').select('*').eq('id', validated.entryId).single();
+      return full || current;
     }
 
-    const isTerminal = ['CANCELLED', 'NO_SHOW', 'EXPIRED', 'COMPLETED'].includes(currentStatus);
-    if (isTerminal) {
-      throw new Error(`INVALID_QUEUE_TRANSITION: Cannot transition from terminal state ${currentStatus} to ${targetStatus}`);
-    }
-
-    if (currentStatus === 'WAITING') {
-      const allowed = ['NOTIFIED', 'CALLED', 'CANCELLED', 'EXPIRED'];
-      if (!allowed.includes(targetStatus)) {
-        throw new Error(`INVALID_QUEUE_TRANSITION: WAITING can transition to NOTIFIED, CALLED, CANCELLED, or EXPIRED. Received: ${targetStatus}`);
-      }
-    } else if (currentStatus === 'NOTIFIED') {
-      const allowed = ['CALLED', 'SEATED', 'CANCELLED', 'EXPIRED'];
-      if (!allowed.includes(targetStatus)) {
-        throw new Error(`INVALID_QUEUE_TRANSITION: NOTIFIED can transition to CALLED, SEATED, CANCELLED, or EXPIRED. Received: ${targetStatus}`);
-      }
-    } else if (currentStatus === 'CALLED') {
-      const allowed = ['NOTIFIED', 'SEATED', 'NO_SHOW', 'CANCELLED', 'EXPIRED'];
-      if (!allowed.includes(targetStatus)) {
-        throw new Error(`INVALID_QUEUE_TRANSITION: CALLED can transition to NOTIFIED, SEATED, NO_SHOW, CANCELLED, or EXPIRED. Received: ${targetStatus}`);
-      }
-    } else if (currentStatus === 'SEATED') {
-      const allowed = ['COMPLETED'];
-      if (!allowed.includes(targetStatus)) {
-        throw new Error(`INVALID_QUEUE_TRANSITION: SEATED can only transition to COMPLETED. Received: ${targetStatus}`);
+    // Authorization: staff requires permission, anon only CANCELLED
+    if (validated.actorUserId) {
+      let requiredPerm: string = PERMISSIONS.QUEUE_MANAGE;
+      if (validated.newStatus === 'CANCELLED') requiredPerm = PERMISSIONS.QUEUE_CANCEL;
+      await AuthorizationService.requirePermission({
+        userId: validated.actorUserId,
+        restaurantId: current.restaurant_id,
+        permission: requiredPerm as unknown as typeof PERMISSIONS.QUEUE_MANAGE,
+      });
+    } else {
+      if (validated.newStatus !== 'CANCELLED') {
+        throw new Error('UNAUTHORIZED_QUEUE_ACTION: Anonymous can only cancel');
       }
     }
 
-    // 3. Prepare update payload with appropriate timestamps
-    const now = new Date().toISOString();
-    const updatePayload: Record<string, unknown> = {
-      status: targetStatus,
-      updated_at: now,
-    };
-
-    let eventType = `QUEUE_${targetStatus}`;
-    if (targetStatus === 'NOTIFIED') {
-      updatePayload.notified_at = now;
-      eventType = 'QUEUE_NOTIFIED';
-    } else if (targetStatus === 'CALLED') {
-      updatePayload.called_at = now;
-      if (!current.notified_at) updatePayload.notified_at = now;
-      eventType = 'QUEUE_CALLED';
-    } else if (targetStatus === 'SEATED') {
-      updatePayload.seated_at = now;
-      eventType = 'QUEUE_SEATED';
-    } else if (targetStatus === 'COMPLETED') {
-      eventType = 'QUEUE_COMPLETED';
-    } else if (targetStatus === 'CANCELLED') {
-      updatePayload.cancelled_at = now;
-      eventType = 'QUEUE_CANCELLED';
-    } else if (targetStatus === 'NO_SHOW') {
-      eventType = 'QUEUE_NO_SHOW';
-    } else if (targetStatus === 'EXPIRED') {
-      updatePayload.expired_at = now;
-      eventType = 'QUEUE_EXPIRED';
+    // Client-side FSM pre-check (fast fail, DB will re-validate)
+    if (QueueService.isTerminalStatus(current.status)) {
+      throw new Error(`INVALID_QUEUE_TRANSITION: Cannot transition from terminal ${current.status} to ${validated.newStatus}`);
+    }
+    if (!QueueService.isValidTransition(current.status, validated.newStatus)) {
+      throw new Error(`INVALID_QUEUE_TRANSITION: ${current.status} -> ${validated.newStatus} not allowed. Allowed: ${(QueueService.CANONICAL_TRANSITIONS[current.status] || []).join(', ')}`);
+    }
+    if (validated.newStatus === 'SEATED') {
+      throw new Error('INVALID_QUEUE_TRANSITION: Use seating operation for SEATED');
+    }
+    if ((QueueService.LEGACY_STATUSES as string[]).includes(validated.newStatus)) {
+      throw new Error(`INVALID_QUEUE_TRANSITION: ${validated.newStatus} is legacy`);
     }
 
-    // 4. Update queue entry
-    const { data: updated, error: updateErr } = await supabase
-      .from('queue_entries')
-      .update(updatePayload)
-      .eq('id', validated.entryId)
-      .select()
-      .single();
-
-    if (updateErr) {
-      throw new Error(`Failed to update queue status: ${updateErr.message}`);
-    }
-
-    // 5. Append queue event
-    await supabase.from('queue_events').insert({
-      restaurant_id: current.restaurant_id,
-      queue_entry_id: current.id,
-      event_type: eventType,
-      actor_user_id: validated.actorUserId || null,
-      metadata: {
-        previous_status: currentStatus,
-        new_status: targetStatus,
-        reason: validated.reason || null,
-      },
+    // Atomic DB transition (UPDATE + queue_events + outbox + audit + pg_notify in one transaction)
+    const { data: updated, error: rpcErr } = await supabase.rpc('transition_queue_entry_atomic', {
+      p_queue_entry_id: validated.entryId,
+      p_target_status: validated.newStatus,
+      p_actor_user_id: validated.actorUserId || null,
+      p_reason: validated.reason || null,
     });
 
-    // 5b. Publish Outbox Event for background notification dispatch
-    try {
-      await OutboxService.publishEvent({
-        restaurantId: current.restaurant_id,
-        eventType,
-        aggregateType: 'QUEUE',
-        aggregateId: current.id,
-        payload: {
-          previousStatus: currentStatus,
-          newStatus: targetStatus,
-          customerName: current.customer_name,
-          displayNumber: current.display_number,
-        },
-      });
-    } catch (outboxErr) {
-      logger.error('Outbox publish failed on updateQueueStatus — event may be lost', {
-        operation: 'queue_status_outbox',
-        metadata: { error: outboxErr instanceof Error ? outboxErr.message : String(outboxErr) },
-      });
+    if (rpcErr) {
+      const msg = rpcErr.message || '';
+      if (msg.includes('QUEUE_STATE_CONFLICT')) throw new Error('QUEUE_STATE_CONFLICT: Concurrent modification, please refresh');
+      if (msg.includes('INVALID_QUEUE_TRANSITION')) throw new Error(msg);
+      if (msg.includes('QUEUE_ENTRY_NOT_FOUND')) throw new Error('QUEUE_ENTRY_NOT_FOUND');
+      throw new Error(msg || `Failed to update queue status: ${rpcErr.message}`);
     }
 
-    // 6. Audit log for staff administrative operations
-    if (validated.actorUserId) {
-      await supabase.from('audit_logs').insert({
-        restaurant_id: current.restaurant_id,
-        actor_user_id: validated.actorUserId,
-        action: `queue_entry_${targetStatus.toLowerCase()}`,
-        entity_type: 'queue_entry',
-        entity_id: current.id,
-        metadata: {
-          previousStatus: currentStatus,
-          newStatus: targetStatus,
-          customerName: current.customer_name,
-          displayNumber: current.display_number,
-        },
-      });
-    }
-
-    return updated;
+    return updated as unknown as typeof current;
   }
 
   /**
@@ -480,15 +420,15 @@ export class QueueService {
       throw new Error(`Failed to fetch active queue: ${error.message}`);
     }
 
-    let waitingCount = 0;
+    let activeCount = 0;
     const formatted = entries.map((entry) => {
       let position: number | null = null;
       let peopleAhead: number | null = null;
 
-      if (entry.status === 'WAITING' || entry.status === 'NOTIFIED') {
-        waitingCount += 1;
-        position = waitingCount;
-        peopleAhead = waitingCount - 1;
+      if (['WAITING', 'NOTIFIED', 'CALLED'].includes(entry.status)) {
+        activeCount += 1;
+        position = activeCount;
+        peopleAhead = activeCount - 1;
       }
 
       return {

@@ -263,14 +263,16 @@ describe('Phase 8: Core Queue Engine, FSM, Concurrency & Security Tests', () => 
     expect(called.status).toBe('CALLED');
     expect(called.called_at).toBeDefined();
 
-    // CALLED -> SEATED (Valid)
-    const seated = await QueueService.updateQueueStatus({
-      entryId: join.entry.id,
-      newStatus: 'SEATED',
-      actorUserId: ADMIN_A_ID,
-    });
-    expect(seated.status).toBe('SEATED');
-    expect(seated.seated_at).toBeDefined();
+    // CALLED -> SEATED must be via seatQueueEntry (authoritative seating), not generic update
+    // First create a table for seating
+    const { createAdminClient } = await import('@/lib/db/supabase/admin');
+    const supabase = createAdminClient();
+    const { data: table } = await supabase.from('restaurant_tables').insert({ restaurant_id: RESTAURANT_A_ID, table_number: `T-SEAT-${Date.now()}`, capacity: 4, status: 'AVAILABLE' }).select().single();
+    const seated = await QueueService.seatQueueEntry(join.entry.id, table!.id, ADMIN_A_ID);
+    expect((seated as any).success).toBe(true);
+    const { data: seatedEntry } = await supabase.from('queue_entries').select('status, seated_at').eq('id', join.entry.id).single();
+    expect(seatedEntry!.status).toBe('SEATED');
+    expect(seatedEntry!.seated_at).toBeDefined();
 
     // SEATED -> WAITING (Invalid: Terminal State)
     await expect(

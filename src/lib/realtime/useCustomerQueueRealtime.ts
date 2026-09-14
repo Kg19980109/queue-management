@@ -53,10 +53,10 @@ export function useCustomerQueueRealtime(entryId: string, enabled = true) {
 
     channelRef.current = channel as unknown as typeof channelRef.current;
 
-    // Fallback: 30s polling when visible (conservative, not aggressive)
+    // Fallback: 10s when active (customer needs near-realtime), 30s otherwise
     const fallback = setInterval(() => {
       if (document.visibilityState === 'visible' && navigator.onLine) revalidate();
-    }, 30000);
+    }, 10000);
 
     const onVisibility = () => { if (document.visibilityState === 'visible') revalidate(); };
     document.addEventListener('visibilitychange', onVisibility);

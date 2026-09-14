@@ -118,9 +118,9 @@ export default async function QueueManagementPage({
         {/* Quick Action Controls */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {nextUp && (
-            <form action={updateQueueStatusAction.bind(null, nextUp.id, 'CALLED', userId)} className="flex-1 sm:flex-none">
+            <form action={updateQueueStatusAction.bind(null, nextUp.id, 'NOTIFIED', userId)} className="flex-1 sm:flex-none">
               <button type="submit" className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-5 h-11 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95 border border-blue-500" id="call-next-hero-btn">
-                <span className="material-symbols-outlined text-[18px]">campaign</span>
+                <span className="material-symbols-outlined text-[18px]">notifications_active</span>
                 <span>Notify {nextUp.display_number || nextUp.queue_number}</span>
               </button>
             </form>
@@ -387,22 +387,22 @@ export default async function QueueManagementPage({
 
                     <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-end gap-2 w-full">
                       {isWaiting && (
-                        <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)} className="col-span-2 sm:col-span-1">
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'NOTIFIED', userId)} className="col-span-2 sm:col-span-1">
                           <button type="submit" className="w-full sm:w-auto px-5 h-11 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-bold shadow-md transition-all active:scale-95">
-                            Inform Guest
+                            Notify — Almost Ready
                           </button>
                         </form>
                       )}
                       
-                      {isCalled && (
-                        <form action={updateQueueStatusAction.bind(null, entry.id, 'NOTIFIED', userId)} className="col-span-2 sm:col-span-1">
+                      {isNotified && (
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)} className="col-span-2 sm:col-span-1">
                           <button type="submit" className="w-full sm:w-auto px-5 h-11 rounded-xl bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-sm font-bold shadow-md transition-all active:scale-95">
-                            Tell to Come
+                            Call — Table Ready
                           </button>
                         </form>
                       )}
 
-                      {isNotified && (
+                      {isCalled && (
                         <div className="col-span-2 sm:col-span-1">
                           <SeatCustomerModal
                             entryId={entry.id}
@@ -414,16 +414,8 @@ export default async function QueueManagementPage({
                           />
                         </div>
                       )}
-                      
-                      {isSeated && (
-                        <form action={updateQueueStatusAction.bind(null, entry.id, 'COMPLETED', userId)} className="col-span-2 sm:col-span-1">
-                          <button type="submit" className="w-full sm:w-auto px-5 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-md active:scale-95">
-                            Mark Done
-                          </button>
-                        </form>
-                      )}
 
-                      {(isCalled || isNotified) && (
+                      {isCalled && (
                         <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId)} className="col-span-2 sm:col-span-1">
                           <button type="submit" className="w-full sm:w-auto px-4 h-11 rounded-xl bg-transparent active:bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold flex items-center justify-center gap-1.5">
                             <span className="material-symbols-outlined text-[16px]">person_off</span>
@@ -488,10 +480,10 @@ export default async function QueueManagementPage({
                 </div>
 
                 <div className="flex flex-col gap-2 pt-2">
-                  <form action={updateQueueStatusAction.bind(null, nextUp.id, 'CALLED', userId)}>
+                  <form action={updateQueueStatusAction.bind(null, nextUp.id, 'NOTIFIED', userId)}>
                     <button type="submit" className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer flex items-center justify-center gap-2">
-                      <span className="material-symbols-outlined text-[18px]">campaign</span>
-                      <span>Notify {bestMatchTable ? `& Prep Table ${bestMatchTable.tableNumber}` : 'Guest'}</span>
+                      <span className="material-symbols-outlined text-[18px]">notifications_active</span>
+                      <span>Notify Next — Almost Ready</span>
                     </button>
                   </form>
                 </div>
