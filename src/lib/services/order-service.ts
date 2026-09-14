@@ -81,7 +81,11 @@ export class OrderService {
         return {
           order: existing,
           items: existing.order_items,
-          rawToken: existing.order_token || '',
+          // Security: raw order tokens are never persisted (orders.order_token
+          // stays NULL). On idempotent replay the token cannot be recovered
+          // from storage — the caller already received it at creation time.
+          // Callers must fall back to the queue ticket on empty rawToken.
+          rawToken: '',
         };
       }
     }
@@ -163,7 +167,9 @@ export class OrderService {
         tax,
         total,
         idempotency_key: validated.idempotencyKey || null,
-        order_token: rawToken,
+        // Security: NEVER persist the raw bearer token. Only the SHA-256
+        // hash is stored; the raw token is returned once to the customer.
+        order_token: null,
         order_token_hash: tokenHash,
         customer_name: validated.customerName || null,
         customer_phone: validated.customerPhone || null,

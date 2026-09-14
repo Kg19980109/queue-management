@@ -1,6 +1,6 @@
 import 'server-only';
-import { NextResponse } from 'next/server';
 import { checkRateLimit, RateLimitEndpointClass, fingerprintQueueToken } from '@/lib/rate-limit';
+import { customerJson } from '@/lib/customer-response';
 import { QueueService } from '@/lib/services/queue-service';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
 import { logger } from '@/lib/logging/logger';
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const restaurantSlug = formData.get('restaurantSlug') as string;
 
     if (!token || !restaurantSlug) {
-      return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+      return customerJson({ error: 'Missing required fields.' }, 400);
     }
 
     // Fingerprint the raw token (SHA-256) — never store raw token in Redis key
@@ -37,41 +37,45 @@ export async function POST(request: Request) {
     const rateResult = await checkRateLimit(rateLimitConfig);
 
     if (!rateResult.allowed) {
-      return NextResponse.json(
+      return customerJson(
         { error: 'Too many requests. Please try again shortly.' },
-        { status: 429 }
+        429,
+        { 'Retry-After': '60' }
       );
     }
 
-    // Token validation — database lookup (authoritative)
+    // Token validation — database lookup (authoritative). The authorized
+    // entry is derived SOLELY from hash(token); restaurantSlug is only
+    // cross-checked, never trusted as authorization.
     const queueStatus = await QueueService.getQueueStatusByToken(token);
     if (!queueStatus) {
-      return NextResponse.json({ error: 'Invalid or expired token.' }, { status: 404 });
+      return customerJson({ error: 'Invalid or expired token.' }, 404);
     }
 
     // Tenant isolation check
     const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(restaurantSlug);
     if (!restaurant || restaurant.id !== queueStatus.restaurantId) {
-      return NextResponse.json({ error: 'Tenant isolation mismatch.' }, { status: 403 });
+      return customerJson({ error: 'Invalid or expired token.' }, 404);
     }
 
-    // Authoritative cancellation
+    // Authoritative cancellation (FSM + atomic RPC enforce allowed states
+    // and race safety; anon callers may only reach CANCELLED).
     try {
       await QueueService.updateQueueStatus({
         entryId: queueStatus.entryId,
         newStatus: 'CANCELLED',
       });
 
-      return NextResponse.json({ success: true });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      return NextResponse.json({ error: message || 'Failed to cancel queue entry.' }, { status: 500 });
+      return customerJson({ success: true }, 200);
+    } catch {
+      // Generic message: raw transition/DB errors must never reach callers.
+      return customerJson({ error: 'Failed to cancel queue entry.' }, 500);
     }
   } catch (err) {
     logger.error('Queue cancel API error', {
       operation: 'queue_cancel_api_error',
       error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
+    return customerJson({ error: 'Internal server error.' }, 500);
   }
 }

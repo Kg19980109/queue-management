@@ -31,6 +31,13 @@ export async function middleware(request: NextRequest) {
   const correlationId = existingCorrelationId || crypto.randomUUID();
   response.headers.set('x-correlation-id', correlationId);
 
+  // 1b. Phase 3D baseline security headers.
+  // Referrer-Policy: customer ticket URLs carry bearer tokens — a Referer
+  // must never leak them to third parties (or anywhere at all).
+  // X-Content-Type-Options: blocks MIME-sniffing XSS vectors.
+  response.headers.set('Referrer-Policy', 'no-referrer');
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+
   // 2. Supabase Auth Session Refreshing (required by @supabase/ssr to keep tokens fresh)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';

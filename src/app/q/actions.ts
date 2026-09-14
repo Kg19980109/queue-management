@@ -2,6 +2,10 @@
 
 import { QueueService } from '@/lib/services/queue-service';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
+import {
+  setTicketCookie,
+  clearTicketCookie,
+} from '@/lib/customer-ticket-cookie';
 import { redirect } from 'next/navigation';
 
 export interface JoinQueueState {
@@ -93,6 +97,44 @@ export async function cancelQueuePublicAction(token: string, restaurantSlug: str
   }
 
   redirect(`/q/${restaurantSlug}/status/${token}?cancelled=true`);
+}
+
+/**
+ * Phase 3D — sync the server-managed HttpOnly ticket cookie after a
+ * token-URL visit. The token is validated (hash lookup + tenant match)
+ * before anything is persisted; invalid tokens clear stale cookies.
+ * Terminal tickets clear the cookie (no lingering bearer state).
+ */
+export async function syncTicketCookieAction(
+  slug: string,
+  token: string,
+  isTerminal: boolean
+): Promise<{ ok: boolean; cleared: boolean }> {
+  try {
+    if (!slug || !token) return { ok: false, cleared: false };
+
+    if (isTerminal) {
+      await clearTicketCookie(slug);
+      return { ok: true, cleared: true };
+    }
+
+    const status = await QueueService.getQueueStatusByToken(token);
+    if (!status) {
+      await clearTicketCookie(slug);
+      return { ok: false, cleared: true };
+    }
+
+    const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(slug);
+    if (!restaurant || restaurant.id !== status.restaurantId) {
+      await clearTicketCookie(slug);
+      return { ok: false, cleared: true };
+    }
+
+    await setTicketCookie(slug, token);
+    return { ok: true, cleared: false };
+  } catch {
+    return { ok: false, cleared: false };
+  }
 }
 
 export async function delayQueuePublicAction(token: string, restaurantSlug: string): Promise<void> {

@@ -210,3 +210,55 @@ Each cron run logs `correlationId`, worker name, start/end, batch size, processe
   persist membership -> audit. Membership upsert on
   `(user_id, restaurant_id, role)` plus invite-reuse make retry deterministic;
   partial failure returns an explicit retry-safe error, never a duplicate.
+
+## 10. Customer Token Security & Public Endpoint Audit (Phase 3D)
+
+### 10.1 Token lifecycle (unchanged, verified)
+`crypto.randomBytes(32)` -> `qtoken_<64hex>` (server-side only) ->
+SHA-256 -> `queue_entries.token_hash`. Raw tokens are stored NOWHERE:
+not in Postgres, Redis, logs, audit, outbox/events, analytics, or error
+messages. Order tokens follow the same rule — `orders.order_token` is
+always written NULL (migration `20260924000000_phase3d_order_token_hygiene.sql`
+purged legacy rows); only `order_token_hash` persists. On idempotent order
+replay the token is unrecoverable by design, so the UI falls back to the
+queue ticket instead of stranding the customer.
+
+### 10.2 Browser storage: HttpOnly cookie replaces localStorage
+Prior builds persisted raw tokens in `localStorage` + a JS-readable cookie
+(`QueueTicketPersister`, `QueueResumeBanner`, `CustomerTicketFloat`) — removed.
+Now `TicketCookieSync` calls `syncTicketCookieAction`, which validates the
+token (hash lookup + tenant match) and sets `qf_t_<slug>`: HttpOnly,
+SameSite=Lax, Secure in production, Path-scoped to `/q/<slug>`, 24h max-age,
+cleared on terminal tickets. Resume is server-rendered (`TicketResumeBanner`
+reads the cookie via `getTicketToken`, revalidates, renders only live
+tickets). URL tokens are RETAINED for shareability/no-login/refresh
+(accepted residual risk, contained by no-referrer + no third-party leaks +
+no token in logs/metadata + short-lived terminal cleanup).
+
+### 10.3 Headers
+Middleware stamps every response: `Referrer-Policy: no-referrer`
+(bearer-token URLs must never leak via Referer; `qr_scans.referer` is
+unpopulated dead data, nothing depends on it) and
+`X-Content-Type-Options: nosniff`. All bearer-token JSON responses use
+`customerJson()` -> `Cache-Control: private, no-store` (+ safe
+X-RateLimit-*/Retry-After). No CSP yet — deferred to avoid breaking inline
+scripts/Tailwind; documented accepted risk.
+
+### 10.4 Authorization model (every public endpoint)
+Authorization is ALWAYS derived from `hash(rawToken)` -> row -> actual
+`restaurant_id`/`entry_id`. Client `restaurantSlug` is cross-checked with
+GENERIC 404s (`Invalid or expired token.` — identical string everywhere, no
+wrong-restaurant oracle). Extra identifiers (`queueEntryId`, `entryId`) are
+ignored, never trusted. Order creation (`createCustomerOrderAction`) requires
+the queue token whenever `queueEntryId` is claimed, cross-validates
+restaurant+entry, and is rate-limited (`rl:order:create:<restaurant>:<ip>`).
+Anon `updateQueueStatus` accepts CANCELLED only; terminal states reject all
+transitions; the atomic RPC keeps concurrent cancel/seat race-safe
+(single transition, idempotent replay). `/api/customer/orders` (previously
+referenced by the payment page but missing) now exists with the same
+token-hash auth, slug cross-check, rate limit, minimization, and no-store.
+
+### 10.5 Response minimization
+`PublicQueueStatusResponse` carries only display number, status, position,
+ETA, party size, safe restaurant info (no phone, no token, no internals).
+Order API returns id/number/totals/items/names only (no phone, no raw token).

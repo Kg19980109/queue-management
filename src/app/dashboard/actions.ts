@@ -532,9 +532,49 @@ export async function createCustomerOrderAction(input: {
   queueEntryId?: string | null;
   tableId?: string | null;
   idempotencyKey?: string | null;
+  /** Customer queue bearer token — REQUIRED when queueEntryId is present. */
+  queueToken?: string | null;
   items: { menuItemId: string; quantity: number; notes?: string | null }[];
 }) {
-  const result = await OrderService.createCustomerOrder(input);
+  // Phase 3D — bind anonymous order creation to queue-token authorization.
+  // A queueEntryId claimed without (or with a mismatched) token is rejected:
+  // the authorized entry is derived SOLELY from hash(queueToken) and both
+  // the restaurant and entry must match. Server Actions are directly
+  // callable, so UI flow alone is never sufficient authorization.
+  if (input.queueEntryId) {
+    if (!input.queueToken) {
+      throw new Error('Invalid queue authorization. Please rejoin from your ticket.');
+    }
+    const status = await QueueService.getQueueStatusByToken(input.queueToken);
+    if (
+      !status ||
+      status.restaurantId !== input.restaurantId ||
+      status.entryId !== input.queueEntryId
+    ) {
+      throw new Error('Invalid queue authorization. Please rejoin from your ticket.');
+    }
+  }
+
+  // Phase 3D — order creation is rate-limited even via direct action calls.
+  const {
+    checkRateLimit,
+    RateLimitEndpointClass,
+    RateLimitLimit,
+    generateOrderCreateIdentifier,
+    getActionClientIp,
+  } = await import('@/lib/rate-limit');
+  const orderLimit = await checkRateLimit({
+    identifier: generateOrderCreateIdentifier(input.restaurantId, await getActionClientIp()),
+    limit: RateLimitLimit.ORDER_CREATION,
+    windowSeconds: 60,
+    endpointClass: RateLimitEndpointClass.HIGH_COST,
+  });
+  if (!orderLimit.allowed) {
+    throw new Error('Too many order attempts. Please wait a moment and try again.');
+  }
+
+  const { queueToken: _queueToken, ...orderInput } = input;
+  const result = await OrderService.createCustomerOrder(orderInput);
   return result;
 }
 

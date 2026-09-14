@@ -37,6 +37,8 @@ interface CustomerMenuBrowserProps {
   customerName?: string | null;
   customerPhone?: string | null;
   currency?: string;
+  /** Validated queue bearer token — forwarded so order creation is authorized. */
+  queueToken?: string | null;
 }
 
 export function CustomerMenuBrowser({
@@ -48,6 +50,7 @@ export function CustomerMenuBrowser({
   customerName,
   customerPhone,
   currency = 'INR',
+  queueToken,
 }: CustomerMenuBrowserProps) {
   const router = useRouter();
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -129,6 +132,7 @@ export function CustomerMenuBrowser({
           queueEntryId,
           tableId,
           idempotencyKey,
+          queueToken,
           items: cart.map((i) => ({
             menuItemId: i.menuItemId,
             quantity: i.quantity,
@@ -138,6 +142,11 @@ export function CustomerMenuBrowser({
 
         if (result && result.rawToken) {
           router.push(`/q/${restaurantSlug}/order/${result.rawToken}`);
+        } else if (result && result.order && queueToken) {
+          // Idempotent replay: the order token is not recoverable from
+          // storage (raw tokens are never persisted), so return to the
+          // queue ticket instead of stranding the customer.
+          router.push(`/q/${restaurantSlug}/status/${queueToken}`);
         } else {
           setErrorMessage('Could not place order. Please try again.');
         }

@@ -1,29 +1,37 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getTicketToken } from '@/lib/customer-ticket-cookie';
+import { QueueService } from '@/lib/services/queue-service';
+import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
 
-export function QueueResumeBanner({ slug }: { slug: string }) {
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      const t = localStorage.getItem(`qf_ticket_${slug}`);
-      if (t) setToken(t);
-      else {
-        const m = document.cookie.match(new RegExp(`(?:^|; )qf_ticket_${String(slug)}=([^;]*)`));
-        if (m) setToken(decodeURIComponent(m[1] as string));
+/**
+ * Phase 3D — server-rendered "active ticket" resume banner.
+ *
+ * Reads the server-managed HttpOnly ticket cookie (never localStorage,
+ * never a JS-readable cookie), validates it (hash lookup + tenant match),
+ * and only renders for live (non-terminal) tickets. The token appears in
+ * this authorized user's own page link — required for navigation — but is
+ * never persisted in browser JS storage, history-independent resume works
+ * without it, and Referrer-Policy + no third-party leaks contain it.
+ */
+export async function TicketResumeBanner({ slug }: { slug: string }) {
+  let token: string | null = null;
+  try {
+    const raw = await getTicketToken(slug);
+    if (raw) {
+      const status = await QueueService.getQueueStatusByToken(raw);
+      const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(slug);
+      if (
+        status &&
+        restaurant &&
+        restaurant.id === status.restaurantId &&
+        ['WAITING', 'NOTIFIED', 'CALLED'].includes(status.status)
+      ) {
+        token = raw;
       }
-    } catch {}
-  }, [slug]);
-
-  const clear = () => {
-    try {
-      localStorage.removeItem(`qf_ticket_${slug}`);
-      document.cookie = `qf_ticket_${slug}=; Path=/; Max-Age=0; SameSite=Lax`;
-      setToken(null);
-    } catch {}
-  };
+    }
+  } catch {
+    token = null;
+  }
 
   if (!token) return null;
 
@@ -47,13 +55,6 @@ export function QueueResumeBanner({ slug }: { slug: string }) {
             <span className="material-symbols-outlined text-[16px]">visibility</span>
             View
           </Link>
-          <button
-            onClick={clear}
-            aria-label="Dismiss"
-            className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-white flex items-center justify-center"
-          >
-            <span className="material-symbols-outlined text-[16px]">close</span>
-          </button>
         </div>
       </div>
     </div>

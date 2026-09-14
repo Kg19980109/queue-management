@@ -1,6 +1,7 @@
 import 'server-only';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { checkRateLimit, RateLimitEndpointClass, fingerprintQueueToken } from '@/lib/rate-limit';
+import { customerJson } from '@/lib/customer-response';
 import { QueueService } from '@/lib/services/queue-service';
 import { NotificationService } from '@/lib/services/notification-service';
 
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
     const token = searchParams.get('token');
 
     if (!token) {
-      return NextResponse.json({ error: 'Missing customer token' }, { status: 400 });
+      return customerJson({ error: 'Missing customer token' }, 400);
     }
 
     // Rate limiting: customer notifications ~60 requests/minute/token
@@ -29,17 +30,19 @@ export async function GET(req: NextRequest) {
     const rateResult = await checkRateLimit(rateLimitConfig);
 
     if (!rateResult.allowed) {
-      return NextResponse.json(
+      return customerJson(
         { error: 'Too many requests. Please try again shortly.' },
-        { status: 429 }
+        429,
+        { 'Retry-After': '60' }
       );
     }
 
-    // Token validation — database lookup (authoritative)
+    // Token validation — database lookup (authoritative). Notifications are
+    // scoped to the derived entry+restaurant; no client ids are trusted.
     const queueStatus = await QueueService.getQueueStatusByToken(token);
 
     if (!queueStatus) {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 404 });
+      return customerJson({ error: 'Invalid or expired token.' }, 404);
     }
 
     const notifications = await NotificationService.getCustomerNotificationsByQueueId(
@@ -47,17 +50,9 @@ export async function GET(req: NextRequest) {
       queueStatus.restaurantId
     );
 
-    // Attach rate limit headers to the response
-    const response = NextResponse.json({ notifications });
-    response.headers.set('X-RateLimit-Limit', '60');
-    response.headers.set('X-RateLimit-Remaining', String(rateResult.remaining));
-    response.headers.set('X-RateLimit-Window', '60');
-    if (!rateResult.allowed) {
-      response.headers.set('Retry-After', '60');
-    }
-    return response;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch customer notifications';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return customerJson({ notifications }, 200, rateResult.headers);
+  } catch {
+    // Generic message: raw failures must never reach callers.
+    return customerJson({ error: 'Failed to fetch customer notifications' }, 500);
   }
 }

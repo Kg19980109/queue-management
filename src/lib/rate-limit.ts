@@ -291,6 +291,31 @@ export function getClientIp(req: Request): string {
 }
 
 /**
+ * Best-effort client IP for Server Actions (no Request object available).
+ * Reads the platform-provided headers via next/headers. Same trust model
+ * as getClientIp: proxy headers are a fallback signal for abuse buckets,
+ * never an authentication factor.
+ */
+export async function getActionClientIp(): Promise<string> {
+  try {
+    const { headers } = await import('next/headers');
+    const store = await headers();
+    const forwarded = store.get('x-forwarded-for');
+    if (forwarded) {
+      const first = forwarded.split(',')[0];
+      if (first && first.trim() && first.trim() !== '::1' && first.trim() !== '127.0.0.1') {
+        return first.trim();
+      }
+    }
+    const realIp = store.get('x-real-ip');
+    if (realIp && realIp !== '::1' && realIp !== '127.0.0.1') return realIp;
+  } catch {
+    // headers() unavailable (tests, non-request context) — fall through
+  }
+  return 'unknown';
+}
+
+/**
  * Determine the endpoint class for a given request path and context.
  * This is used for logging, metrics, and endpoint-specific limit selection.
  */

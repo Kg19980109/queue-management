@@ -7,7 +7,7 @@ import { PartyPreferencesCard } from '@/components/customer/PartyPreferencesCard
 import { KitchenPreOrderCard } from '@/components/customer/KitchenPreOrderCard';
 import { PublicBottomNav } from '@/components/customer/PublicBottomNav';
 import { StatusAutoRefresh } from './StatusAutoRefresh';
-import { QueueTicketPersister } from '@/components/customer/QueueTicketPersister';
+import { TicketCookieSync } from '@/components/customer/TicketCookieSync';
 import { CustomerQueueRealtime } from '@/components/realtime/CustomerQueueRealtime';
 import type { Metadata } from 'next';
 
@@ -97,7 +97,7 @@ export default async function CustomerQueueStatusPage({
 
   return (
     <main className="min-h-[100dvh] bg-[#0A0E17] text-white flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950 pb-[calc(6rem+env(safe-area-inset-bottom))]">
-      <QueueTicketPersister slug={slug} token={token} isTerminal={isTerminal} />
+      <TicketCookieSync slug={slug} token={token} isTerminal={isTerminal} />
       <CustomerQueueRealtime entryId={status.entryId} isTerminal={isTerminal} />
       <StatusAutoRefresh intervalMs={10000} isTerminal={isTerminal} />
 

@@ -1,24 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
+/**
+ * Phase 3D — floating "my ticket" shortcut.
+ * Prop-only: renders solely from the token supplied by the hosting page
+ * (which received it via URL). Never reads or writes browser storage —
+ * raw tokens must not persist in localStorage / sessionStorage / cookies.
+ */
 export function CustomerTicketFloat({ slug, qtoken }: { slug: string; qtoken?: string | null }) {
-  const [token, setToken] = useState<string | null>(qtoken || null);
-
-  useEffect(() => {
-    if (qtoken) {
-      setToken(qtoken);
-      try { localStorage.setItem(`qf_ticket_${slug}`, qtoken); } catch {}
-      return;
-    }
-    try {
-      const t = localStorage.getItem(`qf_ticket_${slug}`);
-      if (t) setToken(t);
-    } catch {}
-  }, [slug, qtoken]);
-
-  if (!token) return null;
+  if (!qtoken) return null;
+  const token = qtoken;
 
   return (
     <Link

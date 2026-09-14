@@ -1,6 +1,6 @@
 import 'server-only';
-import { NextResponse } from 'next/server';
 import { checkRateLimit, RateLimitEndpointClass, fingerprintQueueToken } from '@/lib/rate-limit';
+import { customerJson } from '@/lib/customer-response';
 import { QueueService } from '@/lib/services/queue-service';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
 import { logger } from '@/lib/logging/logger';
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const restaurantSlug = searchParams.get('restaurantSlug');
 
     if (!token) {
-      return NextResponse.json({ error: 'Missing customer token' }, { status: 400 });
+      return customerJson({ error: 'Missing customer token' }, 400);
     }
 
     // Fingerprint the raw token (SHA-256) — never store raw token in Redis key
@@ -33,36 +33,36 @@ export async function GET(request: Request) {
     const rateResult = await checkRateLimit(rateLimitConfig);
 
     if (!rateResult.allowed) {
-      return NextResponse.json(
+      return customerJson(
         { error: 'Too many requests. Please try again shortly.' },
-        { status: 429 }
+        429,
+        { 'Retry-After': '60' }
       );
     }
 
-    // Token validation — database lookup (authoritative)
+    // Token validation — database lookup (authoritative). restaurantSlug is
+    // only cross-checked, never trusted as authorization.
     const queueStatus = await QueueService.getQueueStatusByToken(token);
 
     if (!queueStatus) {
-      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 404 });
+      return customerJson({ error: 'Invalid or expired token.' }, 404);
     }
 
-    // Tenant isolation check via restaurant slug
+    // Tenant isolation check via restaurant slug (generic errors only —
+    // never reveal whether the mismatch is the slug or the token).
     if (restaurantSlug) {
       const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(restaurantSlug);
-      if (!restaurant) {
-        return NextResponse.json({ error: 'Restaurant not found.' }, { status: 404 });
-      }
-      if (restaurant.id !== queueStatus.restaurantId) {
-        return NextResponse.json({ error: 'Access denied: ticket belongs to a different restaurant.' }, { status: 403 });
+      if (!restaurant || restaurant.id !== queueStatus.restaurantId) {
+        return customerJson({ error: 'Invalid or expired token.' }, 404);
       }
     }
 
-    return NextResponse.json({ status: queueStatus });
+    return customerJson({ status: queueStatus }, 200, rateResult.headers);
   } catch (err) {
     logger.error('Queue status API error', {
       operation: 'queue_status_api_error',
       error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
+    return customerJson({ error: 'Internal server error.' }, 500);
   }
 }
