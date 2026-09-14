@@ -6,6 +6,7 @@ import { PERMISSIONS } from '@/lib/auth/permissions';
 import { OrderService } from '@/lib/services/order-service';
 import { redirect } from 'next/navigation';
 import { KitchenDisplayClient } from '@/components/dashboard/KitchenDisplayClient';
+import { KitchenRealtime } from '@/components/realtime/OrderRealtime';
 
 export default async function KitchenDisplayPage() {
   const user = await requireAuth();
@@ -34,6 +35,7 @@ export default async function KitchenDisplayPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500 p-4 sm:p-0">
+      <KitchenRealtime restaurantId={restaurantId} />
       {/* Page Header */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-900/40 via-red-900/20 to-slate-900/40 border border-white/10 p-5 sm:p-8 shadow-2xl">
         <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-red-500/20 rounded-full blur-[80px] pointer-events-none"></div>

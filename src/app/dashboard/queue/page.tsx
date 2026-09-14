@@ -17,6 +17,8 @@ import {
 import { SeatCustomerModal, SeatableTableItem } from '@/components/dashboard/SeatCustomerModal';
 import { AddQueueGuestModal } from '@/components/dashboard/AddQueueGuestModal';
 import Link from 'next/link';
+import { StaffQueueRealtimeSilent } from '@/components/realtime/StaffQueueRealtime';
+import { TableRealtime } from '@/components/realtime/TableRealtime';
 
 export default async function QueueManagementPage({
   searchParams,
@@ -100,6 +102,8 @@ export default async function QueueManagementPage({
 
   return (
     <div className="flex flex-col w-full px-4 sm:px-6 md:px-space-xl py-4 sm:py-space-lg gap-5 sm:gap-space-lg bg-[#0A0E17] min-h-screen font-body-md text-white antialiased relative z-10">
+      <StaffQueueRealtimeSilent restaurantId={restaurant.id} />
+      <TableRealtime restaurantId={restaurant.id} />
       {/* Top Command & Action Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex flex-col gap-1 min-w-0">

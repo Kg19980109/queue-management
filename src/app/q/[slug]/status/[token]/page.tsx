@@ -8,6 +8,7 @@ import { KitchenPreOrderCard } from '@/components/customer/KitchenPreOrderCard';
 import { PublicBottomNav } from '@/components/customer/PublicBottomNav';
 import { StatusAutoRefresh } from './StatusAutoRefresh';
 import { QueueTicketPersister } from '@/components/customer/QueueTicketPersister';
+import { CustomerQueueRealtime } from '@/components/realtime/CustomerQueueRealtime';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({
@@ -97,7 +98,8 @@ export default async function CustomerQueueStatusPage({
   return (
     <main className="min-h-[100dvh] bg-[#0A0E17] text-white flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950 pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <QueueTicketPersister slug={slug} token={token} isTerminal={isTerminal} />
-      <StatusAutoRefresh intervalMs={10000} isTerminal={isTerminal} />
+      <CustomerQueueRealtime entryId={status.entryId} isTerminal={isTerminal} />
+      <StatusAutoRefresh intervalMs={60000} isTerminal={isTerminal} />
 
       <div className="w-full max-w-md mx-auto">
         {/* Top Header & Tab Navigation */}

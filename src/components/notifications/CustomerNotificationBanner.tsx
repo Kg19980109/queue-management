@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 interface NotificationItem {
   id: string;
@@ -15,24 +15,29 @@ interface NotificationItem {
 export function CustomerNotificationBanner({ token }: { token: string }) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
-  useEffect(() => {
-    async function fetchNotifications() {
-      if (!token) return;
-      try {
-        const res = await fetch(`/api/customer/notifications?token=${token}`);
-        if (res.ok) {
-          const data = await res.json();
-          setNotifications(data.notifications || []);
-        }
-      } catch {
-        // Silent fallback for network errors
+  const fetchNotifications = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/customer/notifications?token=${token}`);
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
       }
+    } catch {
+      // Silent fallback
     }
-
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 10000); // Poll every 10 seconds
-    return () => clearInterval(interval);
   }, [token]);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000); // Fallback 60s (realtime is primary if later added)
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchNotifications(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [fetchNotifications]);
 
   if (notifications.length === 0 || !notifications[0]) return null;
 

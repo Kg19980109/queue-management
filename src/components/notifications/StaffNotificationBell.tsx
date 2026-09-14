@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNotificationRealtime } from '@/lib/realtime/hooks';
 
 interface StaffNotificationItem {
   id: string;
@@ -13,24 +14,32 @@ export function StaffNotificationBell({ restaurantId }: { restaurantId: string }
   const [notifications, setNotifications] = useState<StaffNotificationItem[]>([]);
   const [open, setOpen] = useState<boolean>(false);
 
-  useEffect(() => {
-    async function loadNotifications() {
-      if (!restaurantId) return;
-      try {
-        const res = await fetch(`/api/staff/notifications?restaurantId=${restaurantId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setNotifications(data.notifications || []);
-        }
-      } catch {
-        // Silent fallback
+  const loadNotifications = useCallback(async () => {
+    if (!restaurantId) return;
+    try {
+      const res = await fetch(`/api/staff/notifications?restaurantId=${restaurantId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
       }
+    } catch {
+      // Silent fallback
     }
-
-    loadNotifications();
-    const interval = setInterval(loadNotifications, 15000); // Poll every 15s
-    return () => clearInterval(interval);
   }, [restaurantId]);
+
+  // Realtime primary, polling fallback
+  useNotificationRealtime(restaurantId, !!restaurantId);
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 60000); // Fallback every 60s
+    const onVisible = () => { if (document.visibilityState === 'visible') loadNotifications(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [loadNotifications]);
 
   return (
     <div className="relative inline-block">

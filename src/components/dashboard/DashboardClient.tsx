@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { updateQueueStatusAction, seatQueueEntryAction, updateTableStatusAction } from '@/app/dashboard/actions';
+import { broadcastCustomerQueueUpdate } from '@/lib/realtime/useCustomerQueueRealtime';
 
 interface DashboardClientProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,10 +33,12 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
 
   const handleSeatConfirm = async (tableId: string) => {
     if (!seatingEntryId) return;
-    setIsProcessing(seatingEntryId);
+    const entryId = seatingEntryId;
+    setIsProcessing(entryId);
     setSeatingEntryId(null);
     try {
-      await seatQueueEntryAction(seatingEntryId, tableId);
+      await seatQueueEntryAction(entryId, tableId);
+      await broadcastCustomerQueueUpdate(entryId);
     } catch (e) {
       console.error(e);
     }
@@ -148,13 +151,13 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
 
                   <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto w-full sm:w-auto justify-end border-t border-white/5 sm:border-t-0 pt-3 sm:pt-0 mt-1 sm:mt-0">
                       {entry.status === 'WAITING' && (
-                        <button onClick={() => { setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'CALLED').finally(() => setIsProcessing(null)); }} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
+                        <button onClick={() => { setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'CALLED').then(()=>broadcastCustomerQueueUpdate(entry.id)).finally(() => setIsProcessing(null)); }} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
                           Inform Next
                         </button>
                       )}
                       
                       {entry.status === 'CALLED' && (
-                        <button onClick={() => { setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'NOTIFIED').finally(() => setIsProcessing(null)); }} className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
+                        <button onClick={() => { setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'NOTIFIED').then(()=>broadcastCustomerQueueUpdate(entry.id)).finally(() => setIsProcessing(null)); }} className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer">
                           Tell to Come
                         </button>
                       )}
@@ -172,7 +175,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                       )}
 
                       {(entry.status === 'CALLED' || entry.status === 'NOTIFIED') && (
-                        <button onClick={() => { setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'NO_SHOW').finally(() => setIsProcessing(null)); }} className="px-3 py-2 rounded-xl bg-transparent hover:bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer">
+                        <button onClick={() => { setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'NO_SHOW').then(()=>broadcastCustomerQueueUpdate(entry.id)).finally(() => setIsProcessing(null)); }} className="px-3 py-2 rounded-xl bg-transparent hover:bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer">
                           <span className="material-symbols-outlined text-[16px]">person_off</span>
                           <span>No-Show</span>
                         </button>

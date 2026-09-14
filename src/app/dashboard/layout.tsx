@@ -7,6 +7,7 @@ import { RestaurantAdminService } from '@/lib/services/restaurant-admin-service'
 import MobileNavigation from '@/components/dashboard/MobileNavigation';
 import DesktopNavigation from '@/components/dashboard/DesktopNavigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { DashboardRealtime } from '@/components/realtime/DashboardRealtime';
 
 export default async function RestaurantDashboardLayout({
   children,
@@ -40,12 +41,7 @@ export default async function RestaurantDashboardLayout({
         <header className="fixed top-0 left-0 md:left-64 right-0 h-14 sm:h-16 bg-[#0A0E17]/90 backdrop-blur-xl border-b border-white/[0.06] z-40 text-slate-300 safe-pt">
           <div className="h-14 sm:h-16 w-full px-3 sm:px-4 md:px-6 lg:px-8 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-              {/* Live Sync Pill - always visible, compact on mobile */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                <span className="font-mono text-[10px] font-bold text-emerald-400 uppercase tracking-widest hidden xs:inline">Live</span>
-                <span className="font-mono text-[10px] font-bold text-emerald-400 uppercase tracking-widest xs:hidden">{activeQueueCount}</span>
-              </div>
+              <DashboardRealtime restaurantId={restaurant.id} />
               
               {/* Restaurant Pill - truncated smartly */}
               <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white/[0.06] border border-white/[0.06] text-sm min-w-0 flex-1 max-w-[180px] sm:max-w-none">
