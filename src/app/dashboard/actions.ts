@@ -365,9 +365,20 @@ export async function removeIngredientAction(ingredientId: string, _menuItemId: 
 // scroll-position reset, no loading bar flash).
 // --------------------------------------------------------------------------
 
-export async function updateQueueStatusAction(entryId: string, newStatus: QueueStatus, actorUserId?: string): Promise<void> {
+export async function updateQueueStatusAction(entryId: string, newStatus: QueueStatus, actorUserId?: string, reason?: string | FormData): Promise<void> {
   try {
-    await QueueService.updateQueueStatus({ entryId, newStatus, actorUserId });
+    // When used as <form action={fn.bind(null, a,b,c)}>, Next.js passes FormData as last arg
+    const effectiveReason: string | undefined = typeof reason === 'string' ? reason : undefined;
+    let effectiveActorId: string | undefined = typeof actorUserId === 'string' ? actorUserId : undefined;
+    // If actorUserId is actually FormData (when called without userId via bind), resolve via auth
+    if (!effectiveActorId || typeof effectiveActorId !== 'string' || effectiveActorId.length < 10) {
+      try {
+        const { requireAuth } = await import('@/lib/auth/session');
+        const user = await requireAuth();
+        effectiveActorId = user.id;
+      } catch {}
+    }
+    await QueueService.updateQueueStatus({ entryId, newStatus, actorUserId: effectiveActorId, reason: effectiveReason });
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
       throw error;
@@ -509,4 +520,14 @@ export async function updateKitchenStatusAction(
   revalidatePath('/dashboard/kitchen');
   revalidatePath('/dashboard/orders');
   return updated;
+}
+
+export async function recommendTablesAction(queueEntryId: string): Promise<Array<{ id: string; table_number: string; capacity: number; restaurant_zones?: { name: string } | null }>> {
+  const result = await QueueService.recommendTablesForQueueEntry(queueEntryId);
+  return (result as unknown as Array<{ table_id: string; table_number: string; capacity: number; zone_name: string | null }>).map(r => ({
+    id: r.table_id,
+    table_number: r.table_number,
+    capacity: r.capacity,
+    restaurant_zones: r.zone_name ? { name: r.zone_name } : null,
+  }));
 }

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
-import { seatQueueEntryAction } from '@/app/dashboard/actions';
+import React, { useState, useTransition, useEffect } from 'react';
+import { seatQueueEntryAction, recommendTablesAction } from '@/app/dashboard/actions';
 
 export interface SeatableTableItem {
   id: string;
@@ -30,6 +30,20 @@ export function SeatCustomerModal({
   const [isOpen, setIsOpen] = useState(false);
   const [selectedTableId, setSelectedTableId] = useState<string>('');
   const [isPending, startTransition] = useTransition();
+  const [recommended, setRecommended] = useState<SeatableTableItem[] | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    // Fetch intelligent recommendations server-side (deterministic, DB-side)
+    recommendTablesAction(entryId)
+      .then((recs) => {
+        const mapped = recs.map(r => ({ id: r.id, table_number: r.table_number, capacity: r.capacity, restaurant_zones: r.restaurant_zones } as unknown as SeatableTableItem));
+        setRecommended(mapped.length > 0 ? mapped : seatableTables);
+      })
+      .catch(() => setRecommended(seatableTables));
+  }, [isOpen, entryId, seatableTables]);
+
+  const tablesToShow = recommended !== null ? recommended : seatableTables;
 
   const handleSeat = (tableId: string) => {
     setSelectedTableId(tableId);
@@ -73,7 +87,7 @@ export function SeatCustomerModal({
               </button>
             </div>
 
-            {seatableTables.length === 0 ? (
+            {tablesToShow.length === 0 ? (
               <div className="p-8 text-center bg-slate-950/50 border border-slate-800 rounded-2xl space-y-2">
                 <div className="text-2xl">🚫</div>
                 <h4 className="text-sm font-bold text-rose-400">No Suitable Tables Available</h4>
@@ -85,25 +99,26 @@ export function SeatCustomerModal({
             ) : (
               <div className="space-y-3">
                 <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
-                  Select Available Table ({seatableTables.length} available)
+                  Recommended — smallest sufficient table first ({tablesToShow.length} candidates)
                 </span>
 
                 <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
-                  {seatableTables.map((table) => (
+                  {tablesToShow.map((table, idx) => (
                     <div
                       key={table.id}
-                      className="flex items-center justify-between p-3.5 bg-slate-950 border border-slate-800 rounded-2xl hover:border-slate-700 transition-all"
+                      className={`flex items-center justify-between p-3.5 border rounded-2xl transition-all ${idx === 0 ? 'bg-emerald-950/30 border-emerald-500/30' : 'bg-slate-950 border-slate-800 hover:border-slate-700'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-sm font-mono">
+                        <div className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm font-mono ${idx === 0 ? 'bg-emerald-500 text-white' : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'}`}>
                           {table.table_number}
                         </div>
                         <div>
-                          <div className="text-xs font-bold text-white">
-                            Table {table.table_number}
+                          <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                            Table {table.table_number} <span className="text-[10px] font-normal text-slate-400">• Cap {table.capacity}</span>
+                            {idx === 0 && <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[9px] font-black uppercase">Recommended</span>}
                           </div>
                           <span className="text-[10px] text-slate-400">
-                            {table.restaurant_zones?.name || 'Main Area'} • Capacity {table.capacity}
+                            {table.restaurant_zones?.name || 'Main Area'} {idx === 0 ? '• Best capacity fit' : `• Rank #${idx + 1}`}
                           </span>
                         </div>
                       </div>
@@ -112,13 +127,14 @@ export function SeatCustomerModal({
                         type="button"
                         onClick={() => handleSeat(table.id)}
                         disabled={isPending}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50"
+                        className={`px-4 py-2 font-bold text-xs rounded-xl transition-colors disabled:opacity-50 ${idx === 0 ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}
                       >
-                        {isPending && selectedTableId === table.id ? 'Assigning...' : 'Assign & Seat'}
+                        {isPending && selectedTableId === table.id ? 'Assigning...' : idx === 0 ? 'Seat — Recommended' : 'Seat'}
                       </button>
                     </div>
                   ))}
                 </div>
+                <p className="text-[11px] text-slate-500">Recommendation is not reservation — table re-validated atomically on Seat. Max 5 shown, ordered by capacity → table number → id.</p>
               </div>
             )}
 

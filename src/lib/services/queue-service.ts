@@ -665,4 +665,33 @@ export class QueueService {
     } catch {}
     return data;
   }
+
+  /**
+   * Expire overdue CALLED entries to NO_SHOW (server-authoritative, batch, idempotent)
+   */
+  static async expireOverdueCalledEntries(limit = 50): Promise<{ expiredCount: number; expiredIds: string[] }> {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase.rpc('expire_overdue_called_queue_entries', { p_limit: limit });
+    if (error) throw new Error(`Failed to expire overdue: ${error.message}`);
+    const row = Array.isArray(data) ? (data[0] as unknown as { expired_count: number; expired_ids: string[] }) : (data as unknown as { expired_count: number; expired_ids: string[] });
+    return { expiredCount: row?.expired_count || 0, expiredIds: row?.expired_ids || [] };
+  }
+
+  /**
+   * Recommend tables for a queue entry (deterministic, not reservation)
+   */
+  static async recommendTablesForQueueEntry(queueEntryId: string, actorUserId?: string) {
+    const supabase = createAdminClient();
+    // Validate queue entry is seatable and get restaurant
+    const { data: entry, error: fetchErr } = await supabase.from('queue_entries').select('restaurant_id, party_size, status').eq('id', queueEntryId).single();
+    if (fetchErr || !entry) throw new Error('QUEUE_ENTRY_NOT_FOUND');
+    if (!['WAITING','NOTIFIED','CALLED'].includes(entry.status)) throw new Error('QUEUE_ENTRY_NOT_SEATABLE');
+    // Permission check if actor provided
+    if (actorUserId) {
+      await AuthorizationService.requirePermission({ userId: actorUserId, restaurantId: entry.restaurant_id, permission: PERMISSIONS.QUEUE_VIEW });
+    }
+    const { data, error } = await supabase.rpc('recommend_tables_for_queue_entry', { p_queue_entry_id: queueEntryId });
+    if (error) throw new Error(`Failed to recommend tables: ${error.message}`);
+    return (data as unknown as Array<{ table_id: string; table_number: string; capacity: number; zone_name: string | null; rank: number; reason: string }>) || [];
+  }
 }

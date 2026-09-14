@@ -447,7 +447,7 @@ export default async function QueueManagementPage({
                       )}
 
                       {isCalled && (
-                        <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId)} className="col-span-2 sm:col-span-1">
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId, 'STAFF_MARKED_NO_SHOW')} className="col-span-2 sm:col-span-1" onSubmit={(e) => { if (!confirm(`Mark ${entry.customer_name} (${entry.display_number}) as no-show?`)) e.preventDefault(); }}>
                           <button type="submit" className="w-full sm:w-auto px-4 h-11 rounded-xl bg-transparent active:bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold flex items-center justify-center gap-1.5">
                             <span className="material-symbols-outlined text-[16px]">person_off</span>
                             <span>No-Show</span>

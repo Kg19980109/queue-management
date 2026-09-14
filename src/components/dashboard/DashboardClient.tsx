@@ -169,7 +169,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                       )}
 
                       {entry.status === 'CALLED' && (
-                        <button onClick={() => { setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'NO_SHOW').then(()=>broadcastCustomerQueueUpdate(entry.id)).finally(() => setIsProcessing(null)); }} className="px-3 py-2 rounded-xl bg-transparent hover:bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer">
+                        <button onClick={() => { if (!confirm(`Mark ${entry.customer_name} as no-show?`)) return; setIsProcessing(entry.id); updateQueueStatusAction(entry.id, 'NO_SHOW', undefined, 'STAFF_MARKED_NO_SHOW').then(()=>broadcastCustomerQueueUpdate(entry.id)).finally(() => setIsProcessing(null)); }} className="px-3 py-2 rounded-xl bg-transparent hover:bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold transition-colors flex items-center gap-1 cursor-pointer">
                           <span className="material-symbols-outlined text-[16px]">person_off</span>
                           <span>No-Show</span>
                         </button>

@@ -254,6 +254,8 @@ export interface Database {
           completed_at: string | null;
           cancelled_at: string | null;
           expired_at: string | null;
+          no_show_at: string | null;
+          no_show_reason: string | null;
           seated_table_id: string | null;
           joined_at: string;
           created_at: string;
@@ -659,6 +661,22 @@ export interface Database {
           p_start_date: string;
           p_end_date: string;
         };
+        Returns: Json;
+      };
+      transition_queue_entry_atomic: {
+        Args: { p_queue_entry_id: string; p_target_status: string; p_actor_user_id?: string | null; p_reason?: string | null };
+        Returns: Database['public']['Tables']['queue_entries']['Row'];
+      };
+      set_queue_operating_state: {
+        Args: { p_restaurant_id: string; p_new_state: string; p_actor_user_id?: string | null; p_reason?: string | null };
+        Returns: Database['public']['Tables']['restaurants']['Row'];
+      };
+      recommend_tables_for_queue_entry: {
+        Args: { p_queue_entry_id: string };
+        Returns: Json;
+      };
+      expire_overdue_called_queue_entries: {
+        Args: { p_limit?: number };
         Returns: Json;
       };
     };
