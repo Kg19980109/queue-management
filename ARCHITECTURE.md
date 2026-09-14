@@ -160,3 +160,53 @@ Queue entry state ≠ Restaurant queue operating state ≠ Restaurant lifecycle 
 
 ### 8.5 Observability
 Each cron run logs `correlationId`, worker name, start/end, batch size, processed/succeeded/failed, duration (and `expiredCount` for maintenance) via the structured logger with redaction. No tokens, phones, message contents, or auth headers are logged.
+
+## 9. Staff Invitation + Secure Onboarding (Phase 3C)
+
+### 9.1 Invitation model (Supabase Auth owns the credential)
+- `RestaurantAdminService.createStaff()` sends a Supabase Auth invitation via
+  `admin.inviteUserByEmail(email, { data: { role, restaurant_id }, redirectTo })`
+  — no custom tokens, no emailed passwords, no custom password hashing.
+- Membership is created with status `INVITED` (+ `invited_at`). It is NEVER
+  `ACTIVE` at invite time. Migration `20260923000000_phase3c_staff_invitation.sql`
+  adds the `INVITED` state and `invited_at` / `invitation_accepted_at` columns
+  (idempotent; replaces any prior status CHECK).
+- Grantable roles are exactly `STAFF` and `RESTAURANT_ADMIN`
+  (`INVITABLE_STAFF_ROLES`). `SUPER_ADMIN` is rejected by schema validation
+  plus an explicit server guard — a restaurant admin can never escalate to
+  platform privileges, and the assigned membership role always equals the
+  requested role (no silent downgrade/upgrade).
+- Duplicate handling: ACTIVE member of the same restaurant+role -> controlled
+  duplicate error; existing Auth user new to the restaurant -> INVITED
+  membership + fresh invite; existing INVITED -> resend path; errors never
+  reveal whether an arbitrary email exists in Auth.
+
+### 9.2 Acceptance flow (the ONLY INVITED -> ACTIVE path)
+- Invite email links land on `/auth/confirm?next=/auth/accept-invitation`
+  (must be allowlisted in Supabase Auth "Redirect URLs"; `APPLICATION_URL`
+  supplies the host). The callback exchanges PKCE `code` or verifies
+  `token_hash`+`type`, then redirects ONLY to allowlisted internal paths
+  (`resolveSafeRedirect`; attacker `?next=` falls back to onboarding).
+- `/auth/accept-invitation` requires a live invitation session; otherwise it
+  shows expired/invalid guidance. The employee sets a password via the
+  browser Supabase client (`updateUser`) — the password never touches app
+  APIs, logs, or storage.
+- `acceptInvitationForUser(userId)` (server session is the sole input)
+  activates ONLY the user's own INVITED memberships scoped to the Auth
+  `user_metadata.restaurant_id` when present; sets `invitation_accepted_at`;
+  writes `STAFF_INVITATION_ACCEPTED` audit per membership. Repeat acceptance
+  is idempotent (`alreadyActive` + dashboard path, no duplicates).
+- The admin "Activate" button is NOT shown for INVITED rows (admin activation
+  of an unaccepted invitation is rejected server-side). INVITED rows offer
+  "Resend Invitation" (same Auth user + membership, fresh Supabase invite,
+  refreshed `invited_at`, `STAFF_INVITATION_RESENT` audit) and "Cancel"
+  (INVITED -> INACTIVE, `STAFF_INVITATION_CANCELLED` audit).
+
+### 9.3 Rate limiting & consistency
+- Create: `rl:staff:invite:<restaurantId>:<actorId>`, 20/hour.
+  Resend: `rl:staff:resend:<membershipId>`, 6/hour.
+  (`RateLimitEndpointClass.AUTHENTICATED_ADMIN`; customer QR limits never apply.)
+- Auth + Postgres are not one transaction: order is authorize -> invite ->
+  persist membership -> audit. Membership upsert on
+  `(user_id, restaurant_id, role)` plus invite-reuse make retry deterministic;
+  partial failure returns an explicit retry-safe error, never a duplicate.

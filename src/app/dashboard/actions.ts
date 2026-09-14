@@ -45,6 +45,7 @@ export async function createStaffFormAction(_prevState: unknown, formData: FormD
     const input = {
       email: formData.get('email') as string,
       displayName: formData.get('displayName') as string,
+      role: (formData.get('role') as 'STAFF' | 'RESTAURANT_ADMIN') || 'STAFF',
     };
 
     await RestaurantAdminService.createStaff(input);
@@ -68,6 +69,18 @@ export async function updateStaffStatusAction(targetUserId: string, newStatus: '
       throw error;
     }
     throw error instanceof Error ? error : new Error('Failed to update staff status.');
+  }
+  revalidatePath('/dashboard/staff');
+}
+
+export async function resendStaffInvitationAction(targetUserId: string): Promise<void> {
+  try {
+    await RestaurantAdminService.resendStaffInvitation(targetUserId);
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
+    throw error instanceof Error ? error : new Error('Failed to resend invitation.');
   }
   revalidatePath('/dashboard/staff');
 }

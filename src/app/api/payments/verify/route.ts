@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PaymentService } from '@/lib/services/payment-service';
-import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { checkRateLimit, RateLimitEndpointClass, getClientIp } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
   // Rate limit: 10 payment verifications per minute per IP
@@ -9,6 +9,7 @@ export async function POST(req: NextRequest) {
     identifier: `payment_verify:${ip}`,
     limit: 10,
     windowSeconds: 60,
+    endpointClass: RateLimitEndpointClass.HIGH_COST,
   });
   if (!rateLimit.allowed) {
     return NextResponse.json(

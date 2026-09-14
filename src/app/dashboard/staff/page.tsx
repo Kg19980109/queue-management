@@ -1,19 +1,19 @@
 import React from 'react';
 import Link from 'next/link';
 import { RestaurantAdminService } from '@/lib/services/restaurant-admin-service';
-import { updateStaffStatusAction } from '../actions';
+import { resendStaffInvitationAction, updateStaffStatusAction } from '../actions';
 import { can } from '@/lib/auth/ui-permissions';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 
 export default async function StaffListPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; search?: string; status?: 'ACTIVE' | 'INVITED' | 'INACTIVE' | '' | undefined }>;
 }) {
   const params = await searchParams;
   const page = parseInt(params.page || '1', 10);
   const search = params.search || '';
-  const status = (params.status || '') as 'ACTIVE' | 'INACTIVE' | '';
+  const status = params.status || '';
 
   const canCreateStaff = await can(PERMISSIONS.STAFF_CREATE);
   const canActivateStaff = await can(PERMISSIONS.STAFF_ACTIVATE);
@@ -25,7 +25,7 @@ export default async function StaffListPage({
     search,
     status: status || undefined,
   });
-
+  
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -55,11 +55,11 @@ export default async function StaffListPage({
 
         <select
           name="status"
-          defaultValue={status}
           className="w-full rounded-lg border border-white/10 bg-[#0A0E17] px-3 py-2 text-xs text-slate-100 focus:border-emerald-500 focus:outline-none sm:w-40"
         >
           <option value="">All Statuses</option>
           <option value="ACTIVE">ACTIVE</option>
+          <option value="INVITED">INVITED</option>
           <option value="INACTIVE">INACTIVE</option>
         </select>
 
@@ -94,6 +94,7 @@ export default async function StaffListPage({
                 {result.staff.map((member) => {
                   const deactivateAction = updateStaffStatusAction.bind(null, member.userId, 'INACTIVE');
                   const activateAction = updateStaffStatusAction.bind(null, member.userId, 'ACTIVE');
+                  const resendAction = resendStaffInvitationAction.bind(null, member.userId);
 
                   return (
                     <tr key={member.id} className="hover:bg-white/5">
@@ -115,10 +116,31 @@ export default async function StaffListPage({
                           {member.status}
                         </span>
                       </td>
-                      <td className="py-3.5 px-3 font-mono text-slate-400">
-                        {new Date(member.createdAt).toLocaleDateString()}
+                      <td className="py-3.5 px-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            member.status === 'ACTIVE'
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                              : member.status === 'INVITED'
+                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                                : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                          }`}
+                        >
+                          {member.status}
+                        </span>
                       </td>
-                      <td className="py-3.5 px-3 text-right">
+                      <td className="py-3.5 px-3 font-mono text-slate-400">
+                        {member.status === 'ACTIVE' ? (
+                          new Date(member.createdAt).toLocaleDateString()
+                        ) : member.status === 'INVITED' ? (
+                          <span className="text-xs text-amber-400">
+                            Invited {new Date(member.invitedAt ?? member.createdAt).toLocaleDateString()}
+                          </span>
+                        ) : (
+                          new Date(member.createdAt).toLocaleDateString()
+                        )}
+                      </td>
+<td className="py-3.5 px-3 text-right">
                         {member.status === 'ACTIVE' ? (
                           canDeactivateStaff ? (
                             <form action={deactivateAction} className="inline-block">
@@ -132,7 +154,34 @@ export default async function StaffListPage({
                           ) : (
                             <span className="text-[11px] text-slate-500">Active</span>
                           )
-                        ) : (
+                        ) : member.status === 'INVITED' ? (
+                          <span className="inline-flex items-center gap-2">
+                            {canCreateStaff ? (
+                              <form action={resendAction} className="inline-block">
+                                <button
+                                  type="submit"
+                                  title="Send a fresh invitation email"
+                                  className="rounded border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-400 hover:bg-amber-500/20"
+                                >
+                                  Resend Invitation
+                                </button>
+                              </form>
+                            ) : (
+                              <span className="text-[11px] text-slate-500">Invitation pending</span>
+                            )}
+                            {canDeactivateStaff && (
+                              <form action={deactivateAction} className="inline-block">
+                                <button
+                                  type="submit"
+                                  title="Cancel this invitation"
+                                  className="rounded border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-semibold text-red-400 hover:bg-red-500/20"
+                                >
+                                  Cancel
+                                </button>
+                              </form>
+                            )}
+                          </span>
+                        ) : member.status === 'INACTIVE' ? (
                           canActivateStaff ? (
                             <form action={activateAction} className="inline-block">
                               <button
@@ -140,6 +189,19 @@ export default async function StaffListPage({
                                 className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400 hover:bg-emerald-500/20"
                               >
                                 Activate
+                              </button>
+                            </form>
+                          ) : (
+                            <span className="text-[11px] text-slate-500">Inactive</span>
+                          )
+                        ) : (
+                          canDeactivateStaff ? (
+                            <form action={deactivateAction} className="inline-block">
+                              <button
+                                type="submit"
+                                className="rounded border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[11px] font-semibold text-red-400 hover:bg-red-500/20"
+                              >
+                                Deactivate
                               </button>
                             </form>
                           ) : (

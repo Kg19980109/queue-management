@@ -47,15 +47,18 @@ export default function NewStaffPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-300">Assigned Role</label>
-          <input
-            type="text"
-            disabled
-            value="STAFF (Floor Operator)"
-            className="mt-1 w-full rounded-lg border border-slate-800 bg-slate-950/80 px-3 py-2 text-sm text-slate-400 font-mono select-none"
-          />
+          <label className="block text-xs font-medium text-slate-300">Assigned Role *</label>
+          <select
+            name="role"
+            defaultValue="STAFF"
+            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+          >
+            <option value="STAFF">STAFF (Floor Operator)</option>
+            <option value="RESTAURANT_ADMIN">RESTAURANT_ADMIN (Co-manager)</option>
+          </select>
           <span className="mt-1 block text-[11px] text-slate-500">
-            Staff accounts have operational access restricted to your assigned restaurant.
+            Invited accounts have access restricted to your restaurant. Platform
+            (Super Admin) access cannot be granted from here.
           </span>
         </div>
 
