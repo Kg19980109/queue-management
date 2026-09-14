@@ -368,7 +368,10 @@ export async function removeIngredientAction(ingredientId: string, _menuItemId: 
 export async function updateQueueStatusAction(entryId: string, newStatus: QueueStatus, actorUserId?: string, reason?: string | FormData): Promise<void> {
   try {
     // When used as <form action={fn.bind(null, a,b,c)}>, Next.js passes FormData as last arg
-    const effectiveReason: string | undefined = typeof reason === 'string' ? reason : undefined;
+    let effectiveReason: string | undefined = typeof reason === 'string' ? reason : undefined;
+    if (!effectiveReason && reason instanceof FormData) {
+      effectiveReason = (reason.get('reason') as string) || undefined;
+    }
     let effectiveActorId: string | undefined = typeof actorUserId === 'string' ? actorUserId : undefined;
     // If actorUserId is actually FormData (when called without userId via bind), resolve via auth
     if (!effectiveActorId || typeof effectiveActorId !== 'string' || effectiveActorId.length < 10) {
@@ -386,6 +389,13 @@ export async function updateQueueStatusAction(entryId: string, newStatus: QueueS
     throw error instanceof Error ? error : new Error('Failed to update queue entry status.');
   }
   revalidatePath('/dashboard/queue');
+}
+
+export async function markNoShowAction(formData: FormData): Promise<void> {
+  const entryId = formData.get('entryId') as string;
+  const reason = (formData.get('reason') as string) || 'STAFF_MARKED_NO_SHOW';
+  const actorUserId = formData.get('actorUserId') as string | undefined;
+  await updateQueueStatusAction(entryId, 'NO_SHOW', actorUserId, reason);
 }
 
 export async function toggleQueueOpenAction(restaurantId: string, open: boolean, actorUserId: string): Promise<void> {

@@ -14,6 +14,7 @@ import {
   setQueueOperatingStateFormAction,
   updateQueueSettingsFormAction,
   updateETASettingsFormAction,
+  markNoShowAction,
 } from '@/app/dashboard/actions';
 import { SeatCustomerModal, SeatableTableItem } from '@/components/dashboard/SeatCustomerModal';
 import { AddQueueGuestModal } from '@/components/dashboard/AddQueueGuestModal';
@@ -37,10 +38,11 @@ export default async function QueueManagementPage({
   }
 
   // Parallelize independent fetches for snappy load
-  const [entries, activeEntries, tablesRes] = await Promise.all([
+  const [entries, activeEntries, tablesRes, queueHealth] = await Promise.all([
     QueueService.getAllQueueEntries(restaurant.id, statusFilter, searchTerm),
     QueueService.getActiveQueue(restaurant.id),
     TableService.listTables({ restaurantId: restaurant.id }),
+    QueueService.getQueueHealth(restaurant.id, userId),
   ]);
 
   const waitingEntries = activeEntries.filter((e) => e.status === 'WAITING');
@@ -177,6 +179,99 @@ export default async function QueueManagementPage({
           <b className="text-slate-400">OPEN:</b> joins allowed • <b className="text-amber-400">PAUSED</b> new joins blocked (existing intact) • <b className="text-blue-400">CLOSING_SOON</b> warning but still allows joins • <b className="text-rose-400">CLOSED</b> joins blocked • <b className="text-slate-400">FULL</b> auto when {activeEntries.filter(e=>['WAITING','NOTIFIED','CALLED'].includes(e.status)).length}/{restaurant.max_queue_capacity} active
         </p>
       </div>
+
+      {/* Queue Health - server-side aggregation */}
+      <div className={`p-4 rounded-2xl border flex flex-col gap-3 ${queueHealth.health === 'HEALTHY' ? 'bg-emerald-500/10 border-emerald-500/20' : queueHealth.health === 'BUSY' ? 'bg-amber-500/10 border-amber-500/20' : queueHealth.health === 'CRITICAL' ? 'bg-rose-500/10 border-rose-500/30' : queueHealth.health === 'EMPTY' ? 'bg-slate-800/50 border-white/5' : queueHealth.health === 'PAUSED' ? 'bg-amber-500/10 border-amber-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${queueHealth.health === 'HEALTHY' ? 'bg-emerald-400' : queueHealth.health === 'BUSY' ? 'bg-amber-400' : queueHealth.health === 'CRITICAL' ? 'bg-rose-500 animate-pulse' : queueHealth.health === 'EMPTY' ? 'bg-slate-400' : queueHealth.health === 'PAUSED' ? 'bg-amber-400' : 'bg-rose-500'}`}></span>
+            Queue Health — {queueHealth.health}
+          </h3>
+          <span className="text-xs font-bold text-slate-300">{queueHealth.healthReason}</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="bg-black/20 rounded-xl p-3 border border-white/5">
+            <div className="text-[10px] font-bold text-slate-400 uppercase">Active</div>
+            <div className="text-lg font-black text-white">{queueHealth.activeCount} <span className="text-xs font-normal text-slate-400">/ {restaurant.max_queue_capacity}</span></div>
+            <div className="text-[10px] text-slate-500">{queueHealth.waitingCount} WAITING • {queueHealth.notifiedCount} NOTIFIED • {queueHealth.calledCount} CALLED</div>
+          </div>
+          <div className="bg-black/20 rounded-xl p-3 border border-white/5">
+            <div className="text-[10px] font-bold text-slate-400 uppercase">Overdue CALLED</div>
+            <div className={`text-lg font-black ${queueHealth.overdueCount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>{queueHealth.overdueCount}</div>
+            <div className="text-[10px] text-slate-500">call timeout {restaurant.call_timeout_minutes}m</div>
+          </div>
+          <div className="bg-black/20 rounded-xl p-3 border border-white/5">
+            <div className="text-[10px] font-bold text-slate-400 uppercase">Oldest Waiting</div>
+            <div className="text-lg font-black text-white">{queueHealth.oldestWaitingAgeMins !== null ? `${queueHealth.oldestWaitingAgeMins}m` : '—'}</div>
+            <div className="text-[10px] text-slate-500">avg wait ~{queueHealth.avgWaitMins ?? '—'}m</div>
+          </div>
+          <div className="bg-black/20 rounded-xl p-3 border border-white/5">
+            <div className="text-[10px] font-bold text-slate-400 uppercase">Tables</div>
+            <div className="text-sm font-black text-white">{queueHealth.availableTables} avail <span className="text-xs font-normal text-slate-400">/ {queueHealth.totalTables}</span></div>
+            <div className="text-[10px] text-slate-500">{queueHealth.occupiedTables} occ • {queueHealth.cleaningTables} clean • {queueHealth.reservedTables} res • {queueHealth.outOfServiceTables} ooo</div>
+          </div>
+        </div>
+        <div className="text-[10px] text-slate-500">Operating: <b className="text-slate-300">{queueHealth.operatingState}</b> {queueHealth.queueEnabled ? '' : '(queue disabled)'} • Priority: CLOSED &gt; PAUSED &gt; CRITICAL &gt; BUSY &gt; EMPTY/HEALTHY</div>
+      </div>
+
+      {/* Needs Attention - operational view */}
+      {(() => {
+        const needsAttention = [...entries]
+          .filter(e => ['CALLED','NOTIFIED','WAITING'].includes(e.status))
+          .sort((a,b) => {
+            const order: Record<string, number> = { CALLED: 0, NOTIFIED: 1, WAITING: 2 };
+            const ao = order[a.status] ?? 9;
+            const bo = order[b.status] ?? 9;
+            if (ao !== bo) return ao - bo;
+            // overdue first
+            const aOverdue = a.status === 'CALLED' && a.called_at && (Date.now() - new Date(a.called_at).getTime()) > (restaurant.call_timeout_minutes*60*1000) ? 0 : 1;
+            const bOverdue = b.status === 'CALLED' && b.called_at && (Date.now() - new Date(b.called_at).getTime()) > (restaurant.call_timeout_minutes*60*1000) ? 0 : 1;
+            if (aOverdue !== bOverdue) return aOverdue - bOverdue;
+            return new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime();
+          })
+          .slice(0, 5);
+        if (needsAttention.length === 0) return null;
+        return (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col gap-3">
+            <h3 className="text-xs font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px]">priority_high</span>
+              Needs Attention — {needsAttention.length}
+            </h3>
+            <div className="space-y-2">
+              {needsAttention.map(entry => {
+                const isOverdue = entry.status === 'CALLED' && entry.called_at && (Date.now() - new Date(entry.called_at).getTime()) > (restaurant.call_timeout_minutes*60*1000);
+                const calledAgeMins = entry.called_at ? Math.floor((Date.now() - new Date(entry.called_at).getTime())/60000) : null;
+                const timeoutIn = calledAgeMins !== null ? restaurant.call_timeout_minutes - calledAgeMins : null;
+                return (
+                  <div key={entry.id} className="flex items-center justify-between p-3 rounded-xl bg-[#111827] border border-white/5">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${entry.status==='CALLED' ? 'bg-blue-600 text-white' : entry.status==='NOTIFIED' ? 'bg-purple-600 text-white' : 'bg-slate-700 text-white'}`}>{entry.display_number || entry.queue_number}</span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-white truncate">{entry.customer_name} • {entry.party_size} guests</div>
+                        <div className="text-xs text-slate-400 flex items-center gap-2">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${entry.status==='CALLED' ? 'bg-blue-500/20 border-blue-500/30 text-blue-400' : entry.status==='NOTIFIED' ? 'bg-purple-500/20 border-purple-500/30 text-purple-400' : 'bg-white/5 border-white/10 text-slate-300'}`}>{entry.status}</span>
+                          {entry.status==='CALLED' && calledAgeMins !== null && (
+                            <span className={`text-[11px] ${isOverdue ? 'text-rose-400 font-bold' : timeoutIn !== null && timeoutIn <= 2 ? 'text-amber-400 font-bold' : 'text-slate-400'}`}>
+                              {isOverdue ? `Overdue by ${Math.abs(timeoutIn!)}m` : timeoutIn !== null ? `Timeout in ${timeoutIn}m` : `Called ${calledAgeMins}m ago`}
+                            </span>
+                          )}
+                          {entry.status==='CALLED' && isOverdue && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {entry.status==='CALLED' && <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId, 'STAFF_MARKED_NO_SHOW')} onSubmit={e=>{if(!confirm(`Mark ${entry.customer_name} as no-show?`)) e.preventDefault();}}><button type="submit" className="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold">No-Show</button></form>}
+                      {entry.status==='CALLED' && <div className="scale-75 origin-right"><SeatCustomerModal entryId={entry.id} customerName={entry.customer_name} displayNumber={entry.display_number} partySize={entry.party_size} userId={userId} seatableTables={seatableTablesMap.get(entry.party_size) || []} /></div>}
+                      {entry.status==='NOTIFIED' && <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)}><button type="submit" className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold">Call</button></form>}
+                      {entry.status==='WAITING' && <form action={updateQueueStatusAction.bind(null, entry.id, 'NOTIFIED', userId)}><button type="submit" className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold">Notify</button></form>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Real-time KPI Dynamic Ribbon - horizontal scroll on mobile, grid on desktop */}
       <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 sm:gap-4 pb-2 hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-5 md:grid md:grid-cols-3">
@@ -374,9 +469,17 @@ export default async function QueueManagementPage({
                             <span className="material-symbols-outlined text-[14px]">schedule</span>
                             {new Date(entry.joined_at || entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
+                          {isCalled && entry.called_at && (
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${(() => { const age = Date.now() - new Date(entry.called_at).getTime(); const timeoutMs = (restaurant.call_timeout_minutes || 15)*60*1000; const remaining = timeoutMs - age; if (remaining <= 0) return 'bg-rose-500/20 border-rose-500/30 text-rose-400 animate-pulse'; if (remaining <= 2*60*1000) return 'bg-amber-500/20 border-amber-500/30 text-amber-400'; return 'bg-blue-500/10 border-blue-500/20 text-blue-400'; })()}`}>
+                              {(() => { const ageMins = Math.floor((Date.now() - new Date(entry.called_at).getTime())/60000); const timeoutMins = restaurant.call_timeout_minutes || 15; const remaining = timeoutMins - ageMins; if (remaining <= 0) return `Overdue ${Math.abs(remaining)}m`; if (remaining <= 2) return `Timeout in ${remaining}m`; return `Called ${ageMins}m ago`; })()}
+                            </span>
+                          )}
                           <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-widest font-bold shrink-0 ${isSeated ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-400' : isNotified ? 'bg-purple-900/30 border-purple-500/30 text-purple-400' : isCalled ? 'bg-blue-900/30 border-blue-500/30 text-blue-400' : 'bg-white/5 border-white/10 text-slate-400'}`}>
                             {entry.status}
                           </span>
+                          {entry.status === 'NO_SHOW' && (entry as unknown as { no_show_reason?: string; no_show_at?: string }).no_show_reason && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300">{(entry as unknown as { no_show_reason: string }).no_show_reason}</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -447,10 +550,18 @@ export default async function QueueManagementPage({
                       )}
 
                       {isCalled && (
-                        <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId, 'STAFF_MARKED_NO_SHOW')} className="col-span-2 sm:col-span-1" onSubmit={(e) => { if (!confirm(`Mark ${entry.customer_name} (${entry.display_number}) as no-show?`)) e.preventDefault(); }}>
-                          <button type="submit" className="w-full sm:w-auto px-4 h-11 rounded-xl bg-transparent active:bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm font-bold flex items-center justify-center gap-1.5">
-                            <span className="material-symbols-outlined text-[16px]">person_off</span>
-                            <span>No-Show</span>
+                        <form action={markNoShowAction} className="col-span-2 sm:col-span-1 flex gap-1" onSubmit={(e) => { if (!confirm(`Mark ${entry.customer_name} (${entry.display_number}) as no-show?`)) e.preventDefault(); }}>
+                          <input type="hidden" name="entryId" value={entry.id} />
+                          <input type="hidden" name="actorUserId" value={userId} />
+                          <select name="reason" defaultValue="STAFF_MARKED_NO_SHOW" className="flex-1 min-w-0 h-11 rounded-xl bg-[#1A2333] border border-white/10 text-slate-200 text-xs font-bold px-2">
+                            <option value="STAFF_MARKED_NO_SHOW">Staff marked</option>
+                            <option value="CUSTOMER_DID_NOT_RETURN">Did not return</option>
+                            <option value="CUSTOMER_DID_NOT_RESPOND">No response</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                          <button type="submit" className="shrink-0 px-3 h-11 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px]">person_off</span>
+                            No-Show
                           </button>
                         </form>
                       )}

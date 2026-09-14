@@ -6,6 +6,31 @@ import { AuthorizationService } from '@/lib/services/authorization-service';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { z } from 'zod';
 
+export type QueueHealthState = 'HEALTHY' | 'BUSY' | 'CRITICAL' | 'EMPTY' | 'CLOSED' | 'PAUSED';
+
+export interface QueueHealth {
+  activeCount: number;
+  waitingCount: number;
+  notifiedCount: number;
+  calledCount: number;
+  seatedCount: number;
+  noShowCountToday: number;
+  avgWaitMins: number | null;
+  oldestWaitingAgeMins: number | null;
+  overdueCount: number;
+  availableTables: number;
+  occupiedTables: number;
+  cleaningTables: number;
+  reservedTables: number;
+  outOfServiceTables: number;
+  totalTables: number;
+  operatingState: QueueOperatingState;
+  queueEnabled: boolean;
+  isFull: boolean;
+  health: QueueHealthState;
+  healthReason: string;
+}
+
 export const JoinQueueSchema = z.object({
   restaurantId: z.string().uuid(),
   customerName: z.string().min(1, 'Customer name is required').max(100),
@@ -686,12 +711,107 @@ export class QueueService {
     const { data: entry, error: fetchErr } = await supabase.from('queue_entries').select('restaurant_id, party_size, status').eq('id', queueEntryId).single();
     if (fetchErr || !entry) throw new Error('QUEUE_ENTRY_NOT_FOUND');
     if (!['WAITING','NOTIFIED','CALLED'].includes(entry.status)) throw new Error('QUEUE_ENTRY_NOT_SEATABLE');
-    // Permission check if actor provided
+    // Permission check if actor provided - viewing recommendations requires queue.view
     if (actorUserId) {
       await AuthorizationService.requirePermission({ userId: actorUserId, restaurantId: entry.restaurant_id, permission: PERMISSIONS.QUEUE_VIEW });
     }
     const { data, error } = await supabase.rpc('recommend_tables_for_queue_entry', { p_queue_entry_id: queueEntryId });
     if (error) throw new Error(`Failed to recommend tables: ${error.message}`);
     return (data as unknown as Array<{ table_id: string; table_number: string; capacity: number; zone_name: string | null; rank: number; reason: string }>) || [];
+  }
+
+  /**
+   * Get queue health - server-side aggregation, no browser fetching of all rows
+   */
+  static async getQueueHealth(restaurantId: string, actorUserId?: string): Promise<QueueHealth> {
+    if (actorUserId) {
+      await AuthorizationService.requirePermission({ userId: actorUserId, restaurantId, permission: PERMISSIONS.QUEUE_VIEW });
+    }
+    const supabase = createAdminClient();
+    const { data: restaurant, error: restErr } = await supabase.from('restaurants').select('queue_enabled, queue_operating_state, max_queue_capacity, call_timeout_minutes').eq('id', restaurantId).single();
+    if (restErr || !restaurant) throw new Error('Restaurant not found');
+    const queueEnabled = restaurant.queue_enabled;
+    const operatingState = (restaurant as unknown as { queue_operating_state: QueueOperatingState }).queue_operating_state || 'OPEN';
+    const maxCapacity = restaurant.max_queue_capacity;
+
+    // Parallel aggregates
+    const [
+      activeRes,
+      waitingRes,
+      notifiedRes,
+      calledRes,
+      seatedRes,
+      noShowRes,
+      oldestRes,
+      tablesRes,
+    ] = await Promise.all([
+      supabase.from('queue_entries').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId).in('status', ['WAITING','NOTIFIED','CALLED']),
+      supabase.from('queue_entries').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId).eq('status', 'WAITING'),
+      supabase.from('queue_entries').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId).eq('status', 'NOTIFIED'),
+      supabase.from('queue_entries').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId).eq('status', 'CALLED'),
+      supabase.from('queue_entries').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId).eq('status', 'SEATED'),
+      supabase.from('queue_entries').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId).eq('status', 'NO_SHOW').gte('created_at', new Date(Date.now() - 24*60*60*1000).toISOString()),
+      supabase.from('queue_entries').select('joined_at').eq('restaurant_id', restaurantId).eq('status', 'WAITING').order('joined_at', { ascending: true }).limit(1).maybeSingle(),
+      supabase.from('restaurant_tables').select('status').eq('restaurant_id', restaurantId).eq('is_archived', false),
+    ]);
+
+    let overdueCount = 0;
+    try {
+      const timeoutMins = restaurant.call_timeout_minutes || 15;
+      const { count } = await supabase.from('queue_entries').select('id', { count: 'exact', head: true }).eq('restaurant_id', restaurantId).eq('status', 'CALLED').lt('called_at', new Date(Date.now() - timeoutMins*60*1000).toISOString());
+      overdueCount = count || 0;
+    } catch { overdueCount = 0; }
+
+    const activeCount = activeRes.count || 0;
+    const waitingCount = waitingRes.count || 0;
+    const notifiedCount = notifiedRes.count || 0;
+    const calledCount = calledRes.count || 0;
+    const seatedCount = seatedRes.count || 0;
+    const noShowCountToday = noShowRes.count || 0;
+    const oldestWaitingAgeMins = (oldestRes as unknown as { data: { joined_at: string } | null })?.data?.joined_at ? Math.floor((Date.now() - new Date((oldestRes as unknown as { data: { joined_at: string } }).data.joined_at).getTime())/60000) : null;
+    const tables = (tablesRes as unknown as { data: Array<{ status: string }> | null })?.data || [];
+    const availableTables = tables.filter((t: { status: string }) => t.status === 'AVAILABLE').length;
+    const occupiedTables = tables.filter((t: { status: string }) => t.status === 'OCCUPIED').length;
+    const cleaningTables = tables.filter((t: { status: string }) => t.status === 'CLEANING').length;
+    const reservedTables = tables.filter((t: { status: string }) => t.status === 'RESERVED').length;
+    const outOfServiceTables = tables.filter((t: { status: string }) => t.status === 'OUT_OF_SERVICE').length;
+    const totalTables = tables.length;
+
+    // Calculate avg wait via ETA service if needed (simplified: use oldest waiting)
+    let avgWaitMins: number | null = null;
+    if (activeCount > 0 && oldestWaitingAgeMins !== null) {
+      avgWaitMins = oldestWaitingAgeMins;
+    }
+
+    const isFull = activeCount >= maxCapacity;
+
+    // Health classification priority: CLOSED > PAUSED > CRITICAL > BUSY > EMPTY > HEALTHY
+    let health: QueueHealthState = 'HEALTHY';
+    let healthReason = 'Queue is healthy';
+    if (!queueEnabled || operatingState === 'CLOSED') {
+      health = 'CLOSED';
+      healthReason = 'Queue is closed';
+    } else if (operatingState === 'PAUSED') {
+      health = 'PAUSED';
+      healthReason = 'Queue is paused';
+    } else if (activeCount === 0) {
+      health = 'EMPTY';
+      healthReason = 'No active queue';
+    } else if (activeCount >= maxCapacity * 0.9 || overdueCount > 0 || (activeCount > 0 && availableTables === 0)) {
+      health = 'CRITICAL';
+      if (overdueCount > 0) healthReason = `${overdueCount} overdue called`;
+      else if (availableTables === 0) healthReason = 'No available tables';
+      else healthReason = `Queue ${Math.round(activeCount/maxCapacity*100)}% full`;
+    } else if (activeCount >= maxCapacity * 0.6) {
+      health = 'BUSY';
+      healthReason = `Queue ${Math.round(activeCount/maxCapacity*100)}% full`;
+    }
+
+    return {
+      activeCount, waitingCount, notifiedCount, calledCount, seatedCount, noShowCountToday,
+      avgWaitMins, oldestWaitingAgeMins, overdueCount,
+      availableTables, occupiedTables, cleaningTables, reservedTables, outOfServiceTables, totalTables,
+      operatingState, queueEnabled, isFull, health, healthReason,
+    };
   }
 }
