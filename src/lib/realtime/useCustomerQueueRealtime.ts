@@ -84,8 +84,22 @@ export async function broadcastCustomerQueueUpdate(entryId: string) {
   try {
     const supabase = createBrowserClient();
     const channel = supabase.channel(`customer-queue:${entryId}`);
-    await channel.subscribe();
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('subscribe timeout')), 5000);
+      channel.subscribe((status: string) => {
+        if (status === 'SUBSCRIBED') {
+          clearTimeout(timeout);
+          resolve();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          clearTimeout(timeout);
+          reject(new Error(status));
+        }
+      });
+    });
     await channel.send({ type: 'broadcast', event: 'queue_update', payload: { entryId } } as never);
-    await supabase.removeChannel(channel as unknown as never);
+    // Keep channel briefly to ensure delivery, then cleanup
+    setTimeout(() => {
+      supabase.removeChannel(channel as unknown as never);
+    }, 1000);
   } catch {}
 }

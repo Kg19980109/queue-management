@@ -5,7 +5,6 @@ import { RestaurantAdminService } from '@/lib/services/restaurant-admin-service'
 import { QueueService } from '@/lib/services/queue-service';
 import { TableService } from '@/lib/services/table-service';
 import { OrderService } from '@/lib/services/order-service';
-import { DashboardRealtimeSilent } from '@/components/realtime/DashboardRealtime';
 
 function getWaitTimeMins(joinedAt: string) {
   const diffMs = new Date().getTime() - new Date(joinedAt).getTime();
@@ -62,7 +61,6 @@ export default async function RestaurantAdminDashboardPage() {
 
   return (
     <div className="flex flex-col w-full text-slate-300 font-sans p-4 sm:p-6 md:p-8 gap-5 sm:gap-6 md:gap-8">
-      <DashboardRealtimeSilent restaurantId={restaurantId} />
       
       {/* Top Section: Greeting and Quick Action */}
       <section className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-4 sm:gap-6 relative z-10">

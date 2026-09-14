@@ -5,7 +5,6 @@ import { QueueService } from '@/lib/services/queue-service';
 import { RestaurantAdminService } from '@/lib/services/restaurant-admin-service';
 import { createAdminClient } from '@/lib/db/supabase/admin';
 import { FloorManagerClient } from '@/components/dashboard/FloorManagerClient';
-import { TableRealtime } from '@/components/realtime/TableRealtime';
 
 export default async function TablesPage() {
   const { restaurantId } = await RestaurantAdminService.getAuthorizedRestaurantContext();
@@ -28,15 +27,12 @@ export default async function TablesPage() {
   ]);
 
   return (
-    <>
-      <TableRealtime restaurantId={restaurant.id} />
-      <FloorManagerClient
+    <FloorManagerClient
         tables={tables}
         zones={zones}
         stats={stats}
         restaurantName={restaurant.name}
         queueEntries={queueEntries}
       />
-    </>
   );
 }
