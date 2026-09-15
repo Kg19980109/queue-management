@@ -20,6 +20,9 @@ import { AddQueueGuestModal } from '@/components/dashboard/AddQueueGuestModal';
 import { ConfirmSubmitButton } from '@/components/dashboard/ConfirmSubmitButton';
 import { DashboardHomeRealtime } from '@/components/dashboard/DashboardHomeRealtime';
 
+// Session-dependent cockpit: never prerender statically.
+export const dynamic = 'force-dynamic';
+
 const HEALTH_TONE: Record<string, { dot: string; ring: string; label: string }> = {
   HEALTHY: { dot: 'bg-emerald-400', ring: 'border-emerald-500/25 bg-emerald-500/10', label: 'Healthy' },
   BUSY: { dot: 'bg-amber-400', ring: 'border-amber-500/25 bg-amber-500/10', label: 'Busy' },

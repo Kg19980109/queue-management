@@ -10,25 +10,27 @@ const connectionString = process.env.DATABASE_URL;
 
 describe('Phase 3A: Live cron handler verification', () => {
   let client: Client;
-  const RID = '33333333-3333-4333-a333-333333333333';
+  // Dedicated fixture id — never the shared 33333333 worker fixture, so this
+  // file's rows can neither pollute nor be wiped by worker-maintenance.test.ts
+  // running in parallel. Removed in afterAll (DELETE cascades to children).
+  const RID = 'd0000000-0000-4000-d000-00000000003a';
 
   beforeAll(async () => {
     if (!connectionString) throw new Error('DATABASE_URL required');
     client = new Client({ connectionString });
     await client.connect();
-    // Self-sufficient fixture: worker-maintenance.test.ts cleans up its own
-    // 33333333 restaurant in afterAll, so never assume it exists here.
     await client.query(
       `INSERT INTO public.restaurants (id, name, slug, queue_enabled, max_queue_capacity, min_party_size, max_party_size, status, call_timeout_minutes)
-       VALUES ('33333333-3333-4333-a333-333333333333', 'Phase 3A Worker Demo', 'phase3a-worker-demo', true, 100, 1, 20, 'ACTIVE', 15)
+       VALUES ('d0000000-0000-4000-d000-00000000003a', 'Phase 3A Cron Verify', 'phase3a-cron-verify', true, 100, 1, 20, 'ACTIVE', 15)
        ON CONFLICT (id) DO UPDATE SET queue_enabled = true, status = 'ACTIVE', call_timeout_minutes = 15`
     );
   });
 
   afterAll(async () => {
-    // NOTE: the shared 33333333 fixture is intentionally kept — deleting it
-    // here would race worker-maintenance.test.ts running in parallel.
-    if (client) await client.end();
+    if (client) {
+      await client.query('DELETE FROM public.restaurants WHERE id = $1', [RID]).catch(() => undefined);
+      await client.end();
+    }
   });
 
   it('queue-maintenance: invalid/missing auth rejected, restaurant_id param rejected, valid auth expires overdue', async () => {

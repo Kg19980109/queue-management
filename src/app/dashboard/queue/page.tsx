@@ -19,6 +19,7 @@ import {
 } from '@/app/dashboard/actions';
 import { SeatCustomerModal, SeatableTableItem } from '@/components/dashboard/SeatCustomerModal';
 import { AddQueueGuestModal } from '@/components/dashboard/AddQueueGuestModal';
+import { ConfirmSubmitButton } from '@/components/dashboard/ConfirmSubmitButton';
 import { logger } from '@/lib/logging/logger';
 import Link from 'next/link';
 
@@ -362,7 +363,7 @@ export default async function QueueManagementPage({
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      {entry.status==='CALLED' && <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId, 'STAFF_MARKED_NO_SHOW')} onSubmit={e=>{if(!confirm(`Mark ${entry.customer_name} as no-show?`)) e.preventDefault();}}><button type="submit" className="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold">No-Show</button></form>}
+                      {entry.status==='CALLED' && <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId, 'STAFF_MARKED_NO_SHOW')}><ConfirmSubmitButton idleLabel="No-Show" armedLabel="Confirm?" className="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold transition-colors hover:bg-rose-500/20 active:scale-95" /></form>}
                       {entry.status==='CALLED' && <div className="scale-75 origin-right"><SeatCustomerModal entryId={entry.id} customerName={entry.customer_name} displayNumber={entry.display_number} partySize={entry.party_size} userId={userId} seatableTables={seatableTablesMap.get(entry.party_size) || []} /></div>}
                       {entry.status==='NOTIFIED' && <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)}><button type="submit" className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold">Call</button></form>}
                       {entry.status==='WAITING' && <form action={updateQueueStatusAction.bind(null, entry.id, 'NOTIFIED', userId)}><button type="submit" className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold">Notify</button></form>}
@@ -652,7 +653,7 @@ export default async function QueueManagementPage({
                       )}
 
                       {isCalled && (
-                        <form action={markNoShowAction} className="col-span-2 sm:col-span-1 flex gap-1" onSubmit={(e) => { if (!confirm(`Mark ${entry.customer_name} (${entry.display_number}) as no-show?`)) e.preventDefault(); }}>
+                        <form action={markNoShowAction} className="col-span-2 sm:col-span-1 flex gap-1">
                           <input type="hidden" name="entryId" value={entry.id} />
                           <input type="hidden" name="actorUserId" value={userId} />
                           <select name="reason" defaultValue="STAFF_MARKED_NO_SHOW" className="flex-1 min-w-0 h-11 rounded-xl bg-[#1A2333] border border-white/10 text-slate-200 text-xs font-bold px-2">
@@ -661,10 +662,11 @@ export default async function QueueManagementPage({
                             <option value="CUSTOMER_DID_NOT_RESPOND">No response</option>
                             <option value="OTHER">Other</option>
                           </select>
-                          <button type="submit" className="shrink-0 px-3 h-11 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[14px]">person_off</span>
-                            No-Show
-                          </button>
+                          <ConfirmSubmitButton
+                            idleLabel="No-Show"
+                            armedLabel="Sure?"
+                            className="shrink-0 px-3 h-11 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-1 transition-colors hover:bg-rose-500/20 active:scale-95"
+                          />
                         </form>
                       )}
                     </div>

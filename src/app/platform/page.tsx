@@ -23,6 +23,10 @@ function startOfTodayUTC(): Date {
   return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()));
 }
 
+// Session-dependent cockpit: never prerender statically (kills the
+// DynamicServerError build warning and documents dynamic intent).
+export const dynamic = 'force-dynamic';
+
 function daysAgoUTC(n: number): Date {
   const t = startOfTodayUTC();
   t.setUTCDate(t.getUTCDate() - n);

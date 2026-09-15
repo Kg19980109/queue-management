@@ -7,6 +7,9 @@ import { logger } from '@/lib/logging/logger';
 
 type Mode = 'day' | 'month';
 
+// Session-dependent analytics: never prerender statically.
+export const dynamic = 'force-dynamic';
+
 function parseDate(s: string | undefined, fallback: Date): Date {
   if (!s) return fallback;
   const d = new Date(`${s}T00:00:00Z`);
