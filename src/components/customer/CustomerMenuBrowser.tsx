@@ -141,7 +141,10 @@ export function CustomerMenuBrowser({
         });
 
         if (result && result.rawToken) {
-          router.push(`/q/${restaurantSlug}/order/${result.rawToken}`);
+          // Preserve the queue ticket across the order-confirmation page so
+          // "Back to My Ticket" never strands the customer on the join form.
+          const suffix = queueToken ? `?qtoken=${encodeURIComponent(queueToken)}` : '';
+          router.push(`/q/${restaurantSlug}/order/${result.rawToken}${suffix}`);
         } else if (result && result.order && queueToken) {
           // Idempotent replay: the order token is not recoverable from
           // storage (raw tokens are never persisted), so return to the

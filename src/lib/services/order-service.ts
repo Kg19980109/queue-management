@@ -445,6 +445,43 @@ export class OrderService {
   }
 
   /**
+   * List all orders linked to a queue entry (for "My Orders" on ticket page).
+   * Authorized by entryId + restaurantId derived server-side from queue token —
+   * never trust client-supplied ids alone.
+   */
+  static async listCustomerOrdersByQueueEntry(entryId: string, restaurantId: string) {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id, order_number, status, payment_status, subtotal, tax, total, created_at, order_items(name_snapshot, quantity, total_price)')
+      .eq('restaurant_id', restaurantId)
+      .eq('queue_entry_id', entryId)
+      .order('created_at', { ascending: true });
+    if (error) {
+      logger.warn('Failed to fetch orders by queue entry', {
+        operation: 'listCustomerOrdersByQueueEntry',
+        metadata: { error: error.message },
+      });
+      return [];
+    }
+    return (data || []).map((o) => ({
+      id: o.id,
+      orderNumber: o.order_number as string,
+      status: o.status as OrderStatus,
+      paymentStatus: o.payment_status as PaymentStatus,
+      total: Number(o.total),
+      createdAt: o.created_at as string,
+      itemCount: ((o.order_items || []) as Array<{ quantity: number }>).reduce(
+        (s, i) => s + (i.quantity || 0),
+        0
+      ),
+      items: ((o.order_items || []) as Array<{ name_snapshot: string; quantity: number; total_price: number }>).map(
+        (i) => ({ name: i.name_snapshot, quantity: i.quantity, totalPrice: Number(i.total_price) })
+      ),
+    }));
+  }
+
+  /**
    * Public Customer Order Status Lookup by Token.
    */
   static async getCustomerOrderStateByToken(rawToken: string) {

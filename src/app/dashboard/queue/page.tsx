@@ -132,6 +132,14 @@ export default async function QueueManagementPage({
   todayStart.setHours(0, 0, 0, 0);
   const todayEntries = entries.filter(e => new Date(e.created_at) >= todayStart);
   const seatedToday = todayEntries.filter(e => e.status === 'SEATED').length;
+  // Guests actually arrived (seat-time headcount) vs expected party size.
+  // Falls back to party_size for rows seated before the migration.
+  const guestsSeatedToday = todayEntries
+    .filter(e => e.status === 'SEATED')
+    .reduce((s, e) => s + ((e as unknown as { actual_guests?: number }).actual_guests ?? e.party_size ?? 0), 0);
+  const guestsExpectedToday = todayEntries
+    .filter(e => e.status === 'SEATED')
+    .reduce((s, e) => s + (e.party_size ?? 0), 0);
   const noShowsToday = todayEntries.filter(e => e.status === 'NO_SHOW').length;
   const totalResolvedToday = seatedToday + noShowsToday + todayEntries.filter(e => e.status === 'CANCELLED').length;
   const noShowRate = totalResolvedToday > 0 ? ((noShowsToday / totalResolvedToday) * 100).toFixed(1) : '0.0';
@@ -436,7 +444,7 @@ export default async function QueueManagementPage({
           </div>
           <div className="my-2 flex items-baseline gap-2">
             <span className="text-3xl font-black text-white">{seatedToday}</span>
-            <span className="text-xs text-slate-400">groups</span>
+            <span className="text-xs text-slate-400">groups · {guestsSeatedToday} guests{guestsSeatedToday !== guestsExpectedToday ? ` (exp. ${guestsExpectedToday})` : ''}</span>
           </div>
           <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
             <span className="material-symbols-outlined text-[14px]">north_east</span>
@@ -557,7 +565,7 @@ export default async function QueueManagementPage({
                             </span>
                           )}
                         </div>
-                        <span className="text-[13px] sm:text-sm text-slate-400 truncate">{entry.customer_phone || 'No phone'} • {entry.party_size} guests {isLargeGroup ? '• Large group' : ''}</span>
+                        <span className="text-[13px] sm:text-sm text-slate-400 truncate">{entry.customer_phone || 'No phone'} • {(() => { const a = (entry as unknown as { actual_guests?: number }).actual_guests; return a != null && entry.status === 'SEATED' ? `${a} arrived${a !== entry.party_size ? ` (exp. ${entry.party_size})` : ''}` : `${entry.party_size} guests`; })()} {isLargeGroup ? '• Large group' : ''}</span>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="inline-flex items-center gap-1 text-xs text-slate-400">
                             <span className="material-symbols-outlined text-[14px]">schedule</span>

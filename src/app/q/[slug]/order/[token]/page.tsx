@@ -32,10 +32,13 @@ const ORDER_STEPS = [
 
 export default async function CustomerOrderStatusPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; token: string }>;
+  searchParams: Promise<{ qtoken?: string }>;
 }) {
   const { slug, token } = await params;
+  const { qtoken } = await searchParams;
 
   const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(slug);
   const orderDetails = await OrderService.getCustomerOrderStateByToken(token);
@@ -237,13 +240,18 @@ export default async function CustomerOrderStatusPage({
           </div>
         </div>
 
-        {/* Action Button: Back to Queue */}
+        {/* Action Button: Back to Queue Ticket (never the join form) */}
         <a
-          href={`/q/${slug}`}
-          className="block w-full py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-bold text-xs text-center transition-all shadow-lg"
+          href={qtoken ? `/q/${slug}/status/${qtoken}` : `/q/${slug}`}
+          className="block w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold text-xs text-center transition-all shadow-lg"
         >
-          ← Back to Digital Queue
+          {qtoken ? '← Back to My Ticket' : '← Back to Digital Queue'}
         </a>
+        {!qtoken && (
+          <p className="text-center text-[11px] text-slate-500">
+            Tip: open this page from your queue ticket to get a direct back link.
+          </p>
+        )}
       </div>
 
       <footer className="w-full max-w-md mx-auto text-center pt-8 pb-4">

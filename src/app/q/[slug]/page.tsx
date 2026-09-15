@@ -13,6 +13,7 @@ import { TicketResumeBanner } from '@/components/customer/TicketResumeBanner';
 import { LandingAutoRefresh } from '@/components/customer/LandingAutoRefresh';
 import { CustomerErrorState } from '@/components/customer/CustomerErrorState';
 import { resolveJoinability, formatWaitLabel } from '@/lib/customer-join-ux';
+import { getTicketToken } from '@/lib/customer-ticket-cookie';
 import { logger } from '@/lib/logging/logger';
 import type { Metadata } from 'next';
 
@@ -114,6 +115,22 @@ export default async function PublicRestaurantQueuePage({
   const waitLabel =
     !canJoin || waitingCount === 0 ? null : formatWaitLabel(eta?.estimatedWaitMins);
 
+  // If this browser already holds a live ticket (HttpOnly cookie), don't
+  // push the join form again — going "back" to the info page after joining
+  // was the top customer complaint. Show resume instead of a duplicate form.
+  let activeTicketToken: string | null = null;
+  try {
+    const raw = await getTicketToken(slug);
+    if (raw) {
+      const s = await QueueService.getQueueStatusByToken(raw);
+      if (s && s.restaurantId === restaurant.id && ['WAITING', 'NOTIFIED', 'CALLED'].includes(s.status)) {
+        activeTicketToken = raw;
+      }
+    }
+  } catch {
+    activeTicketToken = null;
+  }
+
   return (
     <main className="relative flex min-h-[100dvh] flex-col justify-between overflow-hidden bg-slate-950 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-100">
       <LandingAutoRefresh />
@@ -137,7 +154,26 @@ export default async function PublicRestaurantQueuePage({
           capacity={{ active: activeQueueCount, max: restaurant.maxQueueCapacity }}
         />
 
-        {canJoin ? (
+        {activeTicketToken ? (
+          <section
+            aria-label="Already in queue"
+            className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-center shadow-2xl"
+          >
+            <p className="text-sm font-black text-white">You&apos;re already in the queue</p>
+            <p className="mt-1 text-xs text-emerald-200/80">
+              Your spot is saved — no need to fill the form again.
+            </p>
+            <Link
+              href={`/q/${slug}/status/${activeTicketToken}`}
+              className="mt-3 flex h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-500 text-sm font-bold text-white shadow-lg transition-all hover:bg-emerald-400 active:scale-[0.98]"
+            >
+              View My Ticket →
+            </Link>
+            <p className="mt-2 text-[11px] text-slate-400">
+              Different guest? Ask the host to cancel this ticket first.
+            </p>
+          </section>
+        ) : canJoin ? (
           <QueueJoinForm restaurant={restaurant} />
         ) : (
           <p className="px-2 text-center text-[11px] text-slate-500">

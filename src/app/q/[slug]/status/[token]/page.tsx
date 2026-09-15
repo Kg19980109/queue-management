@@ -8,6 +8,8 @@ import { QueueTicketCard } from '@/components/customer/QueueTicketCard';
 import { TicketNotificationBanner, type TicketNotification } from '@/components/customer/TicketNotificationBanner';
 import { PartyPreferencesCard } from '@/components/customer/PartyPreferencesCard';
 import { KitchenPreOrderCard } from '@/components/customer/KitchenPreOrderCard';
+import { CustomerOrdersCard } from '@/components/customer/CustomerOrdersCard';
+import { OrderService } from '@/lib/services/order-service';
 import { TicketCookieSync } from '@/components/customer/TicketCookieSync';
 import { CustomerQueueRealtime } from '@/components/realtime/CustomerQueueRealtime';
 import { CustomerErrorState } from '@/components/customer/CustomerErrorState';
@@ -125,6 +127,14 @@ export default async function CustomerQueueStatusPage({
 
   // Only fetch menu while still queueing (save DB on terminal tickets).
   const menuCategories = !isTerminal ? await PublicRestaurantService.getPublicMenuPreview(restaurant.id) : [];
+  // My Orders: every pre-order linked to this queue entry — previously invisible
+  // after navigating away from the menu, so customers thought orders were lost.
+  let myOrders: Awaited<ReturnType<typeof OrderService.listCustomerOrdersByQueueEntry>> = [];
+  try {
+    myOrders = await OrderService.listCustomerOrdersByQueueEntry(status.entryId, status.restaurantId);
+  } catch {
+    myOrders = [];
+  }
   const menuUrl = `/q/${slug}/menu?qtoken=${token}`;
 
   return (
@@ -175,6 +185,11 @@ export default async function CustomerQueueStatusPage({
 
         {!isTerminal && (
           <div className="space-y-4">
+            <CustomerOrdersCard
+              orders={myOrders}
+              restaurantSlug={slug}
+              queueToken={token}
+            />
             <PartyPreferencesCard
               customerName={status.customerName}
               phone={null}

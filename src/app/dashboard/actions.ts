@@ -516,9 +516,9 @@ export async function updateQueueSettingsFormAction(formData: FormData): Promise
   revalidatePath('/dashboard/queue');
 }
 
-export async function seatQueueEntryAction(entryId: string, tableId: string, actorUserId?: string): Promise<void> {
+export async function seatQueueEntryAction(entryId: string, tableId: string, actorUserId?: string, actualGuests?: number): Promise<void> {
   try {
-    await QueueService.seatQueueEntry(entryId, tableId, await resolveActionActor(actorUserId));
+    await QueueService.seatQueueEntry(entryId, tableId, await resolveActionActor(actorUserId), actualGuests);
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
       throw error;

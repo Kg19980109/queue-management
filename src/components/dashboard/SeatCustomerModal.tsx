@@ -31,9 +31,13 @@ export function SeatCustomerModal({
   const [selectedTableId, setSelectedTableId] = useState<string>('');
   const [isPending, startTransition] = useTransition();
   const [recommended, setRecommended] = useState<SeatableTableItem[] | null>(null);
+  // Actual headcount confirmed at the door — defaults to expected party size.
+  const [actualGuests, setActualGuests] = useState<number>(partySize);
 
   useEffect(() => {
     if (!isOpen) return;
+    setActualGuests(partySize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     // Fetch intelligent recommendations server-side (deterministic, DB-side)
     recommendTablesAction(entryId)
       .then((recs) => {
@@ -48,7 +52,7 @@ export function SeatCustomerModal({
   const handleSeat = (tableId: string) => {
     setSelectedTableId(tableId);
     startTransition(async () => {
-      await seatQueueEntryAction(entryId, tableId, userId);
+      await seatQueueEntryAction(entryId, tableId, userId, actualGuests);
       setIsOpen(false);
     });
   };
@@ -98,6 +102,40 @@ export function SeatCustomerModal({
               </div>
             ) : (
               <div className="space-y-3">
+                {/* Actual headcount: how many guests REALLY came to eat */}
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3.5">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-emerald-300">
+                      Guests arrived
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Expected {partySize} — confirm actual headcount
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActualGuests((g) => Math.max(1, g - 1))}
+                      disabled={isPending}
+                      aria-label="Fewer guests arrived"
+                      className="h-9 w-9 rounded-xl bg-slate-800 text-lg font-black text-white hover:bg-slate-700 disabled:opacity-50"
+                    >
+                      −
+                    </button>
+                    <span aria-live="polite" className="w-8 text-center font-mono text-xl font-black text-white">
+                      {actualGuests}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActualGuests((g) => Math.min(50, g + 1))}
+                      disabled={isPending}
+                      aria-label="More guests arrived"
+                      className="h-9 w-9 rounded-xl bg-emerald-600 text-lg font-black text-white hover:bg-emerald-500 disabled:opacity-50"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
                 <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
                   Recommended — smallest sufficient table first ({tablesToShow.length} candidates)
                 </span>

@@ -349,13 +349,13 @@ export class QueueService {
    * @throws AuthorizationError if caller lacks queue.seat permission
    * @throws Error with descriptive code if FSM state is invalid
    */
-  static async seatQueueEntry(entryId: string, tableId: string, actorUserId?: string) {
+  static async seatQueueEntry(entryId: string, tableId: string, actorUserId?: string, actualGuests?: number) {
     const supabase = createAdminClient();
 
     // Step 1: Fetch entry to get restaurant_id for permission check
     const { data: entry, error: fetchErr } = await supabase
       .from('queue_entries')
-      .select('restaurant_id')
+      .select('restaurant_id, party_size')
       .eq('id', entryId)
       .single();
 
@@ -372,12 +372,36 @@ export class QueueService {
       permission: PERMISSIONS.QUEUE_SEAT,
     });
 
-    // Step 3: Call atomic DB function (also verifies permission internally)
-    const { data, error } = await supabase.rpc('seat_queue_entry_atomic', {
-      p_queue_entry_id: entryId,
-      p_table_id: tableId,
-      p_actor_user_id: authContext.userId,
-    });
+    // Step 3: Call atomic DB function (also verifies permission internally).
+    // actualGuests = headcount confirmed at the door (defaults to party_size).
+    const seatingCount =
+      Number.isInteger(actualGuests) && (actualGuests as number) > 0
+        ? (actualGuests as number)
+        : (entry as unknown as { party_size?: number }).party_size ?? 1;
+    let rpcError: { message: string } | null = null;
+    let data: unknown = null;
+    {
+      const res = await supabase.rpc('seat_queue_entry_atomic', {
+        p_queue_entry_id: entryId,
+        p_table_id: tableId,
+        p_actor_user_id: authContext.userId,
+        p_actual_guests: seatingCount,
+      });
+      data = res.data;
+      rpcError = res.error as { message: string } | null;
+      // Graceful fallback: if the migration adding p_actual_guests hasn't
+      // been applied yet, retry with the legacy 3-arg signature.
+      if (rpcError && /p_actual_guests|function.*does not exist/i.test(rpcError.message || '')) {
+        const legacy = await supabase.rpc('seat_queue_entry_atomic', {
+          p_queue_entry_id: entryId,
+          p_table_id: tableId,
+          p_actor_user_id: authContext.userId,
+        });
+        data = legacy.data;
+        rpcError = legacy.error as { message: string } | null;
+      }
+    }
+    const error = rpcError;
 
     if (error) {
       if (error.message.includes('QUEUE_ENTRY_TERMINAL')) {
