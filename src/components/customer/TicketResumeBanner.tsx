@@ -36,7 +36,7 @@ export function resumeCopyForState(state: ResumeState): { title: string; body: s
       };
     case 'NOTIFIED':
       return {
-        title: 'Your table is getting close',
+        title: 'Your turn is getting closer',
         body: 'Tap to view your live ticket',
       };
     case 'WAITING':

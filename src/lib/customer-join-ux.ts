@@ -210,6 +210,7 @@ export function mapJoinErrorToUX(message: string): JoinErrorUX {
   if (
     m.includes('closed') ||
     m.includes('operating hours') ||
+    m.includes('operating_hours') ||
     m.includes('not accepting') ||
     m.includes('not available')
   ) {

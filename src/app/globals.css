@@ -232,7 +232,6 @@ html.light .shadow-2xl{ box-shadow: 0 8px 28px rgba(15,23,42,0.10) !important; }
    light-mode phones. Specificity (0,3,0+) beats the generic light rules. */
 html.light .qf-card h1.text-white,
 html.light .qf-card h2.text-white,
-html.light .qf-card h3.text-white,
 html.light .qf-keep-dark.text-white {
   color: #ffffff !important;
 }
@@ -244,6 +243,11 @@ html.light .qf-card .text-slate-500 { color: #64748b !important; }
 html.light .qf-card .text-emerald-400 { color: #34d399 !important; }
 html.light .qf-card .text-blue-400 { color: #60a5fa !important; }
 html.light .qf-card .text-amber-400 { color: #fbbf24 !important; }
+html.light .qf-card .bg-slate-800 { background-color: #1e293b !important; border-color: #334155 !important; }
+/* Phase 4F: dialog action buttons keep white text in light mode. The generic
+   `html.light .bg-slate-900 .text-white` remap targets flipped-white cards,
+   but these buttons sit on dark/rose fills by design in both schemes. */
+html.light [role="dialog"] .text-white { color: #ffffff !important; }
 html.light .qf-card .border-white\/5 { border-color: rgba(255,255,255,0.05) !important; }
 html.light .qf-card .border-white\/10 { border-color: rgba(255,255,255,0.1) !important; }
 html.light .qf-card .border-white\/20 { border-color: rgba(255,255,255,0.2) !important; }

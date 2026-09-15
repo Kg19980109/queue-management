@@ -54,7 +54,7 @@ export function MenuPreviewSection({ categories, currency = 'INR' }: MenuPreview
         <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-400/25 bg-orange-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-orange-300">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400"></span> While you wait
         </span>
-        <h3 className="text-xl font-black tracking-tight text-white">
+        <h3 className="qf-keep-dark text-xl font-black tracking-tight text-white">
           Craving something? 😋
         </h3>
         <p className="text-xs text-slate-400">
