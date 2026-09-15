@@ -58,6 +58,18 @@ function parseEnv(): { public: PublicEnv; server: ServerEnv } {
     );
   }
 
+  // Client-side/browser execution: server-only env variables do not exist in browser bundles
+  if (typeof window !== 'undefined') {
+    return {
+      public: publicResult.data,
+      server: {
+        NODE_ENV: (process.env.NODE_ENV as 'development' | 'test' | 'production') || 'development',
+        APPLICATION_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        SUPABASE_SERVICE_ROLE_KEY: '',
+      },
+    };
+  }
+
   const serverResult = serverEnvSchema.safeParse({
     NODE_ENV: process.env.NODE_ENV,
     APPLICATION_URL: process.env.APPLICATION_URL,
@@ -77,7 +89,7 @@ function parseEnv(): { public: PublicEnv; server: ServerEnv } {
 
   // Phase 3E: placeholder credentials must never silently run in production
   // (they would fail obscurely at the database instead of fast at boot).
-  if (serverResult.data.NODE_ENV === 'production' && !process.env.CI) {
+  if (typeof window === 'undefined' && serverResult.data.NODE_ENV === 'production' && !process.env.CI) {
     const placeholders = [
       publicResult.data.NEXT_PUBLIC_SUPABASE_URL,
       publicResult.data.NEXT_PUBLIC_SUPABASE_ANON_KEY,

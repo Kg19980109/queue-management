@@ -1,14 +1,21 @@
 import { createBrowserClient as createSupabaseBrowserClient } from '@supabase/ssr';
-import { getEnv } from '@/lib/config/env';
+
+let client: ReturnType<typeof createSupabaseBrowserClient> | null = null;
 
 /**
  * Creates a browser-side Supabase client for client components.
  * Uses NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.
  */
 export function createBrowserClient() {
-  const env = getEnv();
-  return createSupabaseBrowserClient(
-    env.public.NEXT_PUBLIC_SUPABASE_URL,
-    env.public.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+
+  if (typeof window === 'undefined') {
+    return createSupabaseBrowserClient(url, anonKey);
+  }
+
+  if (!client) {
+    client = createSupabaseBrowserClient(url, anonKey);
+  }
+  return client;
 }
