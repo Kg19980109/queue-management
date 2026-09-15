@@ -244,10 +244,12 @@ html.light .qf-card .text-emerald-400 { color: #34d399 !important; }
 html.light .qf-card .text-blue-400 { color: #60a5fa !important; }
 html.light .qf-card .text-amber-400 { color: #fbbf24 !important; }
 html.light .qf-card .bg-slate-800 { background-color: #1e293b !important; border-color: #334155 !important; }
-/* Phase 4F: dialog action buttons keep white text in light mode. The generic
-   `html.light .bg-slate-900 .text-white` remap targets flipped-white cards,
-   but these buttons sit on dark/rose fills by design in both schemes. */
-html.light [role="dialog"] .text-white { color: #ffffff !important; }
+/* Phase 4F: cancel-dialog action buttons keep white text in light mode. The
+   generic `html.light .bg-slate-900 .text-white` remap targets flipped-white
+   cards, but these buttons sit on dark/rose fills by design in both schemes.
+   Scoped to the cancel dialog ONLY — cart/detail dialogs have white cards
+   in light mode and must keep the generic dark-text remap. */
+html.light .qf-cancel-dialog .text-white { color: #ffffff !important; }
 html.light .qf-card .border-white\/5 { border-color: rgba(255,255,255,0.05) !important; }
 html.light .qf-card .border-white\/10 { border-color: rgba(255,255,255,0.1) !important; }
 html.light .qf-card .border-white\/20 { border-color: rgba(255,255,255,0.2) !important; }

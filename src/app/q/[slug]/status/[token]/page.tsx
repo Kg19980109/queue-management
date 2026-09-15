@@ -216,16 +216,21 @@ export default async function CustomerQueueStatusPage({
               restaurantSlug={slug}
               queueToken={token}
             />
+            {/* Phase 4G: the pre-order upsell stays for WAITING/NOTIFIED but
+                steps aside when CALLED — the return-to-restaurant hero owns
+                that moment. The top-bar Menu link remains as neutral nav. */}
+            {status.status !== 'CALLED' && (
+              <KitchenPreOrderCard
+                queueNumber={status.displayNumber || ''}
+                restaurantSlug={slug}
+                token={token}
+                categories={menuCategories}
+              />
+            )}
             <PartyPreferencesCard
               customerName={status.customerName}
               phone={null}
               partySize={status.partySize}
-            />
-            <KitchenPreOrderCard
-              queueNumber={status.displayNumber || ''}
-              restaurantSlug={slug}
-              token={token}
-              categories={menuCategories}
             />
           </div>
         )}

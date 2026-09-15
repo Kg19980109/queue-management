@@ -110,7 +110,7 @@ export function CancelQueueDialog({ token, restaurantSlug }: CancelQueueDialogPr
             aria-modal="true"
             aria-labelledby="cancel-dialog-title"
             aria-describedby="cancel-dialog-desc"
-            className="w-full max-w-sm space-y-5 rounded-3xl border border-slate-800 bg-slate-900 p-6 text-center shadow-2xl"
+            className="qf-cancel-dialog w-full max-w-sm space-y-5 rounded-3xl border border-slate-800 bg-slate-900 p-6 text-center shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <TriangleAlert aria-hidden="true" className="mx-auto h-9 w-9 text-amber-400" />

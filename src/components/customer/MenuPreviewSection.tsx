@@ -87,9 +87,15 @@ export function MenuPreviewSection({ categories, currency = 'INR' }: MenuPreview
                       </p>
                     )}
                   </div>
-                  <span className="shrink-0 rounded-lg bg-emerald-500/15 px-2 py-1 text-xs font-black text-emerald-300">
-                    {formatPrice(item.price)}
-                  </span>
+                  {item.available ? (
+                    <span className="shrink-0 rounded-lg bg-emerald-500/15 px-2 py-1 text-xs font-black text-emerald-300">
+                      {formatPrice(item.price)}
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-lg bg-slate-500/15 border border-slate-400/20 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Unavailable
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

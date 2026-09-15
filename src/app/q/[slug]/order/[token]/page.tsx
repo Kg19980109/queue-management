@@ -2,6 +2,7 @@ import React from 'react';
 import { OrderService } from '@/lib/services/order-service';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
 import { RestaurantHeader } from '@/components/customer/RestaurantHeader';
+import { customerOrderStatusCopy } from '@/lib/customer-order-ux';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({
@@ -72,12 +73,19 @@ export default async function CustomerOrderStatusPage({
     );
   }
 
+  // Phase 4G: restaurant's actual currency — never hardcoded.
+  const currency = restaurant.currency || 'INR';
+  const locale = currency === 'INR' ? 'en-IN' : 'en-US';
   const formatPrice = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 2,
-    }).format(amount);
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency,
+        maximumFractionDigits: 2,
+      }).format(amount);
+    } catch {
+      return `${currency} ${Number(amount).toFixed(2)}`;
+    }
   };
 
   const getStepIndex = (status: string) => {
@@ -111,15 +119,7 @@ export default async function CustomerOrderStatusPage({
             </h2>
           </div>
           <p className="text-[13px] leading-relaxed text-slate-200">
-            {orderDetails.status === 'SERVED'
-              ? 'Your food has been served! Enjoy your meal. 😋'
-              : orderDetails.status === 'READY'
-              ? 'Your order is ready — hot and fresh! 🔔'
-              : orderDetails.status === 'PREPARING'
-              ? 'The chef is cooking your food right now… 👨‍🍳🔥'
-              : orderDetails.status === 'CANCELLED'
-              ? 'This order was cancelled.'
-              : 'We sent your order to the kitchen — sit back and relax! ✨'}
+            {customerOrderStatusCopy(orderDetails.status)}
           </p>
         </div>
 
@@ -218,7 +218,7 @@ export default async function CustomerOrderStatusPage({
               Payment Status
             </h3>
             <span className="text-xs font-mono font-bold text-emerald-400">
-              ₹{Number(orderDetails.total).toFixed(2)}
+              {formatPrice(Number(orderDetails.total))}
             </span>
           </div>
           <div className="flex items-center justify-between">
@@ -234,9 +234,9 @@ export default async function CustomerOrderStatusPage({
             </div>
             <a
               href={`/q/${slug}/payment/${token}`}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-md"
+              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-md min-h-[44px] inline-flex items-center"
             >
-              {orderDetails.paymentStatus === 'PAID' ? 'View Receipt' : 'Pay ₹' + Number(orderDetails.total).toFixed(2)}
+              {orderDetails.paymentStatus === 'PAID' ? 'View Receipt' : `Pay ${formatPrice(Number(orderDetails.total))}`}
             </a>
           </div>
         </div>

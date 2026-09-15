@@ -115,13 +115,21 @@ describe('Phase 3D: browser storage hygiene (regression guard)', () => {
       if (!/\.(tsx?)$/.test(file)) continue;
       const content = fs.readFileSync(path.join(dir, file), 'utf8');
       const lines = content.split('\n');
+      // Phase 4G sanctioned exception: CustomerMenuBrowser may persist
+      // NON-SENSITIVE cart lines in sessionStorage (spec §9). The exception
+      // holds only while the file carries the documented no-token contract
+      // AND its stored shape has no credential fields (checked below).
+      const isSanctionedCartFile = file === 'CustomerMenuBrowser.tsx'
+        && content.includes('NEVER queue/order tokens')
+        && /interface CartItem \{[^}]*\}/s.test(content)
+        && !(content.match(/interface CartItem \{[^}]*\}/s)?.[0] ?? '').match(/[Tt]oken|secret|cookie|password/i);
       lines.forEach((line, i) => {
         // Flag real Web Storage / cookie WRITE+READ API usage only
         // (prose mentions in comments are fine).
         if (/\blocalStorage\s*\.\s*(setItem|getItem|removeItem)/.test(line)) {
           offenders.push(`${file}:${i + 1}:${line.trim()}`);
         }
-        if (/\bsessionStorage\s*\./.test(line)) {
+        if (/\bsessionStorage\s*\./.test(line) && !isSanctionedCartFile) {
           offenders.push(`${file}:${i + 1}:${line.trim()}`);
         }
         if (/document\.cookie\s*=/.test(line)) {

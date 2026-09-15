@@ -8,6 +8,7 @@ export interface MenuItem {
   name: string;
   description: string;
   price: number;
+  available?: boolean;
 }
 
 export interface MenuCategory {
@@ -42,7 +43,8 @@ export function KitchenPreOrderCard({
         Order now — the kitchen starts the moment you&apos;re seated. Zero extra wait. 🔥
       </p>
 
-      {/* Dynamic items - show up to 5 across all categories, no hardcoded slices */}
+      {/* Dynamic items - show up to 5 AVAILABLE items across all categories.
+          Phase 4G: never push unavailable dishes in the upsell card. */}
       <div className="qf-card mt-3 space-y-3 rounded-3xl p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-black uppercase tracking-widest text-orange-300">⭐ Popular — tap to order</span>
@@ -51,7 +53,7 @@ export function KitchenPreOrderCard({
 
         {categories.length > 0 ? (
           <div className="space-y-3">
-            {categories.flatMap(c => c.items).slice(0, 5).map((item: MenuItem) => (
+            {categories.flatMap(c => c.items).filter((i) => i.available !== false).slice(0, 5).map((item: MenuItem) => (
                 <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-2.5 transition-all hover:border-orange-400/30">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500/30 to-amber-500/10 text-2xl">

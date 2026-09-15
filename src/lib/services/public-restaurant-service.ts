@@ -17,6 +17,8 @@ export interface PublicRestaurantInfo {
   maxPartySize: number;
   callTimeoutMinutes: number;
   status: string;
+  // Phase 4G: ISO currency for customer price display (public, non-sensitive).
+  currency: string;
   // Phase 4A: per-restaurant ETA tuning (non-sensitive operational config).
   // Lets the QR landing page use the authoritative ETAService formula
   // instead of inventing a client-side wait estimate.
@@ -39,7 +41,7 @@ export class PublicRestaurantService {
 
         const { data: restaurant, error } = await supabase
           .from('restaurants')
-          .select('id, name, slug, description, phone, address, city, logo_url, queue_enabled, queue_operating_state, max_queue_capacity, min_party_size, max_party_size, call_timeout_minutes, status, avg_service_time_mins, service_capacity_units, eta_buffer_mins')
+          .select('id, name, slug, description, phone, address, city, logo_url, queue_enabled, queue_operating_state, max_queue_capacity, min_party_size, max_party_size, call_timeout_minutes, status, currency, avg_service_time_mins, service_capacity_units, eta_buffer_mins')
           .eq('slug', slug.trim().toLowerCase())
           .eq('status', 'ACTIVE')
           .maybeSingle();
@@ -64,6 +66,7 @@ export class PublicRestaurantService {
           maxPartySize: restaurant.max_party_size,
           callTimeoutMinutes: restaurant.call_timeout_minutes,
           status: restaurant.status,
+          currency: (restaurant as unknown as { currency?: string }).currency || 'INR',
           avgServiceTimeMins: restaurant.avg_service_time_mins ?? 15,
           serviceCapacityUnits: restaurant.service_capacity_units ?? 3,
           etaBufferMins: restaurant.eta_buffer_mins ?? 5,
@@ -74,8 +77,15 @@ export class PublicRestaurantService {
   }
 
   /**
-   * Fetches active menu items for public customer preview while waiting.
+   * Fetches menu items for public customer preview while waiting.
    * Parallelized for snappiness.
+   *
+   * Phase 4G: exposes ONLY customer-safe fields (name, description, price,
+   * image, prep estimate, availability). No inventory quantities, recipes,
+   * SKUs, or internal IDs beyond the item/category UUIDs the order action
+   * needs. Inactive/archived items are excluded; UNAVAILABLE items are
+   * INCLUDED with their flag so the UI can honestly show "Unavailable"
+   * instead of silently hiding dishes.
    */
   static async getPublicMenuPreview(restaurantId: string) {
     const supabase = createAdminClient();
@@ -90,8 +100,9 @@ export class PublicRestaurantService {
         .order('sort_order', { ascending: true }),
       supabase
         .from('menu_items')
-        .select('id, category_id, name, description, price, available')
+        .select('id, category_id, name, description, price, available, image_url, preparation_time_minutes, active')
         .eq('restaurant_id', restaurantId)
+        .eq('active', true)
         .eq('is_archived', false)
         .order('name', { ascending: true }),
     ]);
@@ -99,10 +110,10 @@ export class PublicRestaurantService {
     if (catError || !categories) return [];
     if (itemError || !items) return [];
 
-    // Group items by category
+    // Group items by category (unavailable items kept with their flag).
     return categories.map((cat) => ({
       ...cat,
-      items: items.filter((item) => item.category_id === cat.id && item.available),
+      items: items.filter((item) => item.category_id === cat.id),
     })).filter((cat) => cat.items.length > 0);
   }
 }

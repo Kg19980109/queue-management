@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useEffect } from 'react';
 import { createCustomerOrderAction } from '@/app/dashboard/actions';
 import { useRouter } from 'next/navigation';
 
@@ -11,6 +11,8 @@ export interface CustomerMenuItem {
   price: number;
   available: boolean;
   imageUrl?: string | null;
+  /** Kitchen prep estimate in minutes (authoritative; display only). */
+  preparationTimeMinutes?: number | null;
 }
 
 export interface CustomerMenuCategory {
@@ -53,8 +55,36 @@ export function CustomerMenuBrowser({
   queueToken,
 }: CustomerMenuBrowserProps) {
   const router = useRouter();
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // Phase 4G: cart survives menu ↔ ticket navigation via sessionStorage.
+  // Stored: ONLY non-sensitive cart lines (ids, display names/prices,
+  // quantities, notes). NEVER queue/order tokens, cookies, or secrets —
+  // those stay in props/cookies. Server revalidates price + availability.
+  const cartKey = `qf_cart_${restaurantSlug}`;
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      if (typeof window === 'undefined') return [];
+      const raw = window.sessionStorage.getItem(cartKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as CartItem[];
+      if (!Array.isArray(parsed)) return [];
+      const validIds = new Set(categories.flatMap((c) => c.items.map((i) => i.id)));
+      return parsed
+        .filter((l) => l && validIds.has(l.menuItemId) && Number.isInteger(l.quantity) && l.quantity > 0 && l.quantity <= 99)
+        .map((l) => ({
+          menuItemId: l.menuItemId,
+          name: String(l.name || '').slice(0, 120),
+          price: Number(l.price) || 0,
+          quantity: l.quantity,
+          notes: typeof l.notes === 'string' ? l.notes.slice(0, 200) : undefined,
+        }));
+    } catch {
+      return [];
+    }
+  });
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [detailItem, setDetailItem] = useState<CustomerMenuItem | null>(null);
+  const [detailQty, setDetailQty] = useState(1);
+  const [detailNotes, setDetailNotes] = useState('');
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>(
@@ -76,6 +106,49 @@ export function CustomerMenuBrowser({
     } catch {
       return `₹${amount.toFixed(2)}`;
     }
+  };
+
+  // Persist non-sensitive cart lines only (see note above).
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(cartKey, JSON.stringify(cart));
+    } catch {
+      // Storage full/blocked: cart simply stays in memory for this visit.
+    }
+  }, [cart, cartKey]);
+
+  // Escape closes topmost sheet first (detail, then cart).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (detailItem) setDetailItem(null);
+      else if (isCartOpen) setIsCartOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [detailItem, isCartOpen]);
+
+  const openDetail = (item: CustomerMenuItem) => {
+    const inCart = cart.find((i) => i.menuItemId === item.id);
+    setDetailQty(inCart?.quantity || 1);
+    setDetailNotes(inCart?.notes || '');
+    setDetailItem(item);
+  };
+
+  const confirmDetailAdd = () => {
+    if (!detailItem || !detailItem.available) return;
+    const qty = Math.min(99, Math.max(1, detailQty));
+    const notes = detailNotes.trim().slice(0, 200) || undefined;
+    setCart((prev) => {
+      const existing = prev.find((i) => i.menuItemId === detailItem.id);
+      if (existing) {
+        return prev.map((i) =>
+          i.menuItemId === detailItem.id ? { ...i, quantity: qty, notes } : i
+        );
+      }
+      return [...prev, { menuItemId: detailItem.id, name: detailItem.name, price: detailItem.price, quantity: qty, notes }];
+    });
+    setDetailItem(null);
   };
 
   const handleAddToCart = (item: CustomerMenuItem) => {
@@ -144,6 +217,8 @@ export function CustomerMenuBrowser({
           // Preserve the queue ticket across the order-confirmation page so
           // "Back to My Ticket" never strands the customer on the join form.
           const suffix = queueToken ? `?qtoken=${encodeURIComponent(queueToken)}` : '';
+          // Order placed: drop the persisted cart (fresh lines only, no tokens stored).
+          try { window.sessionStorage.removeItem(cartKey); } catch {}
           router.push(`/q/${restaurantSlug}/order/${result.rawToken}${suffix}`);
         } else if (result && result.order && queueToken) {
           // Idempotent replay: the order token is not recoverable from
@@ -194,6 +269,7 @@ export function CustomerMenuBrowser({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="🔍 Search biryani, pizza, desserts…"
+            aria-label="Search dishes"
             className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.05] pl-10 pr-4 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-orange-400/50 focus:ring-2 focus:ring-orange-500/20 transition-all"
           />
           {q && (
@@ -254,12 +330,18 @@ export function CustomerMenuBrowser({
                       className={`qf-card rounded-3xl p-3 flex gap-3 transition-all animate-staggerIn hover:scale-[1.01] ${
                         item.available
                           ? 'hover:border-orange-400/30'
-                          : 'opacity-60'
+                          : 'opacity-75'
                       }`}
                       style={{animationDelay:`${idx*40}ms`}}
                     >
+                      <button
+                        type="button"
+                        onClick={() => openDetail(item)}
+                        aria-label={`View details for ${item.name}, ${formatPrice(item.price)}${item.available ? '' : ', currently unavailable'}`}
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left active:scale-[0.99]"
+                      >
                       <div className="flex h-18 min-h-[72px] w-18 min-w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/25 via-amber-500/10 to-emerald-500/10 text-3xl">
-                        {item.imageUrl ? (<img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />) : (<span aria-hidden="true">🍽️</span>)}
+                        {item.imageUrl ? (<img src={item.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />) : (<span aria-hidden="true">🍽️</span>)}
                       </div>
                       <div className="space-y-1 flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
@@ -267,8 +349,8 @@ export function CustomerMenuBrowser({
                             {item.name}
                           </h4>
                           {!item.available && (
-                            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 border border-amber-400/30 text-amber-300 uppercase tracking-wider">
-                              Sold out
+                            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-500/15 border border-slate-400/30 text-slate-300 uppercase tracking-wider">
+                              Unavailable
                             </span>
                           )}
                         </div>
@@ -277,23 +359,31 @@ export function CustomerMenuBrowser({
                             {item.description}
                           </p>
                         )}
-                        <div className="text-[15px] font-black text-emerald-300 pt-0.5">
-                          {formatPrice(item.price)}
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <span className="text-[15px] font-black text-emerald-300">
+                            {formatPrice(item.price)}
+                          </span>
+                          {typeof item.preparationTimeMinutes === 'number' && item.preparationTimeMinutes > 0 && (
+                            <span className="text-[10px] font-bold text-slate-400">⏱ ~{item.preparationTimeMinutes} min</span>
+                          )}
                         </div>
                       </div>
+                      </button>
 
                     <div>
                       {!item.available ? (
                         <button
-                          disabled
-                          className="px-4 py-2 rounded-xl bg-slate-800 text-slate-500 text-xs font-bold cursor-not-allowed uppercase tracking-wider"
+                          type="button"
+                          onClick={() => openDetail(item)}
+                          className="px-4 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold uppercase tracking-wider border border-white/5"
                         >
-                          Out of Stock
+                          Unavailable
                         </button>
                       ) : inCart ? (
                         <div className="flex items-center gap-3 bg-black/40 border border-white/10 rounded-xl p-1 shadow-inner">
                           <button
                             type="button"
+                            aria-label={`Remove one ${item.name} from cart`}
                             onClick={() =>
                               handleUpdateQuantity(item.id, -1)
                             }
@@ -301,11 +391,12 @@ export function CustomerMenuBrowser({
                           >
                             -
                           </button>
-                          <span className="text-sm font-mono font-bold text-white px-1">
+                          <span className="text-sm font-mono font-bold text-white px-1" aria-live="polite">
                             {inCart.quantity}
                           </span>
                           <button
                             type="button"
+                            aria-label={`Add one more ${item.name} to cart`}
                             onClick={() =>
                               handleUpdateQuantity(item.id, 1)
                             }
@@ -317,6 +408,7 @@ export function CustomerMenuBrowser({
                       ) : (
                         <button
                           type="button"
+                          aria-label={`Add ${item.name} to cart`}
                           onClick={() => handleAddToCart(item)}
                           className="qf-cta px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:brightness-110 text-white text-xs font-black shadow-lg shadow-orange-500/25 transition-all uppercase tracking-wider active:scale-95"
                         >
@@ -331,9 +423,9 @@ export function CustomerMenuBrowser({
           </div>
         ))}
 
-      {/* Floating Cart Sticky Bottom Bar */}
+      {/* Floating Cart Sticky Bottom Bar (rises above the ticket float) */}
       {totalItemsCount > 0 && (
-        <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-40">
+        <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-50">
           <div className="rounded-3xl bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 p-[1.5px] shadow-[0_10px_40px_rgba(249,115,22,0.35)] animate-in slide-in-from-bottom-4">
           <div className="flex items-center justify-between gap-4 rounded-3xl bg-[#141b2e]/95 p-4 backdrop-blur">
             <div>
@@ -361,7 +453,12 @@ export function CustomerMenuBrowser({
       {/* Cart Drawer Slide-over Modal */}
       {isCartOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex justify-end animate-in fade-in">
-          <div className="bg-slate-900 border-l border-white/10 w-full max-w-md h-full flex flex-col justify-between p-6 space-y-6 shadow-2xl overflow-y-auto animate-in slide-in-from-right">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Your order, ${totalItemsCount} items, total ${formatPrice(cartSubtotal)}`}
+            className="bg-slate-900 border-l border-white/10 w-full max-w-md h-full flex flex-col justify-between p-6 space-y-6 shadow-2xl overflow-y-auto animate-in slide-in-from-right"
+          >
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
                 <div className="flex items-center gap-3">
@@ -372,12 +469,34 @@ export function CustomerMenuBrowser({
                 </div>
                 <button
                   type="button"
+                  aria-label="Close cart"
                   onClick={() => setIsCartOpen(false)}
                   className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center font-bold text-sm transition-colors border border-white/5"
                 >
                   <span className="material-symbols-outlined text-[20px]">close</span>
                 </button>
               </div>
+
+              {/* Queue context: ordering never strands the ticket. Solid pill
+                  reads in both color schemes (translucent emerald washes out
+                  on light cards). */}
+              {queueToken ? (
+                <a
+                  href={`/q/${restaurantSlug}/status/${queueToken}`}
+                  className="flex items-center justify-between gap-2 rounded-2xl bg-emerald-600 px-4 py-3 shadow-lg transition-all hover:bg-emerald-500 active:scale-[0.99]"
+                >
+                  <span className="text-xs font-bold text-white">
+                    🎟️ Ordering while you wait — spot saved
+                  </span>
+                  <span className="shrink-0 text-xs font-black text-white">
+                    My ticket →
+                  </span>
+                </a>
+              ) : (
+                <p className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-[11px] leading-relaxed text-slate-400">
+                  💡 Browsing as a guest — join the queue from the restaurant page to link your order to a ticket.
+                </p>
+              )}
 
               {errorMessage && (
                 <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold p-4 rounded-2xl flex items-center gap-3">
@@ -393,19 +512,24 @@ export function CustomerMenuBrowser({
                     key={item.menuItemId}
                     className="bg-black/20 border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-inner"
                   >
-                    <div className="space-y-1.5 flex-1">
+                    <div className="space-y-1.5 flex-1 min-w-0">
                       <h4 className="font-bold text-white text-sm">
                         {item.name}
                       </h4>
+                      {item.notes && (
+                        <p className="text-[11px] italic text-slate-400 line-clamp-2">“{item.notes}”</p>
+                      )}
                       <div className="text-xs font-mono text-emerald-400 font-bold">
                         {formatPrice(item.price)} × {item.quantity} ={' '}
                         {formatPrice(item.price * item.quantity)}
                       </div>
+                      <p className="text-[10px] text-slate-500">Final price confirmed by the restaurant at checkout.</p>
                     </div>
 
                     <div className="flex items-center gap-3 bg-black/40 border border-white/10 rounded-xl p-1">
                       <button
                         type="button"
+                        aria-label={`Remove one ${item.name} from cart`}
                         onClick={() =>
                           handleUpdateQuantity(item.menuItemId, -1)
                         }
@@ -413,11 +537,12 @@ export function CustomerMenuBrowser({
                       >
                         -
                       </button>
-                      <span className="text-sm font-mono font-bold text-white px-1">
+                      <span className="text-sm font-mono font-bold text-white px-1" aria-live="polite">
                         {item.quantity}
                       </span>
                       <button
                         type="button"
+                        aria-label={`Add one more ${item.name} to cart`}
                         onClick={() =>
                           handleUpdateQuantity(item.menuItemId, 1)
                         }
@@ -477,6 +602,117 @@ export function CustomerMenuBrowser({
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Item detail sheet: bigger look, prep estimate, quantity + notes.
+          Presentation only — price/availability revalidated server-side. */}
+      {detailItem && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center animate-in fade-in sm:p-4"
+          onClick={() => { if (!isPending) setDetailItem(null); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Details for ${detailItem.name}`}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 border border-white/10 w-full max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom max-h-[92dvh] overflow-y-auto"
+          >
+            <div className="relative h-52 bg-gradient-to-br from-orange-500/25 via-amber-500/10 to-emerald-500/10 flex items-center justify-center">
+              {detailItem.imageUrl ? (
+                <img src={detailItem.imageUrl} alt={detailItem.name} className="w-full h-full object-cover" loading="lazy" />
+              ) : (
+                <span aria-hidden="true" className="text-7xl">🍽️</span>
+              )}
+              <button
+                type="button"
+                aria-label="Close item details"
+                onClick={() => setDetailItem(null)}
+                className="absolute top-3 right-3 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center border border-white/10"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+              {!detailItem.available && (
+                <span className="absolute bottom-3 left-4 px-3 py-1 rounded-full text-[11px] font-black bg-slate-900/80 border border-slate-400/30 text-slate-200 uppercase tracking-wider">
+                  Currently unavailable
+                </span>
+              )}
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <h3 className="text-xl font-black text-white tracking-tight">{detailItem.name}</h3>
+                {detailItem.description && (
+                  <p className="mt-1 text-[13px] leading-relaxed text-slate-300">{detailItem.description}</p>
+                )}
+                <div className="mt-2 flex items-center gap-3">
+                  <span className="text-xl font-black text-emerald-400">{formatPrice(detailItem.price)}</span>
+                  {typeof detailItem.preparationTimeMinutes === 'number' && detailItem.preparationTimeMinutes > 0 && (
+                    <span className="text-[11px] font-bold text-slate-400">⏱ Ready in ~{detailItem.preparationTimeMinutes} min</span>
+                  )}
+                </div>
+                <p className="mt-1 text-[10px] text-slate-500">Price confirmed by the restaurant when you order.</p>
+              </div>
+
+              <div>
+                <label htmlFor="detail-qty" className="block text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                  Quantity
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    aria-label={`Decrease quantity of ${detailItem.name}`}
+                    onClick={() => setDetailQty((q) => Math.max(1, q - 1))}
+                    className="w-11 h-11 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-black text-lg flex items-center justify-center transition-colors"
+                  >
+                    −
+                  </button>
+                  <span id="detail-qty" aria-live="polite" className="w-10 text-center font-mono text-xl font-black text-white">
+                    {detailQty}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Increase quantity of ${detailItem.name}`}
+                    onClick={() => setDetailQty((q) => Math.min(99, q + 1))}
+                    className="w-11 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-lg flex items-center justify-center transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="detail-notes" className="block text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                  Special instructions <span className="font-semibold normal-case text-slate-500">(optional)</span>
+                </label>
+                <textarea
+                  id="detail-notes"
+                  value={detailNotes}
+                  onChange={(e) => setDetailNotes(e.target.value.slice(0, 200))}
+                  maxLength={200}
+                  rows={2}
+                  placeholder="e.g. less spicy, no onion…"
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-orange-400/50 focus:ring-2 focus:ring-orange-500/20"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={confirmDetailAdd}
+                disabled={!detailItem.available}
+                className="qf-cta w-full py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:brightness-110 disabled:opacity-40 disabled:saturate-50 text-white font-black text-sm shadow-lg transition-all uppercase tracking-wider active:scale-[0.99]"
+              >
+                {detailItem.available
+                  ? `Add ${detailQty} to cart · ${formatPrice(detailItem.price * detailQty)}`
+                  : 'Unavailable right now'}
+              </button>
+              {!detailItem.available && (
+                <p className="text-center text-[11px] text-slate-400">
+                  The kitchen will mark it available again soon — the restaurant confirms availability when you order.
+                </p>
+              )}
             </div>
           </div>
         </div>
