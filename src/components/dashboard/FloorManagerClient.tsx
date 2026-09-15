@@ -169,7 +169,7 @@ export function FloorManagerClient({
               >
                 All
               </button>
-              {zones.map((z: any) => (
+              {zones.map((z: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                 <button
                   key={z.id}
                   type="button"
@@ -263,7 +263,7 @@ export function FloorManagerClient({
                 <p className="text-sm text-slate-400 mt-2 max-w-sm">Build your restaurant layout by adding tables. They will appear on this grid.</p>
               </div>
             ) : (
-              Object.entries(groupedTables).map(([zoneName, tableList]: [string, any[]], zoneIdx) => (
+              Object.entries(groupedTables).map(([zoneName, tableList]: [string, any[]], zoneIdx) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                 <div key={zoneName} className="flex flex-col gap-4 relative z-10">
                   <div className="flex items-center gap-3 border-b border-white/5 pb-2">
                     <span className="px-2 py-1 rounded bg-blue-500/10 text-blue-400 font-mono text-xs font-black border border-blue-500/20">
