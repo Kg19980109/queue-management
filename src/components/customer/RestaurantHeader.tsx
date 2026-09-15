@@ -1,4 +1,5 @@
 import React from 'react';
+import { MapPin } from 'lucide-react';
 import type { PublicRestaurantInfo } from '@/lib/services/public-restaurant-service';
 
 interface RestaurantHeaderProps {
@@ -6,6 +7,12 @@ interface RestaurantHeaderProps {
   waitingCount?: number;
 }
 
+/**
+ * Phase 4A — Customer restaurant header.
+ * Answers "Where am I?" in ~1 second: logo, name, location, live status.
+ * Decorative glow elements are aria-hidden; status pill carries text
+ * (never color-only).
+ */
 export function RestaurantHeader({ restaurant, waitingCount }: RestaurantHeaderProps) {
   const getInitials = (name: string) => {
     return name
@@ -16,69 +23,83 @@ export function RestaurantHeader({ restaurant, waitingCount }: RestaurantHeaderP
       .toUpperCase();
   };
 
+  const state = restaurant.queueOperatingState || 'OPEN';
+  const statusLabel = !restaurant.queueEnabled || state === 'CLOSED'
+    ? 'Queue closed'
+    : state === 'PAUSED'
+      ? 'Queue paused'
+      : state === 'CLOSING_SOON'
+        ? 'Closing soon'
+        : waitingCount !== undefined
+          ? `${waitingCount} ${waitingCount === 1 ? 'party' : 'parties'} · Live`
+          : 'Queue open';
+
   return (
-    <div className="flex flex-col items-center text-center space-y-3 sm:space-y-4 pt-2 sm:pt-4 pb-1">
-      {/* Logo / Initials Fallback with animated ring */}
+    <header className="flex flex-col items-center space-y-3 pb-1 pt-2 text-center sm:space-y-4 sm:pt-4">
       <div className="relative">
         {restaurant.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={restaurant.logoUrl}
-            alt={restaurant.name}
-            className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl object-cover border-2 border-emerald-500/30 shadow-lg shadow-emerald-500/10"
+            alt={`${restaurant.name} logo`}
+            className="h-16 w-16 rounded-2xl border-2 border-emerald-500/30 object-cover shadow-lg shadow-emerald-500/10 sm:h-20 sm:w-20"
           />
         ) : (
-          <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-500 p-[1.5px] shadow-xl shadow-emerald-500/20">
-            <div className="w-full h-full rounded-2xl bg-slate-900 flex items-center justify-center text-emerald-400 font-black text-xl sm:text-2xl tracking-wider">
-              {getInitials(restaurant.name)}
-            </div>
+          <div
+            aria-hidden="true"
+            className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-500 text-xl font-black tracking-wider text-white shadow-xl shadow-emerald-500/20 sm:h-20 sm:w-20 sm:text-2xl"
+          >
+            {getInitials(restaurant.name)}
           </div>
         )}
-        {restaurant.queueEnabled && <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-slate-950 flex items-center justify-center"><span className="w-2 h-2 bg-white rounded-full animate-pulse"></span></span>}
+        {restaurant.queueEnabled && state !== 'CLOSED' && (
+          <span aria-hidden="true" className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-slate-950 bg-emerald-500">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
+          </span>
+        )}
       </div>
 
-      {/* Title & Info */}
       <div className="space-y-1.5 px-4">
-        <h1 className="text-[22px] sm:text-[26px] font-black text-white tracking-tight leading-tight">
+        <h1 className="text-[22px] font-black leading-tight tracking-tight text-white sm:text-[26px]">
           {restaurant.name}
         </h1>
         {restaurant.description && (
-          <p className="text-[12px] sm:text-[13px] text-slate-400 max-w-sm mx-auto leading-relaxed line-clamp-2">
+          <p className="mx-auto line-clamp-2 max-w-sm text-[12px] leading-relaxed text-slate-400 sm:text-[13px]">
             {restaurant.description}
           </p>
         )}
       </div>
 
-      {/* Address & Live Queue Status Pills */}
-      <div className="flex flex-wrap items-center justify-center gap-2 pt-1 text-xs px-4">
+      <div className="flex flex-wrap items-center justify-center gap-2 px-4 text-xs">
         {restaurant.address && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-slate-300 backdrop-blur">
-            📍 <span className="truncate max-w-[180px]">{restaurant.address}{restaurant.city ? `, ${restaurant.city}` : ''}</span>
+          <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-slate-300 backdrop-blur">
+            <MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">
+              {restaurant.address}{restaurant.city ? `, ${restaurant.city}` : ''}
+            </span>
           </span>
         )}
-
-        {(() => {
-          const state = (restaurant as unknown as { queueOperatingState?: string }).queueOperatingState || 'OPEN';
-          const enabled = restaurant.queueEnabled;
-          if (!enabled || state === 'CLOSED') {
-            return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold">🛑 Queue Closed</span>;
+        <span
+          role="status"
+          className={
+            !restaurant.queueEnabled || state === 'CLOSED'
+              ? 'inline-flex items-center gap-1.5 rounded-full border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 font-bold text-rose-400'
+              : state === 'PAUSED'
+                ? 'inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 font-bold text-amber-400'
+                : state === 'CLOSING_SOON'
+                  ? 'inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 font-bold text-amber-400'
+                  : 'inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 font-bold text-emerald-400 shadow-sm shadow-emerald-500/10'
           }
-          if (state === 'PAUSED') {
-            return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold">⏸️ Paused</span>;
-          }
-          if (state === 'CLOSING_SOON') {
-            return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold animate-pulse">⏳ Closing Soon</span>;
-          }
-          return (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold shadow-sm shadow-emerald-500/10">
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              {waitingCount !== undefined ? `${waitingCount} parties • Live` : 'Queue Open'}
+        >
+          {(state === 'OPEN' || state === 'CLOSING_SOON') && restaurant.queueEnabled && (
+            <span aria-hidden="true" className="relative flex h-2 w-2 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-current" />
             </span>
-          );
-        })()}
+          )}
+          {statusLabel}
+        </span>
       </div>
-    </div>
+    </header>
   );
 }

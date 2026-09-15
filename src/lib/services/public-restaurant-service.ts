@@ -17,6 +17,12 @@ export interface PublicRestaurantInfo {
   maxPartySize: number;
   callTimeoutMinutes: number;
   status: string;
+  // Phase 4A: per-restaurant ETA tuning (non-sensitive operational config).
+  // Lets the QR landing page use the authoritative ETAService formula
+  // instead of inventing a client-side wait estimate.
+  avgServiceTimeMins: number;
+  serviceCapacityUnits: number;
+  etaBufferMins: number;
 }
 
 export class PublicRestaurantService {
@@ -33,7 +39,7 @@ export class PublicRestaurantService {
 
         const { data: restaurant, error } = await supabase
           .from('restaurants')
-          .select('id, name, slug, description, phone, address, city, logo_url, queue_enabled, queue_operating_state, max_queue_capacity, min_party_size, max_party_size, call_timeout_minutes, status')
+          .select('id, name, slug, description, phone, address, city, logo_url, queue_enabled, queue_operating_state, max_queue_capacity, min_party_size, max_party_size, call_timeout_minutes, status, avg_service_time_mins, service_capacity_units, eta_buffer_mins')
           .eq('slug', slug.trim().toLowerCase())
           .eq('status', 'ACTIVE')
           .maybeSingle();
@@ -58,6 +64,9 @@ export class PublicRestaurantService {
           maxPartySize: restaurant.max_party_size,
           callTimeoutMinutes: restaurant.call_timeout_minutes,
           status: restaurant.status,
+          avgServiceTimeMins: restaurant.avg_service_time_mins ?? 15,
+          serviceCapacityUnits: restaurant.service_capacity_units ?? 3,
+          etaBufferMins: restaurant.eta_buffer_mins ?? 5,
         };
       },
       300 // 5 minutes TTL

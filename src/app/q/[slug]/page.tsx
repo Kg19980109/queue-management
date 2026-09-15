@@ -1,10 +1,18 @@
 import React from 'react';
+import Link from 'next/link';
+import { ChevronRight, Phone } from 'lucide-react';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
 import { QueueService } from '@/lib/services/queue-service';
+import { ETAService } from '@/lib/services/eta-service';
+import { QueueScheduleService } from '@/lib/services/queue-schedule-service';
 import { RestaurantHeader } from '@/components/customer/RestaurantHeader';
+import { QueueStatusCard } from '@/components/customer/QueueStatusCard';
 import { QueueJoinForm } from '@/components/customer/QueueJoinForm';
 import { MenuPreviewSection } from '@/components/customer/MenuPreviewSection';
 import { TicketResumeBanner } from '@/components/customer/TicketResumeBanner';
+import { LandingAutoRefresh } from '@/components/customer/LandingAutoRefresh';
+import { CustomerErrorState } from '@/components/customer/CustomerErrorState';
+import { resolveJoinability, formatWaitLabel } from '@/lib/customer-join-ux';
 import { logger } from '@/lib/logging/logger';
 import type { Metadata } from 'next';
 
@@ -26,6 +34,16 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * Phase 4A — Customer QR landing page (server-rendered).
+ *
+ * Data: restaurant (cached 5 min) + active queue + schedule availability
+ * load in parallel; menu preview streams below. All joinability comes
+ * from `resolveJoinability` over authoritative backend state — the page
+ * never invents its own rules. Join authorization stays server-side in
+ * `join_queue_atomic`. ETA uses the restaurant's own tuning via the
+ * authoritative `ETAService` formula (no client-side guesswork).
+ */
 export default async function PublicRestaurantQueuePage({
   params,
 }: {
@@ -36,121 +54,138 @@ export default async function PublicRestaurantQueuePage({
 
   if (!restaurant) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
-          <div className="text-4xl">🔍</div>
-          <h1 className="text-xl font-bold text-white">Restaurant Not Found</h1>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            We couldn&apos;t find an active restaurant queue for &quot;{slug}&quot;. Please verify the QR code or link.
-          </p>
-        </div>
-      </div>
+      <CustomerErrorState
+        variant="not-found"
+        title="Restaurant not found"
+        body={`We couldn't find an active restaurant queue for "${slug}". Please check the QR code or link and try again.`}
+      />
     );
   }
 
-  // A transient queue fetch failure must degrade (empty counts, join still
-  // possible) instead of 500ing the customer page.
-  let activeEntries: Awaited<ReturnType<typeof QueueService.getActiveQueue>>;
+  // A transient queue fetch failure degrades (empty counts, join still
+  // possible via authoritative RPC) instead of 500ing the customer page.
+  let waitingCount = 0;
+  let activeQueueCount = 0;
   try {
-    activeEntries = await QueueService.getActiveQueue(restaurant.id);
+    const activeEntries = await QueueService.getActiveQueue(restaurant.id);
+    waitingCount = activeEntries.filter((e) => e.status === 'WAITING').length;
+    activeQueueCount = activeEntries.filter((e) =>
+      ['WAITING', 'NOTIFIED', 'CALLED'].includes(e.status)
+    ).length;
   } catch (err) {
     logger.warn('Customer queue page: active queue fetch failed, degrading to empty', {
       operation: 'public_queue_page',
       metadata: { error: err instanceof Error ? err.message : String(err) },
     });
-    activeEntries = [];
   }
-  const waitingCount = activeEntries.filter((e) => e.status === 'WAITING').length;
-  const activeQueueCount = activeEntries.filter((e) => ['WAITING','NOTIFIED','CALLED'].includes(e.status)).length;
-  const isFull = activeQueueCount >= restaurant.maxQueueCapacity;
-  const operatingState = restaurant.queueOperatingState || 'OPEN';
-  const queueEnabled = restaurant.queueEnabled;
-  const avgWaitMins = 15;
+
   const [menuCategories, availability] = await Promise.all([
     PublicRestaurantService.getPublicMenuPreview(restaurant.id),
     // Effective availability: lifecycle > queue_enabled > manual PAUSED/CLOSED > schedule
     (async () => {
       try {
-        const { QueueScheduleService } = await import('@/lib/services/queue-schedule-service');
         return await QueueScheduleService.evaluateAvailability(restaurant.id);
-      } catch { return null; }
+      } catch {
+        return null;
+      }
     })(),
   ]);
 
-  const scheduledClosed = availability ? !availability.scheduledOpen : false;
+  const isFull = activeQueueCount >= restaurant.maxQueueCapacity;
+  const { canJoin, state: landingState } = resolveJoinability({
+    queueEnabled: restaurant.queueEnabled,
+    operatingState: restaurant.queueOperatingState || 'OPEN',
+    isFull,
+    scheduledOpen: availability ? availability.scheduledOpen : true,
+  });
   const nextOpening = availability?.nextOpening || null;
-  // Manual PAUSED/CLOSED take precedence over schedule; schedule never reopens a paused queue
-  const canJoin = queueEnabled && !isFull && (operatingState === 'OPEN' || operatingState === 'CLOSING_SOON') && !scheduledClosed;
+
+  // Authoritative ETA: restaurant's own tuning + live queue depth.
+  // A newcomer lands behind `waitingCount` parties (position waitingCount+1).
+  const eta =
+    canJoin && waitingCount > 0
+      ? ETAService.calculateETA(waitingCount + 1, {
+          avgServiceTimeMins: restaurant.avgServiceTimeMins,
+          serviceCapacityUnits: restaurant.serviceCapacityUnits,
+          etaBufferMins: restaurant.etaBufferMins,
+          almostYourTurnThreshold: 3,
+        })
+      : null;
+  const waitLabel =
+    !canJoin || waitingCount === 0 ? null : formatWaitLabel(eta?.estimatedWaitMins);
 
   return (
-    <main className="min-h-[100dvh] relative overflow-hidden bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30 selection:text-emerald-100">
-      
-      {/* Background glow - animated wow */}
-      <div className="absolute top-0 inset-x-0 h-[420px] bg-gradient-to-b from-emerald-900/20 via-slate-900/5 to-transparent pointer-events-none -z-10" />
-      <div className="absolute -top-[10%] -left-[10%] w-[60%] h-[50%] rounded-full bg-emerald-500/15 blur-[100px] pointer-events-none -z-10 animate-float" />
-      <div className="absolute top-[15%] -right-[10%] w-[45%] h-[40%] rounded-full bg-blue-500/12 blur-[100px] pointer-events-none -z-10 animate-float" style={{animationDelay:'1.5s'}} />
-      <div className="absolute bottom-[20%] left-[20%] w-[30%] h-[20%] rounded-full bg-purple-500/8 blur-[80px] pointer-events-none -z-10 animate-float" style={{animationDelay:'3s'}} />
+    <main className="relative flex min-h-[100dvh] flex-col justify-between overflow-hidden bg-slate-950 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-100">
+      <LandingAutoRefresh />
 
-      <div className="w-full max-w-md mx-auto space-y-5 sm:space-y-6 px-4 py-6 sm:py-8 z-10 relative">
-        {/* Resume banner (server cookie, no JS storage) - prevents queue loss on back */}
+      {/* Background glow (decorative) */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-[420px] bg-gradient-to-b from-emerald-900/20 via-slate-900/5 to-transparent" />
+      <div aria-hidden="true" className="pointer-events-none absolute -left-[10%] -top-[10%] -z-0 h-[50%] w-[60%] rounded-full bg-emerald-500/15 blur-[100px]" />
+      <div aria-hidden="true" className="pointer-events-none absolute -right-[10%] top-[15%] -z-0 h-[40%] w-[45%] rounded-full bg-blue-500/12 blur-[100px]" />
+
+      <div className="relative z-10 mx-auto w-full max-w-md space-y-5 px-4 py-6 sm:py-8">
+        {/* Resume banner (server cookie, no JS storage) */}
         <TicketResumeBanner slug={slug} />
 
-        {/* Header */}
-        <div className="animate-fade-in-up stagger-1">
-          <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
-        </div>
+        <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
 
-        {/* Queue Operating State Content */}
-        <div className="animate-fade-in-up stagger-2">
-          {canJoin ? (
-            <>
-              {operatingState === 'CLOSING_SOON' && (
-                <div className="mb-4 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-bold text-center flex items-center justify-center gap-2">
-                  <span className="material-symbols-outlined text-[16px]">schedule</span>
-                  Closing soon — join now while you can!
-                </div>
-              )}
-              <QueueJoinForm restaurant={restaurant} waitingCount={waitingCount} avgWaitMins={avgWaitMins} />
-            </>
-          ) : (
-            <div className="rounded-3xl bg-slate-900/80 border border-slate-800 p-6 sm:p-8 text-center space-y-3 backdrop-blur">
-              <div className="text-4xl sm:text-5xl mb-2">
-                {!queueEnabled || operatingState === 'CLOSED' || scheduledClosed ? '🛑' : isFull ? '👥' : operatingState === 'PAUSED' ? '⏸️' : '🛑'}
-              </div>
-              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                {!queueEnabled || operatingState === 'CLOSED' || scheduledClosed ? 'Queue Currently Closed' : isFull ? 'Queue Currently Full' : operatingState === 'PAUSED' ? 'Queue Temporarily Paused' : 'Queue Not Available'}
-              </h2>
-              <p className="text-[13px] sm:text-sm text-slate-400 leading-relaxed max-w-[280px] mx-auto">
-                {!queueEnabled || operatingState === 'CLOSED' || scheduledClosed
-                  ? `${restaurant.name} is not accepting new entries right now. Please check back later or ask the host.`
-                  : isFull
-                  ? `The queue is at capacity (${activeQueueCount}/${restaurant.maxQueueCapacity}). Please check back shortly — spots open as guests are seated.`
-                  : operatingState === 'PAUSED'
-                  ? 'The queue is temporarily paused. Please check back shortly.'
-                  : 'Queue not available at the moment.'}
+        <QueueStatusCard
+          state={landingState}
+          waitingCount={waitingCount}
+          waitLabel={waitingCount === 0 && canJoin ? 'No wait' : waitLabel}
+          nextOpening={nextOpening}
+          capacity={{ active: activeQueueCount, max: restaurant.maxQueueCapacity }}
+        />
+
+        {canJoin ? (
+          <QueueJoinForm restaurant={restaurant} />
+        ) : (
+          <p className="px-2 text-center text-[11px] text-slate-500">
+            {landingState === 'FULL'
+              ? 'This page updates automatically — no need to refresh.'
+              : 'Ask the host if you need help.'}
+          </p>
+        )}
+
+        {/* Contact + secondary menu access (only when data exists) */}
+        {(restaurant.phone || restaurant.address) && (
+          <section aria-label="Restaurant information" className="space-y-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+            {restaurant.address && (
+              <p className="text-center text-[13px] text-slate-300">
+                {restaurant.address}{restaurant.city ? `, ${restaurant.city}` : ''}
               </p>
-              {scheduledClosed && nextOpening && (
-                <p className="text-[13px] font-bold text-emerald-400">
-                  Opens {nextOpening.dayOffset === 0 ? 'today' : nextOpening.dayLabel} at {nextOpening.opensAt12h}
-                </p>
-              )}
-              {isFull && <p className="text-[11px] text-emerald-400 font-bold">We’ll notify you here when spots open</p>}
-            </div>
-          )}
-        </div>
+            )}
+            {restaurant.phone && (
+              <p className="text-center">
+                <a
+                  href={`tel:${restaurant.phone.replace(/\s/g, '')}`}
+                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold text-emerald-400 hover:text-emerald-300"
+                >
+                  <Phone aria-hidden="true" className="h-4 w-4" />
+                  {restaurant.phone}
+                </a>
+              </p>
+            )}
+          </section>
+        )}
 
-        {/* Secondary Menu Preview */}
-        <div className="animate-fade-in-up stagger-3">
+        <div>
           <MenuPreviewSection categories={menuCategories} />
+          <Link
+            href={`/q/${slug}/menu`}
+            className="mt-2 flex min-h-[44px] items-center justify-center gap-1 rounded-2xl text-[13px] font-semibold text-slate-400 transition-colors hover:text-emerald-300"
+          >
+            View full menu
+            <ChevronRight aria-hidden="true" className="h-4 w-4" />
+          </Link>
         </div>
       </div>
 
-      {/* Powered by QueueFlow Footer */}
-      <footer className="w-full max-w-md mx-auto text-center pt-8 pb-6 animate-fade-in-up stagger-3">
-        <div className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
+      <footer className="relative z-10 mx-auto w-full max-w-md px-4 pb-6 pt-8 text-center">
+        <p className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
           <span>Powered by</span>
-          <span className="text-emerald-400 font-bold tracking-tight glow-text">QueueFlow</span>
-        </div>
+          <span className="font-bold tracking-tight text-emerald-400">QueueFlow</span>
+        </p>
       </footer>
     </main>
   );

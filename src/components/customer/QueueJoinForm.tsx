@@ -1,173 +1,201 @@
 'use client';
 
-import React, { useState, useActionState } from 'react';
+import React, { useState } from 'react';
+import { useActionState } from 'react';
+import { Ticket, ArrowRight, User, Phone, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { joinQueuePublicAction, JoinQueueState } from '@/app/q/actions';
 import type { PublicRestaurantInfo } from '@/lib/services/public-restaurant-service';
+import { PartySizeSelector } from './PartySizeSelector';
+import {
+  validateJoinForm,
+  normalizePhoneForSubmit,
+  mapJoinErrorToUX,
+  type JoinFormErrors,
+} from '@/lib/customer-join-ux';
 
 interface QueueJoinFormProps {
   restaurant: PublicRestaurantInfo;
-  waitingCount?: number;
-  avgWaitMins?: number | null;
 }
 
-export function QueueJoinForm({ restaurant, waitingCount, avgWaitMins }: QueueJoinFormProps) {
+/**
+ * Phase 4A — Mobile-first join form.
+ *
+ * - Client validation is instant UX only; `JoinQueueSchema` + the atomic
+ *   `join_queue_atomic` RPC remain authoritative (server decides).
+ * - Phone is sent trim-only so the exact-match duplicate guard keeps working.
+ * - Raw tokens never touch this component: success redirects server-side
+ *   to the ticket URL and the HttpOnly cookie flow takes over. No
+ *   browser-side persistence of credentials anywhere in this component.
+ */
+export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
   const minParty = restaurant.minPartySize || 1;
   const maxParty = restaurant.maxPartySize || 20;
 
-  const [partySize, setPartySize] = useState<number>(Math.min(2, maxParty));
+  const [partySize, setPartySize] = useState<number>(() => Math.min(2, maxParty));
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<JoinFormErrors>({});
   const [state, formAction, isPending] = useActionState<JoinQueueState | null, FormData>(
     joinQueuePublicAction,
     null
   );
 
-  const incrementParty = () => setPartySize((prev) => Math.min(prev + 1, maxParty));
-  const decrementParty = () => setPartySize((prev) => Math.max(prev - 1, minParty));
-  const estWaitPreview = waitingCount !== undefined ? Math.max(5, waitingCount * 7) : avgWaitMins ?? 15;
+  const serverError = state?.error ? mapJoinErrorToUX(state.error) : null;
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    if (isPending) {
+      e.preventDefault();
+      return;
+    }
+    const errors = validateJoinForm(
+      { name, phone, partySize },
+      { minParty, maxParty }
+    );
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      e.preventDefault();
+    }
+  }
 
   return (
-    <div className="relative bg-slate-900/90 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-5 sm:space-y-6 overflow-hidden">
-      {/* Animated top shimmer */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent"></div>
-      <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
-      <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+    <section
+      aria-label="Join the queue"
+      className="relative space-y-5 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-2xl sm:space-y-6 sm:p-8"
+    >
+      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
 
-      {/* Live queue insight bar */}
-      {waitingCount !== undefined && (
-        <div className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center shadow">
-              <span className="material-symbols-outlined text-white text-[16px]">groups</span>
-            </span>
-            <div className="text-left">
-              <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest leading-none">{waitingCount} parties ahead</div>
-              <div className="text-xs font-black text-white leading-tight">~{estWaitPreview} min wait • Live</div>
-            </div>
-          </div>
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        </div>
-      )}
-
-      <div className="text-center space-y-1.5 relative">
-        <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">Join the Line — Save Your Spot</h2>
-        <p className="text-[12px] sm:text-xs text-slate-400 leading-relaxed px-2">
-          Enter your details, get a live ticket. We&apos;ll buzz you when it&apos;s your turn.
+      <div className="relative space-y-1.5 text-center">
+        <h2 className="text-lg font-black tracking-tight text-white sm:text-xl">
+          Join the line — save your spot
+        </h2>
+        <p className="px-2 text-[12px] leading-relaxed text-slate-400 sm:text-xs">
+          Enter your details to get a live ticket. We&apos;ll let you know when
+          it&apos;s your turn.
         </p>
       </div>
 
-      {state?.error && (
-        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs text-center font-medium leading-relaxed">
-          {state.error}
+      {serverError && (
+        <div
+          role="alert"
+          className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-center"
+        >
+          <p className="flex items-center justify-center gap-1.5 text-xs font-bold text-rose-200">
+            <TriangleAlert aria-hidden="true" className="h-4 w-4 shrink-0" />
+            {serverError.title}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-rose-300/90">
+            {serverError.body}
+          </p>
         </div>
       )}
 
-      <form action={formAction} className="space-y-6">
+      <form action={formAction} onSubmit={handleSubmit} noValidate className="space-y-5">
         <input type="hidden" name="restaurantId" value={restaurant.id} />
         <input type="hidden" name="restaurantSlug" value={restaurant.slug} />
         <input type="hidden" name="partySize" value={partySize} />
+        {/* Phone is normalized trim-only on the client to match server expectations. */}
+        <input type="hidden" name="customerPhone" value={normalizePhoneForSubmit(phone)} />
 
-        {/* Party Size Stepper - cool, animated */}
-        <div className="space-y-2">
-          <label className="block text-xs font-black text-white uppercase tracking-widest text-center">
-            Party Size
-          </label>
-          <div className="flex items-center justify-between gap-3 bg-slate-950 border border-slate-800 rounded-2xl p-3">
-            <button
-              type="button"
-              onClick={decrementParty}
-              disabled={partySize <= minParty || isPending}
-              className="h-12 w-12 rounded-xl bg-white text-slate-900 hover:bg-slate-100 disabled:opacity-20 disabled:cursor-not-allowed text-xl font-black transition-all flex items-center justify-center active:scale-90 shadow"
-            >
-              −
-            </button>
-            <div className="flex-1 text-center">
-              <div className="flex items-center justify-center gap-2">
-                <span key={partySize} className="text-3xl font-black text-white animate-[scaleIn_0.2s_ease]">{partySize}</span>
-                <span className="material-symbols-outlined text-emerald-400 text-[20px]">group</span>
-              </div>
-              <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">
-                {partySize === 1 ? '1 Guest' : `${partySize} Guests`} • {partySize >= 6 ? 'Large group' : partySize <= 2 ? 'Cozy' : 'Standard'}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={incrementParty}
-              disabled={partySize >= maxParty || isPending}
-              className="h-12 w-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-20 disabled:cursor-not-allowed text-white text-xl font-black transition-all flex items-center justify-center active:scale-90 shadow shadow-emerald-500/20"
-            >
-              +
-            </button>
-          </div>
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-400 font-bold">{minParty}–{maxParty} guests</span>
-            {waitingCount !== undefined && <span className="text-[10px] text-emerald-400 font-bold animate-pulse">• Live queue</span>}
-          </div>
-        </div>
+        <PartySizeSelector
+          value={partySize}
+          min={minParty}
+          max={maxParty}
+          disabled={isPending}
+          error={fieldErrors.partySize}
+          onChange={(next) => {
+            setPartySize(next);
+            setFieldErrors((prev) => ({ ...prev, partySize: undefined }));
+          }}
+        />
 
-        {/* Customer Name - with icon */}
         <div className="space-y-1.5">
-          <label htmlFor="customerName" className="block text-xs font-black text-white uppercase tracking-widest">
-            Your Name <span className="text-emerald-400">*</span>
+          <label htmlFor="customerName" className="block text-xs font-bold uppercase tracking-widest text-white">
+            Your name <span aria-hidden="true" className="text-emerald-400">*</span>
           </label>
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-[18px]">person</span>
+            <User aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-500" />
             <input
               id="customerName"
               type="text"
               name="customerName"
               required
-              placeholder="Rahul Sharma"
+              autoComplete="name"
+              autoCapitalize="words"
+              maxLength={100}
+              placeholder="e.g. Rahul Sharma"
               disabled={isPending}
-              className="w-full bg-slate-950 border border-slate-700 rounded-2xl pl-10 pr-4 py-3.5 text-white text-[15px] placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, name: undefined }));
+              }}
+              aria-invalid={Boolean(fieldErrors.name)}
+              aria-describedby={fieldErrors.name ? 'customerName-error' : undefined}
+              className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3.5 pl-10 pr-4 text-[16px] text-white placeholder-slate-500 transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 md:text-[15px]"
             />
           </div>
+          {fieldErrors.name && (
+            <p id="customerName-error" role="alert" className="text-xs font-semibold text-rose-300">
+              {fieldErrors.name}
+            </p>
+          )}
         </div>
 
-        {/* Customer Mobile */}
         <div className="space-y-1.5">
-          <label htmlFor="customerPhone" className="block text-xs font-black text-white uppercase tracking-widest">
-            Mobile <span className="text-slate-500 normal-case font-semibold">(for SMS alert)</span>
+          <label htmlFor="customerPhoneDisplay" className="block text-xs font-bold uppercase tracking-widest text-white">
+            Mobile <span className="font-semibold normal-case text-slate-500">(for updates)</span>
           </label>
           <div className="relative">
-            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-[18px]">call</span>
+            <Phone aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-500" />
             <input
-              id="customerPhone"
+              id="customerPhoneDisplay"
               type="tel"
-              name="customerPhone"
+              inputMode="tel"
+              autoComplete="tel"
               placeholder="98765 43210"
               disabled={isPending}
-              className="w-full bg-slate-950 border border-slate-700 rounded-2xl pl-10 pr-4 py-3.5 text-white text-[15px] placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+              }}
+              aria-invalid={Boolean(fieldErrors.phone)}
+              aria-describedby={fieldErrors.phone ? 'customerPhone-error customerPhone-hint' : 'customerPhone-hint'}
+              className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3.5 pl-10 pr-4 text-[16px] text-white placeholder-slate-500 transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 md:text-[15px]"
             />
           </div>
+          <p id="customerPhone-hint" className="text-[11px] text-slate-500">
+            Optional — 10-digit mobile number for status updates.
+          </p>
+          {fieldErrors.phone && (
+            <p id="customerPhone-error" role="alert" className="text-xs font-semibold text-rose-300">
+              {fieldErrors.phone}
+            </p>
+          )}
         </div>
 
-        {/* Submit - lucrative gradient with animated shine */}
         <button
           type="submit"
           disabled={isPending}
-          className="relative w-full h-[56px] mt-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:via-teal-400 hover:to-emerald-500 active:scale-[0.98] text-white font-black text-[15px] sm:text-base rounded-2xl transition-all duration-200 shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 overflow-hidden group"
+          className="relative flex h-[56px] w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-[15px] font-black text-white shadow-lg shadow-emerald-500/25 transition-all duration-200 hover:from-emerald-400 hover:via-teal-400 hover:to-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:text-base"
         >
-          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
           {isPending ? (
             <>
-              <span className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Securing your spot...
+              <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin" />
+              <span role="status">Securing your spot…</span>
             </>
           ) : (
             <>
-              <span className="material-symbols-outlined text-[20px]">confirmation_number</span>
-              Join Queue — Get Ticket
-              <span className="material-symbols-outlined text-[18px] group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+              <Ticket aria-hidden="true" className="h-5 w-5" />
+              Join the queue
+              <ArrowRight aria-hidden="true" className="h-[18px] w-[18px]" />
             </>
           )}
         </button>
-        <div className="flex items-center justify-center gap-3 text-[11px] text-slate-500">
-          <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-emerald-400"></span> Free</span>
-          <span className="w-px h-3 bg-white/10"></span>
-          <span>No app • SMS update</span>
-          <span className="w-px h-3 bg-white/10"></span>
-          <span>~10 sec</span>
-        </div>
+        <p className="text-center text-[11px] text-slate-500">
+          Free · No app needed · Takes ~10 seconds
+        </p>
       </form>
-    </div>
+    </section>
   );
 }

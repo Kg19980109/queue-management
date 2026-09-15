@@ -1,14 +1,16 @@
 import React from 'react';
+import Link from 'next/link';
+import { UtensilsCrossed } from 'lucide-react';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
 import { QueueService } from '@/lib/services/queue-service';
+import { NotificationService } from '@/lib/services/notification-service';
 import { QueueTicketCard } from '@/components/customer/QueueTicketCard';
-import { PublicMobileHeader } from '@/components/customer/PublicMobileHeader';
+import { TicketNotificationBanner, type TicketNotification } from '@/components/customer/TicketNotificationBanner';
 import { PartyPreferencesCard } from '@/components/customer/PartyPreferencesCard';
 import { KitchenPreOrderCard } from '@/components/customer/KitchenPreOrderCard';
-import { PublicBottomNav } from '@/components/customer/PublicBottomNav';
-import { StatusAutoRefresh } from './StatusAutoRefresh';
 import { TicketCookieSync } from '@/components/customer/TicketCookieSync';
 import { CustomerQueueRealtime } from '@/components/realtime/CustomerQueueRealtime';
+import { CustomerErrorState } from '@/components/customer/CustomerErrorState';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({
@@ -29,6 +31,21 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * Phase 4B — Customer digital ticket (server-rendered).
+ *
+ * Identity ALWAYS derives from `hash(rawToken)` → row → actual
+ * restaurant/entry (never from client-provided ids). The slug is only
+ * cross-checked with a GENERIC 404 — including for tenant mismatches,
+ * which must not reveal cross-restaurant information.
+ *
+ * Position/ETA come from `getQueueStatusByToken` — the same canonical
+ * ordering (`joined_at + id` over WAITING/NOTIFIED/CALLED) and the same
+ * ETAService config the staff dashboard reads, so both sides stay in
+ * sync. Staff mutations broadcast on the narrow entry channel and the
+ * ticket revalidates; a 10s visible-tab fallback covers disconnects.
+ * A single refresh timer exists (inside the realtime hook) — no doubles.
+ */
 export default async function CustomerQueueStatusPage({
   params,
 }: {
@@ -40,105 +57,142 @@ export default async function CustomerQueueStatusPage({
   const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(slug);
   if (!restaurant) {
     return (
-      <div className="min-h-screen bg-[#0A0E17] text-white flex items-center justify-center p-6">
-        <div className="bg-[#111827] border border-white/5 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
-          <div className="text-4xl">🔍</div>
-          <h1 className="text-xl font-bold text-white">Restaurant Not Found</h1>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            We couldn&apos;t find an active restaurant for &quot;{slug}&quot;.
-          </p>
-        </div>
-      </div>
+      <CustomerErrorState
+        variant="not-found"
+        title="Restaurant not found"
+        body={`We couldn't find an active restaurant for "${slug}". Please check the QR code or link and try again.`}
+      />
     );
   }
 
-  // 2. Resolve queue status by token
+  // 2. Resolve queue status by token (authoritative)
   const status = await QueueService.getQueueStatusByToken(token);
   if (!status) {
     return (
-      <div className="min-h-screen bg-[#0A0E17] text-white flex items-center justify-center p-6">
-        <div className="bg-[#111827] border border-white/5 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
-          <div className="text-4xl">🎟️</div>
-          <h1 className="text-xl font-bold text-white">Ticket Expired / Invalid</h1>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            We couldn&apos;t find a valid queue ticket for this token.
-          </p>
-          <a href={`/q/${slug}`} className="inline-flex items-center justify-center w-full h-11 rounded-xl bg-white text-[#0A0E17] font-bold text-sm mt-2 hover:bg-slate-100">Join Queue Again</a>
-        </div>
-      </div>
+      <CustomerErrorState
+        variant="not-found"
+        title="Ticket not found"
+        body="We couldn't find a valid queue ticket for this link. It may have expired — you can join the queue again."
+      />
     );
   }
 
-  // 3. TENANT ISOLATION CHECK
+  // 3. Tenant isolation — generic message (never reveal cross-tenant info).
   if (status.restaurantId !== restaurant.id) {
     return (
-      <div className="min-h-screen bg-[#0A0E17] text-white flex items-center justify-center p-6">
-        <div className="bg-[#111827] border border-white/5 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
-          <div className="text-4xl">🛡️</div>
-          <h1 className="text-xl font-bold text-rose-400">Access Denied</h1>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            This ticket belongs to a different restaurant.
-          </p>
-          <a href={`/q/${slug}`} className="inline-flex items-center justify-center w-full h-11 rounded-xl bg-white text-[#0A0E17] font-bold text-sm mt-2">Back to {restaurant.name}</a>
-        </div>
-      </div>
+      <CustomerErrorState
+        variant="not-found"
+        title="Ticket not found"
+        body="We couldn't find a valid queue ticket for this link. It may have expired — you can join the queue again."
+      />
     );
   }
 
-  const isTerminal = ['SEATED', 'CANCELLED', 'NO_SHOW', 'EXPIRED', 'COMPLETED'].includes(status.status);
-  
-  // Use server-calculated ETA (respects restaurant avg_service_time etc), fallback only if null
-  const estWaitMins = status.estimatedWaitMins ?? (status.status === 'WAITING' && status.position ? Math.max(5, (status.position - 1) * 7) : null);
-  const rawDisplay = status.displayNumber || status.entryId.substring(0, 4).toUpperCase();
-  const displayNum = rawDisplay.startsWith('#') ? rawDisplay : `#${rawDisplay}`;
+  const isTerminal = QueueService.isTerminalStatus(status.status);
 
-  // Only fetch menu when still queueing (save DB)
+  // Phase 4C: surface ONE already-persisted notification for this entry
+  // (server-side, entry+restaurant scoped, fail-soft). No client fetch, no
+  // extra timer, no external delivery — display only, deduped by recency.
+  let ticketNotification: TicketNotification | null = null;
+  if (!isTerminal) {
+    try {
+      const rows = await NotificationService.getCustomerNotificationsByQueueId(
+        status.entryId,
+        status.restaurantId
+      );
+      const latest = rows?.[0] as unknown as {
+        id?: string;
+        notification_type?: string;
+        message?: string;
+        metadata?: { title?: string } | null;
+      } | undefined;
+      if (latest?.id && latest?.message) {
+        ticketNotification = {
+          id: latest.id,
+          title:
+            latest.metadata?.title ||
+            (latest.notification_type || 'Update').replace(/_/g, ' '),
+          message: latest.message,
+        };
+      }
+    } catch {
+      ticketNotification = null;
+    }
+  }
+
+  // Only fetch menu while still queueing (save DB on terminal tickets).
   const menuCategories = !isTerminal ? await PublicRestaurantService.getPublicMenuPreview(restaurant.id) : [];
+  const menuUrl = `/q/${slug}/menu?qtoken=${token}`;
 
   return (
-    <main className="min-h-[100dvh] bg-[#0A0E17] text-white flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950 pb-[calc(6rem+env(safe-area-inset-bottom))]">
+    <main className="relative flex min-h-[100dvh] flex-col bg-slate-950 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-100">
       <TicketCookieSync slug={slug} token={token} isTerminal={isTerminal} />
       <CustomerQueueRealtime entryId={status.entryId} isTerminal={isTerminal} />
-      <StatusAutoRefresh intervalMs={10000} isTerminal={isTerminal} />
 
-      <div className="w-full max-w-md mx-auto">
-        {/* Top Header & Tab Navigation */}
-        <PublicMobileHeader 
-           restaurantName={restaurant.name} 
-           queueNumber={displayNum}
-           estWaitMins={estWaitMins}
+      {/* Background glow (decorative) */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[380px] bg-gradient-to-b from-emerald-900/20 via-slate-900/5 to-transparent" />
+
+      <div className="relative z-10 mx-auto w-full max-w-md flex-1 space-y-4 px-4 py-6 sm:py-8">
+        {/* Slim top bar: restaurant + live context + menu. No app shell. */}
+        <header className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-black text-white shadow-md">
+              {restaurant.name.slice(0, 1).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold tracking-tight text-white">
+                {restaurant.name}
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">
+                Live queue ticket
+              </p>
+            </div>
+          </div>
+          {!isTerminal && (
+            <Link
+              href={menuUrl}
+              className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-4 text-[13px] font-semibold text-slate-300 transition-colors hover:text-emerald-300"
+            >
+              <UtensilsCrossed aria-hidden="true" className="h-4 w-4" />
+              Menu
+            </Link>
+          )}
+        </header>
+
+        {/* Hero ticket */}
+        <TicketNotificationBanner notification={ticketNotification} />
+        <QueueTicketCard
+          status={status}
+          token={token}
+          restaurantSlug={slug}
+          restaurantName={restaurant.name}
+          queueEnabled={restaurant.queueEnabled}
+          operatingState={restaurant.queueOperatingState || 'OPEN'}
         />
 
-        {/* Hero Digital Pass */}
-        <div className="px-3 sm:px-4">
-           <QueueTicketCard status={status} token={token} restaurantSlug={slug} />
-        </div>
-
-        {!isTerminal ? (
-          <div className="px-3 sm:px-4 space-y-4">
-             <PartyPreferencesCard 
-               customerName={status.customerName} 
-               phone={null}
-               partySize={status.partySize}
-             />
-             <KitchenPreOrderCard queueNumber={displayNum} restaurantSlug={slug} token={token} categories={menuCategories} />
-          </div>
-        ) : (
-          <div className="px-3 sm:px-4 mt-4">
-            <div className="bg-[#111827] border border-white/5 rounded-2xl p-4 text-center">
-              <p className="text-sm font-bold text-white">
-                {status.status === 'SEATED' ? 'You are seated — enjoy your meal!' : status.status === 'CANCELLED' ? 'You left the queue. Re-join anytime.' : 'This ticket is no longer active.'}
-              </p>
-              <a href={`/q/${slug}`} className="inline-flex items-center justify-center mt-3 w-full h-11 rounded-xl bg-emerald-500 text-white font-bold text-sm">Join Again</a>
-            </div>
+        {!isTerminal && (
+          <div className="space-y-4">
+            <PartyPreferencesCard
+              customerName={status.customerName}
+              phone={null}
+              partySize={status.partySize}
+            />
+            <KitchenPreOrderCard
+              queueNumber={status.displayNumber || ''}
+              restaurantSlug={slug}
+              token={token}
+              categories={menuCategories}
+            />
           </div>
         )}
       </div>
 
-      {/* Fixed Bottom Nav */}
-      {!isTerminal && (
-        <PublicBottomNav queueNumber={displayNum} estWaitMins={estWaitMins} restaurantSlug={slug} token={token} />
-      )}
+      <footer className="relative z-10 mx-auto w-full max-w-md px-4 pb-6 pt-4 text-center">
+        <p className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
+          <span>Powered by</span>
+          <span className="font-bold tracking-tight text-emerald-400">QueueFlow</span>
+        </p>
+      </footer>
     </main>
   );
 }
