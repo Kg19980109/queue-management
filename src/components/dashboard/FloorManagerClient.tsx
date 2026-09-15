@@ -1,24 +1,46 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { AddTableModal } from './AddTableModal';
 import { updateTableStatusAction } from '@/app/dashboard/actions';
+
+function formatDiningDuration(seatedAt: string | null | undefined): string {
+  if (!seatedAt) return '';
+  const diffMs = Date.now() - new Date(seatedAt).getTime();
+  const mins = Math.max(0, Math.floor(diffMs / 60000));
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return `${hrs}h ${rem}m`;
+}
 
 export function FloorManagerClient({
   tables,
   zones,
   stats,
   queueEntries = [],
+  seatedEntries = [],
 }: {
   tables: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
   zones: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
   stats: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   restaurantName: string;
   queueEntries?: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  seatedEntries?: any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
 }) {
+  const router = useRouter();
   const [selectedTableId, setSelectedTableId] = useState<string | null>(tables.length > 0 ? tables[0].id : null);
   const [activeZone, setActiveZone] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Periodic polling sync to keep floor manager strictly synchronized with live queue
+  useEffect(() => {
+    const timer = setInterval(() => {
+      router.refresh();
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [router]);
 
   const handleStatusChange = (tableId: string, newStatus: string) => {
     startTransition(async () => {
@@ -27,6 +49,8 @@ export function FloorManagerClient({
         const result = await updateTableStatusAction(tableId, newStatus as any, table?.status as any); // eslint-disable-line @typescript-eslint/no-explicit-any
         if (result && !result.success) {
           alert(result.error || 'Failed to update table status');
+        } else {
+          router.refresh();
         }
       } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
         alert(err.message || 'Failed to update table status');
@@ -34,7 +58,16 @@ export function FloorManagerClient({
     });
   };
 
+  // Build lookup map for currently seated guest per table
+  const seatedMap = new Map<string, any>(); // eslint-disable-line @typescript-eslint/no-explicit-any
+  (seatedEntries || []).forEach((entry: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (entry.seated_table_id) {
+      seatedMap.set(entry.seated_table_id, entry);
+    }
+  });
+
   const selectedTable = tables.find(t => t.id === selectedTableId);
+  const selectedSeatedGuest = selectedTable ? seatedMap.get(selectedTable.id) : null;
   
   // Filter tables by zone
   const filteredTables = activeZone ? tables.filter(t => t.zoneId === activeZone) : tables;
@@ -252,14 +285,42 @@ export function FloorManagerClient({
                            </span>
                          </div>
 
-                         <div className="flex flex-col gap-1 mt-2">
-                           <span className="text-sm font-semibold text-white truncate">
-                             {table.capacity} Guests Capacity
-                           </span>
-                    <span className="text-xs text-slate-400">
-                              {table.status === 'AVAILABLE' ? 'Ready for guests' : table.status === 'OCCUPIED' ? 'Guests seated' : table.status === 'CLEANING' ? 'Needs cleaning' : 'Reserved'}
-                            </span>
-                          </div>
+                          {table.status === 'OCCUPIED' && seatedMap.get(table.id) ? (
+                            <div className="mt-2 pt-2 border-t border-amber-500/20 flex flex-col gap-1">
+                              {(() => {
+                                const sg = seatedMap.get(table.id);
+                                return (
+                                  <>
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span className="font-bold text-amber-300 text-xs truncate flex items-center gap-1">
+                                        <span>👤</span>
+                                        <span className="truncate">{sg.customer_name}</span>
+                                      </span>
+                                      <span className="font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">
+                                        Q-{(sg.display_number || sg.queue_number || '').toString().replace(/^#+/, '')}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px] text-slate-300">
+                                      <span>{sg.actual_guests || sg.party_size} guests</span>
+                                      <span className="text-amber-400 font-mono text-[10px] flex items-center gap-0.5">
+                                        <span>⏱️</span>
+                                        <span>{formatDiningDuration(sg.seated_at)}</span>
+                                      </span>
+                                    </div>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-1 mt-2">
+                              <span className="text-sm font-semibold text-white truncate">
+                                {table.capacity} Guests Capacity
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                {table.status === 'AVAILABLE' ? 'Ready for guests' : table.status === 'OCCUPIED' ? 'Guests seated' : table.status === 'CLEANING' ? 'Needs cleaning' : 'Reserved'}
+                              </span>
+                            </div>
+                          )}
                         </button>
                       );
                     })}
@@ -296,6 +357,68 @@ export function FloorManagerClient({
                 <span className="px-2 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 text-xs font-medium">Cap {selectedTable.capacity}</span>
                 <span className={`px-2 py-1 rounded-full text-xs font-bold border ${selectedTable.status==='AVAILABLE'?'bg-emerald-500/10 border-emerald-500/20 text-emerald-400':selectedTable.status==='OCCUPIED'?'bg-amber-500/10 border-amber-500/20 text-amber-400':selectedTable.status==='CLEANING'?'bg-rose-500/10 border-rose-500/20 text-rose-400':'bg-blue-500/10 border-blue-500/20 text-blue-400'}`}>{selectedTable.status}</span>
               </div>
+
+              {/* Currently Seated Guest Dossier */}
+              {selectedSeatedGuest && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.07] p-4 flex flex-col gap-3 shadow-inner">
+                  <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                      </span>
+                      Currently Seated Guest
+                    </span>
+                    <span className="font-mono text-xs font-black px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Q-{(selectedSeatedGuest.display_number || selectedSeatedGuest.queue_number || '').toString().replace(/^#+/, '')}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <div className="text-base font-black text-white flex items-center gap-2">
+                      <span>👤</span>
+                      <span>{selectedSeatedGuest.customer_name}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-lg bg-black/30 p-2 border border-white/5 flex flex-col">
+                        <span className="text-[10px] text-slate-400 font-semibold">Party Size</span>
+                        <span className="text-sm font-bold text-white mt-0.5">
+                          {selectedSeatedGuest.actual_guests || selectedSeatedGuest.party_size} Guests
+                        </span>
+                      </div>
+                      <div className="rounded-lg bg-black/30 p-2 border border-white/5 flex flex-col">
+                        <span className="text-[10px] text-slate-400 font-semibold">Dining Time</span>
+                        <span className="text-sm font-bold text-amber-300 font-mono mt-0.5">
+                          ⏱️ {formatDiningDuration(selectedSeatedGuest.seated_at)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {selectedSeatedGuest.customer_phone && (
+                      <div className="flex items-center justify-between text-xs rounded-lg bg-black/20 px-2.5 py-1.5 border border-white/5 text-slate-300">
+                        <span className="text-slate-400 text-[11px]">Phone:</span>
+                        <span className="font-mono font-bold text-slate-200">{selectedSeatedGuest.customer_phone}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-amber-500/20 flex flex-col gap-1">
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => handleStatusChange(selectedTable.id, 'AVAILABLE')}
+                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-md shadow-emerald-900/30 flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                      Clear Table & Complete Guest (Exit Flow)
+                    </button>
+                    <span className="text-[10px] text-center text-slate-400">
+                      Frees table & finishes ticket so customer can join queue again later
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Status Indicator */}
               <div className="bg-[#0A0E17] rounded-xl border border-white/5 p-4 flex flex-col gap-2 relative mt-2 overflow-hidden">

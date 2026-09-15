@@ -102,39 +102,46 @@ class AudioChimeEngine {
   }
 
   /**
-   * Restaurant Pager Buzzer for customer devices.
-   * Plays loud pulsing square waves mimicking physical buzzer pagers
-   * and triggers hardware vibration on phones.
+   * Soothing Restaurant Notification Chime for customer devices.
+   * Plays a warm, melodic acoustic bell harmonic sequence (C5 -> E5 -> G5 -> C6)
+   * with smooth natural decay, coupled with gentle phone haptic vibration.
    */
   playBuzzerSound() {
     // 1. Hardware vibration on mobile devices
-    this.triggerPhoneVibration([500, 150, 500, 150, 800]);
+    this.triggerPhoneVibration([300, 120, 300, 120, 500]);
 
-    // 2. Audible pager buzzer synth
+    // 2. Audible soothing acoustic chime synth
     try {
       const ctx = this.getContext();
       if (!ctx) return;
       const now = ctx.currentTime;
 
-      // 3 rapid aggressive buzzer beeps (880Hz / 660Hz)
-      const offsets = [0, 0.22, 0.44];
-      offsets.forEach((offset) => {
+      // Soothing 4-note ascending bell chime: C5 -> E5 -> G5 -> C6
+      const notes = [
+        { freq: 523.25, time: 0, dur: 0.7, vol: 0.2 },
+        { freq: 659.25, time: 0.16, dur: 0.7, vol: 0.22 },
+        { freq: 783.99, time: 0.32, dur: 0.75, vol: 0.25 },
+        { freq: 1046.50, time: 0.48, dur: 1.1, vol: 0.28 },
+      ];
+
+      notes.forEach(({ freq, time, dur, vol }) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(780, now + offset);
-        osc.frequency.linearRampToValueAtTime(880, now + offset + 0.14);
+        // Warm pure sine wave with subtle harmonic body
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + time);
 
-        gain.gain.setValueAtTime(0.001, now + offset);
-        gain.gain.linearRampToValueAtTime(0.28, now + offset + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.18);
+        // Gentle acoustic envelope: smooth attack -> resonant exponential decay
+        gain.gain.setValueAtTime(0.001, now + time);
+        gain.gain.linearRampToValueAtTime(vol, now + time + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + time + dur);
 
         osc.connect(gain);
         gain.connect(ctx.destination);
 
-        osc.start(now + offset);
-        osc.stop(now + offset + 0.19);
+        osc.start(now + time);
+        osc.stop(now + time + dur + 0.05);
       });
     } catch {}
   }

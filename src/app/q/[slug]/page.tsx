@@ -13,7 +13,7 @@ import { TicketResumeBanner } from '@/components/customer/TicketResumeBanner';
 import { LandingAutoRefresh } from '@/components/customer/LandingAutoRefresh';
 import { CustomerErrorState } from '@/components/customer/CustomerErrorState';
 import { resolveJoinability, formatWaitLabel } from '@/lib/customer-join-ux';
-import { getTicketToken } from '@/lib/customer-ticket-cookie';
+import { getTicketToken, clearTicketCookie } from '@/lib/customer-ticket-cookie';
 import { logger } from '@/lib/logging/logger';
 import type { Metadata } from 'next';
 
@@ -129,9 +129,11 @@ export default async function PublicRestaurantQueuePage({
     const raw = await getTicketToken(slug);
     if (raw) {
       const s = await QueueService.getQueueStatusByToken(raw);
-      if (s && s.restaurantId === restaurant.id && ['WAITING', 'NOTIFIED', 'CALLED', 'SEATED'].includes(s.status)) {
+      if (s && s.restaurantId === restaurant.id && ['WAITING', 'NOTIFIED', 'CALLED', 'SEATED'].includes(s.status) && !s.completedAt) {
         activeTicketToken = raw;
         activeTicketState = s.status as ActiveTicketState;
+      } else if (s?.completedAt) {
+        await clearTicketCookie(slug);
       }
     }
   } catch {

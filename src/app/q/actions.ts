@@ -16,6 +16,7 @@ import {
 } from '@/lib/rate-limit';
 import { logger } from '@/lib/logging/logger';
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 
 /**
  * Phase 3E: Server Actions bypass HTTP-route rate limiters, so abuse
@@ -265,4 +266,45 @@ export async function delayQueuePublicAction(token: string, restaurantSlug: stri
   }
 
   redirect(`/q/${restaurantSlug}/status/${token}?delayed=true`);
+}
+
+export async function exitDiningCustomerAction(token: string, restaurantSlug: string): Promise<void> {
+  try {
+    const limited = await limitTokenAttempt('cancel', token);
+    if (limited) {
+      throw new Error(limited);
+    }
+
+    const status = await QueueService.getQueueStatusByToken(token);
+    if (!status) {
+      throw new Error('Queue entry not found.');
+    }
+
+    const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(restaurantSlug);
+    if (!restaurant || restaurant.id !== status.restaurantId) {
+      throw new Error('Tenant isolation mismatch.');
+    }
+
+    await QueueService.exitSeatedCustomer(status.entryId);
+    await clearTicketCookie(restaurantSlug);
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : 'Failed to exit queue flow.';
+    if (message === 'Too many requests. Please try again shortly.') {
+      throw new Error(message);
+    }
+    logger.warn('Public queue exit failed', {
+      operation: 'public_queue_exit',
+      metadata: { error: message },
+    });
+    throw new Error('Failed to exit dining flow.');
+  }
+
+  revalidatePath(`/q/${restaurantSlug}/status/${token}`);
+  revalidatePath(`/q/${restaurantSlug}`);
+  revalidatePath('/dashboard/tables');
+  revalidatePath('/dashboard');
+  redirect(`/q/${restaurantSlug}/status/${token}?exited=true`);
 }

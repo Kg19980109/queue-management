@@ -633,6 +633,43 @@ export class TableService {
       metadata: { previousStatus: actualCurrentStatus, targetStatus },
     });
 
+    // When table becomes AVAILABLE or moves to CLEANING after dining, seated guest exits the flow
+    if (actualCurrentStatus === 'OCCUPIED' && (targetStatus === 'AVAILABLE' || targetStatus === 'CLEANING')) {
+      try {
+        const { data: seatedGuests } = await adminClient
+          .from('queue_entries')
+          .select('id')
+          .eq('restaurant_id', context.restaurantId)
+          .eq('seated_table_id', tableId)
+          .eq('status', 'SEATED')
+          .is('completed_at', null);
+
+        if (seatedGuests && seatedGuests.length > 0) {
+          const nowIso = new Date().toISOString();
+          for (const sg of seatedGuests) {
+            await adminClient
+              .from('queue_entries')
+              .update({ completed_at: nowIso, updated_at: nowIso })
+              .eq('id', sg.id);
+
+            await adminClient.from('queue_events').insert({
+              restaurant_id: context.restaurantId,
+              queue_entry_id: sg.id,
+              event_type: 'QUEUE_COMPLETED',
+              actor_user_id: context.userId,
+              metadata: {
+                table_id: tableId,
+                target_status: targetStatus,
+                reason: `TABLE_STATE_TRANSITION_TO_${targetStatus}`,
+              },
+            });
+          }
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+
     return updated;
   }
 }

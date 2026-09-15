@@ -4,6 +4,7 @@ import { generateQueueToken, hashQueueToken } from '@/lib/utils/token-utils';
 import { ETAService, RestaurantETAConfig } from '@/lib/services/eta-service';
 import { AuthorizationService } from '@/lib/services/authorization-service';
 import { PERMISSIONS } from '@/lib/auth/permissions';
+import { logger } from '@/lib/logging/logger';
 import { z } from 'zod';
 
 export type QueueHealthState = 'HEALTHY' | 'BUSY' | 'CRITICAL' | 'EMPTY' | 'CLOSED' | 'PAUSED';
@@ -106,6 +107,7 @@ export interface PublicQueueStatusResponse {
   nowCallingNumber?: string | null;
   upNextNumber?: string | null;
   recentlySeatedNumbers?: string[];
+  completedAt?: string | null;
 }
 
 export class QueueService {
@@ -373,6 +375,7 @@ export class QueueService {
       nowCallingNumber,
       upNextNumber,
       recentlySeatedNumbers,
+      completedAt: entry.completed_at || null,
     };
   }
 
@@ -822,6 +825,99 @@ export class QueueService {
     });
 
     return formatted;
+  }
+
+  /**
+   * Retrieves actively seated queue entries for a restaurant floor blueprint.
+   * Only returns guests currently seated at tables whose dining is not yet completed.
+   */
+  static async getSeatedQueueEntries(restaurantId: string) {
+    const supabase = createAdminClient();
+    const { data: entries, error } = await supabase
+      .from('queue_entries')
+      .select('id, customer_name, customer_phone, party_size, actual_guests, queue_number, display_number, status, seated_table_id, seated_at, completed_at, joined_at')
+      .eq('restaurant_id', restaurantId)
+      .eq('status', 'SEATED')
+      .is('completed_at', null)
+      .order('seated_at', { ascending: false });
+
+    if (error) {
+      logger.warn('Failed to fetch seated queue entries', {
+        operation: 'getSeatedQueueEntries',
+        metadata: { error: error.message, restaurantId },
+      });
+      return [];
+    }
+
+    return entries || [];
+  }
+
+  /**
+   * Exits a seated dining customer from the active flow.
+   * Marks completed_at on queue_entries, logs QUEUE_COMPLETED,
+   * and if the table is still OCCUPIED, transitions it to CLEANING so staff can bus it.
+   */
+  static async exitSeatedCustomer(entryId: string, actorUserId?: string) {
+    const supabase = createAdminClient();
+
+    const { data: entry, error: fetchError } = await supabase
+      .from('queue_entries')
+      .select('id, restaurant_id, seated_table_id, status, completed_at')
+      .eq('id', entryId)
+      .single();
+
+    if (fetchError || !entry) {
+      throw new Error('QUEUE_ENTRY_NOT_FOUND');
+    }
+
+    const nowIso = new Date().toISOString();
+
+    // Update completed_at
+    const { error: updateError } = await supabase
+      .from('queue_entries')
+      .update({
+        completed_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq('id', entryId);
+
+    if (updateError) {
+      throw new Error(`Failed to exit queue flow: ${updateError.message}`);
+    }
+
+    // If associated with a table that is still OCCUPIED, transition the table to CLEANING
+    if (entry.seated_table_id) {
+      const { data: table } = await supabase
+        .from('restaurant_tables')
+        .select('id, status')
+        .eq('id', entry.seated_table_id)
+        .maybeSingle();
+
+      if (table && table.status === 'OCCUPIED') {
+        await supabase
+          .from('restaurant_tables')
+          .update({
+            status: 'CLEANING',
+            updated_at: nowIso,
+          })
+          .eq('id', entry.seated_table_id);
+      }
+    }
+
+    // Insert queue event
+    await supabase.from('queue_events').insert({
+      restaurant_id: entry.restaurant_id,
+      queue_entry_id: entryId,
+      event_type: 'QUEUE_COMPLETED',
+      actor_user_id: actorUserId || null,
+      metadata: {
+        reason: 'CUSTOMER_OR_STAFF_EXIT',
+        seated_table_id: entry.seated_table_id,
+        completed_at: nowIso,
+      },
+    });
+
+    return { success: true, completedAt: nowIso };
   }
 
   /**

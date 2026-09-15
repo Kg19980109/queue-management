@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { PublicQueueStatusResponse } from '@/lib/services/queue-service';
 import { CancelQueueDialog } from './CancelQueueDialog';
+import { ExitDiningDialog } from './ExitDiningDialog';
 import { CustomerLateModal } from './CustomerLateModal';
 import { QueueProgressMessage } from './QueueProgressMessage';
 import { formatWaitLabel } from '@/lib/customer-join-ux';
@@ -92,8 +93,9 @@ export function QueueTicketCard({
   const waitLabel = meta.showWaitInfo ? formatWaitLabel(status.estimatedWaitMins) : null;
   const operatingNote = operatingNoteForTicket(status.status, queueEnabled, operatingState);
   const isCalled = status.status === 'CALLED';
+  const isCompleted = !!status.completedAt;
   const isSeated = status.status === 'SEATED';
-  const isTerminal = status.status === 'CANCELLED' || status.status === 'NO_SHOW' || status.status === 'EXPIRED';
+  const isTerminal = status.status === 'CANCELLED' || status.status === 'NO_SHOW' || status.status === 'EXPIRED' || isCompleted;
   const tableDisplay = isSeated ? formatTableNumber(status.tableNumber) : null;
 
   // Accessible live announcement: announce ONLY when status changes between renders,
@@ -176,10 +178,10 @@ export function QueueTicketCard({
                 setTimeout(() => setBuzzerTested(false), 2500);
               }}
               className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] hover:bg-white/10 px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:text-white transition-all cursor-pointer"
-              title="Test sound buzzer and vibration"
+              title="Test soothing notification sound and vibration"
             >
-              <span>{buzzerTested ? '⚡' : '🔔'}</span>
-              <span>{buzzerTested ? 'Buzzing...' : 'Test Pager Buzzer'}</span>
+              <span>{buzzerTested ? '✨' : '🔔'}</span>
+              <span>{buzzerTested ? 'Chiming...' : 'Test Notification Chime'}</span>
             </button>
           )}
         </div>
@@ -220,20 +222,20 @@ export function QueueTicketCard({
       {isSeated && (
         <div
           role="region"
-          aria-label="Seated notice"
+          aria-label={isCompleted ? "Dining completed notice" : "Seated notice"}
           className="mt-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center transition-all duration-300 motion-safe:animate-fadeIn"
         >
           <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300">
             <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5 text-emerald-300" />
-            COMPLETED
+            {isCompleted ? 'DINING COMPLETED' : 'SEATED'}
           </div>
           <h2 className="mt-2 text-xl font-black tracking-tight text-white sm:text-2xl">
-            You&apos;re seated!
+            {isCompleted ? 'Dining completed · Thank you!' : "You're seated!"}
           </h2>
           <p className="mx-auto mt-1 max-w-[280px] text-sm font-medium leading-relaxed text-emerald-100/90">
-            The wait is over — enjoy your meal.
+            {isCompleted ? 'We hope you enjoyed your meal! You have exited the queue.' : 'The wait is over — enjoy your meal.'}
           </p>
-          {tableDisplay && (
+          {tableDisplay && !isCompleted && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-3.5 py-1.5 text-xs font-bold text-emerald-200">
               <span>Seated at:</span>
               <span className="font-mono text-white">{tableDisplay}</span>
@@ -470,16 +472,32 @@ export function QueueTicketCard({
       )}
 
       {/* Actions / Handoff */}
-      <div className="mt-5">
-        {isSeated ? (
-          <Link
-            href={`/q/${restaurantSlug}/menu?qtoken=${token}`}
-            className="qf-cta flex h-13 min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 text-sm font-black text-white shadow-lg shadow-orange-500/30 transition-all hover:brightness-110 active:scale-[0.98]"
-          >
-            <UtensilsCrossed aria-hidden="true" className="h-4 w-4" />
-            <span>View Restaurant Menu</span>
-            <ArrowRight aria-hidden="true" className="h-4 w-4" />
-          </Link>
+      <div className="mt-5 flex flex-col gap-2.5">
+        {isCompleted ? (
+          <div className="flex flex-col gap-2.5">
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 text-center text-xs text-emerald-300">
+              <span className="font-bold">✨ Dining completed.</span> Thank you for visiting! You can join the queue again whenever you return.
+            </div>
+            <a
+              href={`/q/${restaurantSlug}`}
+              className="flex h-12 w-full items-center justify-center rounded-2xl bg-emerald-500 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400 active:scale-[0.98]"
+            >
+              Join the queue again
+            </a>
+          </div>
+        ) : isSeated ? (
+          <div className="flex flex-col gap-2.5">
+            <Link
+              href={`/q/${restaurantSlug}/menu?qtoken=${token}`}
+              className="qf-cta flex h-13 min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 text-sm font-black text-white shadow-lg shadow-orange-500/30 transition-all hover:brightness-110 active:scale-[0.98]"
+            >
+              <UtensilsCrossed aria-hidden="true" className="h-4 w-4" />
+              <span>View Restaurant Menu</span>
+              <ArrowRight aria-hidden="true" className="h-4 w-4" />
+            </Link>
+
+            <ExitDiningDialog token={token} restaurantSlug={restaurantSlug} />
+          </div>
         ) : isCalled ? (
           <div className="flex flex-col gap-2">
             <CancelQueueDialog token={token} restaurantSlug={restaurantSlug} />

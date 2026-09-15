@@ -20,10 +20,12 @@ export default async function TablesPage() {
     { tables, stats },
     { zones },
     queueEntries,
+    seatedEntries,
   ] = await Promise.all([
     TableService.listTables({ limit: 200, restaurantId: restaurant.id }),
     ZoneService.listZones({ status: 'ACTIVE' }),
-    QueueService.getActiveQueue(restaurant.id)
+    QueueService.getActiveQueue(restaurant.id),
+    QueueService.getSeatedQueueEntries(restaurant.id),
   ]);
 
   return (
@@ -33,6 +35,7 @@ export default async function TablesPage() {
         stats={stats}
         restaurantName={restaurant.name}
         queueEntries={queueEntries}
+        seatedEntries={seatedEntries}
       />
   );
 }
