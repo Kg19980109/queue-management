@@ -13,7 +13,9 @@ describe('Phase 8: Core Queue Engine, FSM, Concurrency & Security Tests', () => 
 
   const RESTAURANT_A_ID = '11111111-1111-4111-a111-111111111111';
   const RESTAURANT_B_ID = '22222222-2222-4222-a222-222222222222';
-  const ADMIN_A_ID = 'a0000000-0000-4000-a000-000000000002';
+  // Resolved by email in beforeAll: alice's Auth user was recreated
+  // (new UUID) when repairing its broken seed row — never hard-rely on it.
+  let ADMIN_A_ID = 'a0000000-0000-4000-a000-000000000002';
   const SUPER_ADMIN_ID = 'a0000000-0000-4000-a000-000000000001';
 
   beforeAll(async () => {
@@ -21,7 +23,13 @@ describe('Phase 8: Core Queue Engine, FSM, Concurrency & Security Tests', () => 
       throw new Error('DATABASE_URL is required in .env.local for live queue tests');
     }
     client = new Client({ connectionString });
-    await client.connect();
+        await client.connect();
+    try {
+      const found = await client.query(`SELECT id FROM auth.users WHERE lower(email) = 'alice@bistro.com' LIMIT 1`);
+      if (found.rows.length > 0) ADMIN_A_ID = found.rows[0].id;
+    } catch {
+      // Fall back to the seed UUID.
+    }
 
     // Ensure test restaurants have clean default queue settings
     await client.query(`

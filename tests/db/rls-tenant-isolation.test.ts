@@ -14,7 +14,9 @@ describe('Live Database RLS Multi-Tenant Security & Penetration Tests', () => {
   // Resolved by email in beforeAll: the super-admin Auth user may have been
   // recreated (new UUID) since seeding, so never hard-rely on the seed id.
   let SUPER_ADMIN_ID = 'a0000000-0000-4000-a000-000000000001';
-  const ADMIN_A_ID = 'a0000000-0000-4000-a000-000000000002';
+  // Resolved by email in beforeAll: alice's Auth user was recreated
+  // (new UUID) when repairing its broken seed row — never hard-rely on it.
+  let ADMIN_A_ID = 'a0000000-0000-4000-a000-000000000002';
   const STAFF_A_ID = 'a0000000-0000-4000-a000-000000000004';
 
   beforeAll(async () => {
@@ -25,7 +27,13 @@ describe('Live Database RLS Multi-Tenant Security & Penetration Tests', () => {
       connectionString,
       ssl: { rejectUnauthorized: false },
     });
-    await client.connect();
+        await client.connect();
+    try {
+      const found = await client.query(`SELECT id FROM auth.users WHERE lower(email) = 'alice@bistro.com' LIMIT 1`);
+      if (found.rows.length > 0) ADMIN_A_ID = found.rows[0].id;
+    } catch {
+      // Fall back to the seed UUID.
+    }
     try {
       const found = await client.query(`SELECT id FROM auth.users WHERE lower(email) = 'superadmin@queueflow.io' LIMIT 1`);
       if (found.rows.length > 0) SUPER_ADMIN_ID = found.rows[0].id;

@@ -15,7 +15,9 @@ describe('Phase 7: Menu, Inventory, Recipe & Concurrency Tests', () => {
   const RESTAURANT_A_ID = '11111111-1111-4111-a111-111111111111';
   const RESTAURANT_B_ID = '22222222-2222-4222-a222-222222222222';
 
-  const ADMIN_A_ID = 'a0000000-0000-4000-a000-000000000002';
+  // Resolved by email in beforeAll: alice's Auth user was recreated
+  // (new UUID) when repairing its broken seed row — never hard-rely on it.
+  let ADMIN_A_ID = 'a0000000-0000-4000-a000-000000000002';
   const STAFF_A_ID = 'a0000000-0000-4000-a000-000000000003';
 
   beforeAll(async () => {
@@ -26,7 +28,13 @@ describe('Phase 7: Menu, Inventory, Recipe & Concurrency Tests', () => {
       connectionString,
       ssl: { rejectUnauthorized: false },
     });
-    await client.connect();
+        await client.connect();
+    try {
+      const found = await client.query(`SELECT id FROM auth.users WHERE lower(email) = 'alice@bistro.com' LIMIT 1`);
+      if (found.rows.length > 0) ADMIN_A_ID = found.rows[0].id;
+    } catch {
+      // Fall back to the seed UUID.
+    }
   });
 
   afterAll(async () => {

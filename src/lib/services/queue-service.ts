@@ -886,6 +886,65 @@ export class QueueService {
   }
 
   /**
+   * Today's business-day queue summary for dashboard secondary metrics.
+   * Single lightweight query scoped to entries created since the 5 AM
+   * business-day cutoff (falls back to local midnight). Guests seated uses
+   * seat-time headcount (actual_guests) with party_size fallback.
+   * Read-only aggregation — no permission beyond caller context needed.
+   */
+  static async getTodayQueueSummary(restaurantId: string): Promise<{
+    seatedGroups: number;
+    seatedGuests: number;
+    noShows: number;
+    cancelled: number;
+  }> {
+    const supabase = createAdminClient();
+    let cutoffISO: string | null = null;
+    try {
+      const { data: restaurant } = await supabase
+        .from('restaurants')
+        .select('timezone')
+        .eq('id', restaurantId)
+        .single();
+      const { data: cutoff } = await supabase.rpc('get_recent_5am_cutoff', {
+        p_timezone: (restaurant as unknown as { timezone?: string } | null)?.timezone || 'UTC',
+      });
+      if (cutoff) cutoffISO = cutoff as string;
+    } catch {
+      cutoffISO = null;
+    }
+    if (!cutoffISO) {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      cutoffISO = start.toISOString();
+    }
+
+    const { data, error } = await supabase
+      .from('queue_entries')
+      .select('status, party_size, actual_guests')
+      .eq('restaurant_id', restaurantId)
+      .gte('created_at', cutoffISO);
+    if (error || !data) {
+      return { seatedGroups: 0, seatedGuests: 0, noShows: 0, cancelled: 0 };
+    }
+    let seatedGroups = 0;
+    let seatedGuests = 0;
+    let noShows = 0;
+    let cancelled = 0;
+    for (const e of data as Array<{ status: string; party_size: number; actual_guests: number | null }>) {
+      if (e.status === 'SEATED') {
+        seatedGroups += 1;
+        seatedGuests += e.actual_guests ?? e.party_size ?? 0;
+      } else if (e.status === 'NO_SHOW') {
+        noShows += 1;
+      } else if (e.status === 'CANCELLED') {
+        cancelled += 1;
+      }
+    }
+    return { seatedGroups, seatedGuests, noShows, cancelled };
+  }
+
+  /**
    * Pure, dependency-free fallback health computed from already-fetched rows.
    * NEVER throws — used by pages so a health failure can never crash the UI.
    * Same classification priority as getQueueHealth, without schedule lookup
