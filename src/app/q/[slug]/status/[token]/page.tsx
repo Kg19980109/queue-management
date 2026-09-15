@@ -11,6 +11,7 @@ import { KitchenPreOrderCard } from '@/components/customer/KitchenPreOrderCard';
 import { TicketCookieSync } from '@/components/customer/TicketCookieSync';
 import { CustomerQueueRealtime } from '@/components/realtime/CustomerQueueRealtime';
 import { CustomerErrorState } from '@/components/customer/CustomerErrorState';
+import { shouldShowNotificationBanner } from '@/lib/customer-ticket-ux';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({
@@ -90,9 +91,8 @@ export default async function CustomerQueueStatusPage({
 
   const isTerminal = QueueService.isTerminalStatus(status.status);
 
-  // Phase 4C: surface ONE already-persisted notification for this entry
-  // (server-side, entry+restaurant scoped, fail-soft). No client fetch, no
-  // extra timer, no external delivery — display only, deduped by recency.
+  // Phase 4C/4D: surface ONE relevant persisted notification, deduplicating against
+  // authoritative CALLED / SEATED hero messaging to avoid repetitive copy.
   let ticketNotification: TicketNotification | null = null;
   if (!isTerminal) {
     try {
@@ -107,13 +107,16 @@ export default async function CustomerQueueStatusPage({
         metadata?: { title?: string } | null;
       } | undefined;
       if (latest?.id && latest?.message) {
-        ticketNotification = {
+        const candidate = {
           id: latest.id,
           title:
             latest.metadata?.title ||
             (latest.notification_type || 'Update').replace(/_/g, ' '),
           message: latest.message,
         };
+        if (shouldShowNotificationBanner(status.status, candidate)) {
+          ticketNotification = candidate;
+        }
       }
     } catch {
       ticketNotification = null;

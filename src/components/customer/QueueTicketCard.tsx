@@ -1,14 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   Users,
   Clock,
   ListOrdered,
   BellRing,
   Megaphone,
-  PartyPopper,
+  CheckCircle2,
   Info,
+  ArrowRight,
+  UtensilsCrossed,
 } from 'lucide-react';
 import type { PublicQueueStatusResponse } from '@/lib/services/queue-service';
 import { CancelQueueDialog } from './CancelQueueDialog';
@@ -19,6 +22,7 @@ import {
   formatTicketNumber,
   positionLabel,
   partiesAheadLabel,
+  formatTableNumber,
   operatingNoteForTicket,
   type TicketTone,
 } from '@/lib/customer-ticket-ux';
@@ -44,12 +48,12 @@ const TONE_STYLES: Record<TicketTone, { ring: string; pill: string; dot: string 
     dot: 'bg-amber-400',
   },
   urgent: {
-    ring: 'border-sky-500/40',
+    ring: 'border-sky-500/40 shadow-[0_0_30px_rgba(56,189,248,0.15)]',
     pill: 'border-sky-400/40 bg-sky-500/15 text-sky-200',
     dot: 'bg-sky-400',
   },
   success: {
-    ring: 'border-emerald-500/30',
+    ring: 'border-emerald-500/40 shadow-[0_0_30px_rgba(16,185,129,0.15)]',
     pill: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
     dot: 'bg-emerald-400',
   },
@@ -60,16 +64,15 @@ const TONE_STYLES: Record<TicketTone, { ring: string; pill: string; dot: string 
   },
 };
 
-const STAGE_LABELS = ['Wait', 'Called', 'Ready', 'Seated'] as const;
+const STAGE_LABELS = ['Wait', 'Close', 'Called', 'Seated'] as const;
 
 /**
- * Phase 4B — Customer digital ticket.
+ * Phase 4D — Customer digital ticket with CALLED / SEATED experience.
  *
  * Pure presentation over the authoritative `status` prop (server-rendered
- * from `getQueueStatusByToken` — the same ordering + ETA source the staff
- * dashboard reads). Never fetches, never stores tokens, never invents
- * position/ETA. Realtime/polling revalidates the page; this component
- * simply renders the fresh prop.
+ * from `getQueueStatusByToken`). When CALLED, waiting metrics are removed,
+ * and the return-to-restaurant instruction dominates. When SEATED,
+ * cancellation is disabled and clean menu handoff is presented.
  */
 export function QueueTicketCard({
   status,
@@ -82,25 +85,57 @@ export function QueueTicketCard({
   const meta = ticketStateMeta(status.status);
   const tone = TONE_STYLES[meta.tone];
   const ticketNo = formatTicketNumber(status.displayNumber, status.entryId);
-  const posLabel = positionLabel(status.position);
+  const posLabel = positionLabel(status.position, status.status);
   const aheadLabel = partiesAheadLabel(status.peopleAhead);
   const waitLabel = meta.showWaitInfo ? formatWaitLabel(status.estimatedWaitMins) : null;
   const operatingNote = operatingNoteForTicket(status.status, queueEnabled, operatingState);
-  const isTerminal = !meta.showWaitInfo;
-  const StateIcon =
-    status.status === 'CALLED' ? Megaphone : status.status === 'NOTIFIED' ? BellRing : status.status === 'SEATED' ? PartyPopper : Info;
+  const isCalled = status.status === 'CALLED';
+  const isSeated = status.status === 'SEATED';
+  const isTerminal = status.status === 'CANCELLED' || status.status === 'NO_SHOW' || status.status === 'EXPIRED';
+  const tableDisplay = isSeated ? formatTableNumber(status.tableNumber) : null;
+
+  // Accessible live announcement: announce ONLY when status changes between renders,
+  // preventing repeated announcements during 10s background polling.
+  const prevStatusRef = useRef(status.status);
+  const [liveAnnouncement, setLiveAnnouncement] = useState('');
+
+  useEffect(() => {
+    if (prevStatusRef.current !== status.status) {
+      if (status.status === 'CALLED') {
+        setLiveAnnouncement('Your table is being called. Please return to the restaurant now.');
+      } else if (status.status === 'SEATED') {
+        setLiveAnnouncement(`You are seated. Enjoy your meal.${tableDisplay ? ` ${tableDisplay}.` : ''}`);
+      } else {
+        setLiveAnnouncement(`${meta.title}. ${meta.guidance}`);
+      }
+      prevStatusRef.current = status.status;
+    }
+  }, [status.status, meta.title, meta.guidance, tableDisplay]);
+
+  const StateIcon = isCalled
+    ? Megaphone
+    : isSeated
+      ? CheckCircle2
+      : status.status === 'NOTIFIED'
+        ? BellRing
+        : Info;
 
   return (
     <section
       aria-label={`Queue ticket ${ticketNo}`}
       className={`relative overflow-hidden rounded-3xl border bg-slate-900/90 p-5 shadow-2xl backdrop-blur sm:p-7 ${tone.ring} ${
-        status.status === 'CALLED' ? 'ring-2 ring-sky-400/30' : ''
+        isCalled ? 'ring-2 ring-sky-400/40' : isSeated ? 'ring-2 ring-emerald-400/30' : ''
       }`}
     >
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
       />
+
+      {/* Screen-reader announcement only on authoritative state transitions */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {liveAnnouncement}
+      </div>
 
       {/* Hero: queue number */}
       <div className="text-center">
@@ -123,34 +158,90 @@ export function QueueTicketCard({
         </p>
       </div>
 
-      {/* State: announced to assistive tech on refresh-driven change */}
-      <div aria-live="polite" aria-atomic="true" className="mt-5 text-center">
-        <p
-          className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-bold ${tone.pill}`}
+      {/* CALLED Hero Callout — visually dominant, calm, return-to-restaurant instruction */}
+      {isCalled && (
+        <div
+          role="region"
+          aria-label="Table called notice"
+          className="mt-5 rounded-2xl border border-sky-400/30 bg-sky-500/10 p-4 text-center transition-all duration-300 motion-safe:animate-fadeIn"
         >
-          <span aria-hidden="true" className={`relative flex h-2 w-2`}>
-            <span className={`absolute inline-flex h-full w-full rounded-full ${tone.dot} opacity-75 motion-safe:animate-ping`} />
-            <span className={`relative inline-flex h-2 w-2 rounded-full ${tone.dot}`} />
-          </span>
-          <StateIcon aria-hidden="true" className="h-3.5 w-3.5" />
-          {meta.title}
-        </p>
-        <p className="mx-auto mt-2.5 max-w-[300px] text-[13px] leading-relaxed text-slate-300">
-          {meta.subtitle}
-        </p>
-        <p className="mx-auto mt-1 max-w-[300px] text-[12px] leading-relaxed text-slate-400">
-          {meta.guidance}
-        </p>
-      </div>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-sky-400/15 px-3 py-1 text-xs font-bold text-sky-200">
+            <span aria-hidden="true" className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75 motion-safe:animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-400" />
+            </span>
+            <Megaphone aria-hidden="true" className="h-3.5 w-3.5 text-sky-300" />
+            YOUR TURN IS HERE
+          </div>
+          <h2 className="mt-2.5 text-lg font-black tracking-tight text-white sm:text-xl">
+            Your table is being called
+          </h2>
+          <p className="mx-auto mt-1 max-w-[280px] text-sm font-semibold leading-relaxed text-sky-100">
+            Please return to the restaurant now.
+          </p>
+          <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs font-medium text-slate-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span>Please check in with the host at the entrance</span>
+          </div>
+        </div>
+      )}
 
-      {/* Phase 4C proximity guidance: WAITING urgency levels only. */}
+      {/* SEATED Hero Callout — clean positive completion state */}
+      {isSeated && (
+        <div
+          role="region"
+          aria-label="Seated notice"
+          className="mt-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center transition-all duration-300 motion-safe:animate-fadeIn"
+        >
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300">
+            <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5 text-emerald-300" />
+            COMPLETED
+          </div>
+          <h2 className="mt-2 text-xl font-black tracking-tight text-white sm:text-2xl">
+            You&apos;re seated!
+          </h2>
+          <p className="mx-auto mt-1 max-w-[280px] text-sm font-medium leading-relaxed text-emerald-100/90">
+            The wait is over — enjoy your meal.
+          </p>
+          {tableDisplay && (
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-emerald-400/30 bg-emerald-400/15 px-3.5 py-1.5 text-xs font-bold text-emerald-200">
+              <span>Seated at:</span>
+              <span className="font-mono text-white">{tableDisplay}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Standard State Pill (for WAITING / NOTIFIED / TERMINAL states) */}
+      {!isCalled && !isSeated && (
+        <div className="mt-5 text-center">
+          <p
+            className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-xs font-bold ${tone.pill}`}
+          >
+            <span aria-hidden="true" className="relative flex h-2 w-2">
+              <span className={`absolute inline-flex h-full w-full rounded-full ${tone.dot} opacity-75 motion-safe:animate-ping`} />
+              <span className={`relative inline-flex h-2 w-2 rounded-full ${tone.dot}`} />
+            </span>
+            <StateIcon aria-hidden="true" className="h-3.5 w-3.5" />
+            {meta.title}
+          </p>
+          <p className="mx-auto mt-2.5 max-w-[300px] text-[13px] leading-relaxed text-slate-300">
+            {meta.subtitle}
+          </p>
+          <p className="mx-auto mt-1 max-w-[300px] text-[12px] leading-relaxed text-slate-400">
+            {meta.guidance}
+          </p>
+        </div>
+      )}
+
+      {/* Phase 4C proximity guidance: only applies when WAITING */}
       <QueueProgressMessage
         status={status.status}
         peopleAhead={status.peopleAhead}
         isAlmostYourTurn={status.isAlmostYourTurn}
       />
 
-      {/* Wait facts: position · ahead · ETA (compact values, full text to AT) */}
+      {/* Wait facts: position · ahead · ETA (shown ONLY when showWaitInfo === true) */}
       {meta.showWaitInfo && (
         <dl className="mt-5 grid grid-cols-3 gap-2">
           <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
@@ -160,8 +251,6 @@ export function QueueTicketCard({
             </dt>
             <dd
               aria-label={posLabel ?? 'Position unavailable'}
-              // Keyed remount pops subtly on position change (4 → 3) with
-              // no layout shift; reduced-motion users get a plain swap.
               key={status.position ?? 'none'}
               className="mt-1 truncate text-xl font-black tabular-nums text-white motion-safe:animate-numberPop"
             >
@@ -209,7 +298,7 @@ export function QueueTicketCard({
         </dl>
       )}
 
-      {/* Honest progress: stages, never percentages */}
+      {/* Honest progress: stages (Wait · Close · Called · Seated) */}
       {!isTerminal && (
         <div className="mt-5" role="img" aria-label={`Queue progress: stage ${meta.stage + 1} of 4 (${STAGE_LABELS[meta.stage]})`}>
           <div className="flex items-center gap-1.5" aria-hidden="true">
@@ -240,9 +329,22 @@ export function QueueTicketCard({
         </p>
       )}
 
-      {/* Actions */}
+      {/* Actions / Handoff */}
       <div className="mt-5">
-        {!isTerminal ? (
+        {isSeated ? (
+          <Link
+            href={`/q/${restaurantSlug}/menu?qtoken=${token}`}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400 active:scale-[0.98]"
+          >
+            <UtensilsCrossed aria-hidden="true" className="h-4 w-4" />
+            <span>View Restaurant Menu</span>
+            <ArrowRight aria-hidden="true" className="h-4 w-4" />
+          </Link>
+        ) : isCalled ? (
+          <div className="flex flex-col gap-2">
+            <CancelQueueDialog token={token} restaurantSlug={restaurantSlug} />
+          </div>
+        ) : !isTerminal ? (
           <CancelQueueDialog token={token} restaurantSlug={restaurantSlug} />
         ) : (
           <a

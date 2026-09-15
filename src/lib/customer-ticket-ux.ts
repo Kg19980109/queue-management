@@ -66,7 +66,7 @@ export function ticketStateMeta(status: QueueStatus): TicketStateMeta {
         title: 'Your table is being called',
         subtitle: 'Please return to the restaurant now.',
         guidance: 'Head to the host stand — your party is being seated.',
-        showWaitInfo: true,
+        showWaitInfo: false,
         stage: 2,
       };
     case 'SEATED':
@@ -132,8 +132,13 @@ export function formatTicketNumber(
   return short ? `Q-${short}` : 'Q-—';
 }
 
-/** "Position #7" — or the contextual "You're next" at the front. */
-export function positionLabel(position: number | null): string | null {
+/**
+ * "Position #7" — or "You're next" at the front — or "Your turn is here" when CALLED.
+ * Returns null when waiting metrics should not be shown.
+ */
+export function positionLabel(position: number | null, status?: QueueStatus): string | null {
+  if (status === 'CALLED') return 'Your turn is here';
+  if (status === 'SEATED' || (status && isTicketTerminal(status))) return null;
   if (position === null || position <= 0) return null;
   if (position === 1) return "You're next";
   return `Position #${position}`;
@@ -145,6 +150,46 @@ export function partiesAheadLabel(peopleAhead: number | null): string | null {
   if (peopleAhead === 0) return 'No one ahead of you';
   if (peopleAhead === 1) return '1 party ahead';
   return `${peopleAhead} parties ahead`;
+}
+
+/**
+ * Format customer-safe table assignment string (e.g., "Table 4").
+ * Never exposes raw UUIDs or internal identifiers.
+ */
+export function formatTableNumber(tableNumber: string | null | undefined): string | null {
+  if (!tableNumber) return null;
+  const cleaned = tableNumber.trim();
+  if (!cleaned) return null;
+  return cleaned.toLowerCase().startsWith('table') ? cleaned : `Table ${cleaned}`;
+}
+
+/**
+ * Phase 4D: Notification banner deduplication.
+ * Prevents duplicate banners when the ticket's primary state already presents
+ * the authoritative message (e.g. CALLED or SEATED).
+ */
+export function shouldShowNotificationBanner(
+  status: QueueStatus,
+  notification: { title?: string; message?: string } | null
+): boolean {
+  if (!notification || !notification.message) return false;
+  if (status === 'SEATED') return false;
+
+  if (status === 'CALLED') {
+    const text = `${notification.title || ''} ${notification.message}`.toLowerCase();
+    // Suppress if the notification message duplicates the "table called / return to restaurant" message
+    if (
+      text.includes('table is being called') ||
+      text.includes('table is ready') ||
+      text.includes('return to the restaurant') ||
+      text.includes('your turn') ||
+      text.includes('called')
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set([

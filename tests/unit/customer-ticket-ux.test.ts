@@ -47,7 +47,7 @@ describe('Phase 4B: ticket state matrix (A–H)', () => {
     expect(m.tone).toBe('urgent');
     expect(m.tone).not.toBe(ticketStateMeta('WAITING').tone);
     expect(m.guidance).toMatch(/host stand/i);
-    expect(m.showWaitInfo).toBe(true);
+    expect(m.showWaitInfo).toBe(false);
   });
 
   it('E. SEATED removes position/ahead/wait information', () => {

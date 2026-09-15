@@ -81,6 +81,7 @@ export interface PublicQueueStatusResponse {
   joinedAt: string;
   calledAt: string | null;
   seatedAt: string | null;
+  tableNumber?: string | null;
   estimatedWaitMins: number | null;
   formattedETA: string;
   isAlmostYourTurn: boolean;
@@ -191,6 +192,22 @@ export class QueueService {
 
     const etaResult = ETAService.calculateETA(position, etaConfig);
 
+    // Safe table number lookup for SEATED customers only (never expose internal table UUID)
+    let tableNumber: string | null = null;
+    if (entry.status === 'SEATED' && entry.seated_table_id) {
+      const { data: tableData } = await supabase
+        .from('restaurant_tables')
+        .select('table_number')
+        .eq('id', entry.seated_table_id)
+        .maybeSingle();
+      if (tableData?.table_number) {
+        tableNumber = String(tableData.table_number);
+      }
+    }
+
+    const isCalled = entry.status === 'CALLED';
+    const isSeated = entry.status === 'SEATED';
+
     return {
       entryId: entry.id,
       restaurantId: entry.restaurant_id,
@@ -198,15 +215,16 @@ export class QueueService {
       customerName: entry.customer_name,
       partySize: entry.party_size,
       status: entry.status,
-      position,
-      peopleAhead,
+      position: isCalled || isSeated ? null : position,
+      peopleAhead: isCalled || isSeated ? null : peopleAhead,
       displayNumber: entry.display_number,
       joinedAt: entry.joined_at,
       calledAt: entry.called_at || entry.notified_at,
       seatedAt: entry.seated_at,
-      estimatedWaitMins: etaResult.estimatedWaitMins,
-      formattedETA: etaResult.formattedETA,
-      isAlmostYourTurn: etaResult.isAlmostYourTurn,
+      tableNumber,
+      estimatedWaitMins: isCalled || isSeated ? null : etaResult.estimatedWaitMins,
+      formattedETA: isCalled ? 'Your turn is here' : isSeated ? 'Seated' : etaResult.formattedETA,
+      isAlmostYourTurn: isCalled || isSeated ? false : etaResult.isAlmostYourTurn,
     };
   }
 
