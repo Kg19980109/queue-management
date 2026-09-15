@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
@@ -103,6 +103,13 @@ describe('Phase 12: Payments, Payment State Machine & Reconciliation Tests', () 
         total_price: 500.0,
       },
     ]);
+  });
+
+  afterAll(async () => {
+    // Remove timestamped fixture restaurants so test runs never pollute the
+    // shared database (restaurant DELETE cascades to all child rows).
+    if (restaurantAId) await supabase.from('restaurants').delete().eq('id', restaurantAId);
+    if (restaurantBId) await supabase.from('restaurants').delete().eq('id', restaurantBId);
   });
 
   describe('1. Payment State Machine (FSM) & Terminal Protection', () => {

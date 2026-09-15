@@ -120,7 +120,11 @@ describe('Phase 10: Queue Operations, Deterministic ETA Engine & Atomic Seating 
   });
 
   afterAll(async () => {
+    // Remove fixed-id fixture restaurants so the shared database stays clean
+    // between runs (recreated by beforeAll; DELETE cascades to child rows,
+    // including the dedicated test actor's membership).
     if (client) {
+      await client.query(`DELETE FROM public.restaurants WHERE id IN ($1, $2)`, [RESTAURANT_ID, OTHER_RESTAURANT_ID]).catch(() => undefined);
       await client.end();
     }
   });

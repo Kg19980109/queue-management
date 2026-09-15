@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
@@ -59,6 +59,13 @@ describe('Phase 13: Notifications, Outbox Pattern & Background Worker Tests', ()
       .single();
 
     restaurantBId = restB!.id;
+  });
+
+  afterAll(async () => {
+    // Remove timestamped fixture restaurants so test runs never pollute the
+    // shared database (restaurant DELETE cascades to all child rows).
+    if (restaurantId) await supabase.from('restaurants').delete().eq('id', restaurantId);
+    if (restaurantBId) await supabase.from('restaurants').delete().eq('id', restaurantBId);
   });
 
   describe('1. Transactional Outbox Event Publishing', () => {

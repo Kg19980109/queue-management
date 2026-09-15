@@ -35,6 +35,10 @@ describe('Phase 3A: Outbox Concurrency + Queue Maintenance', () => {
   });
 
   afterAll(async () => {
+    // NOTE: the 33333333 fixture is intentionally NOT deleted here — it is
+    // shared with cron-live-verify.test.ts, which runs in parallel. Deleting
+    // it here would race the other file's tests (use-after-delete).
+    // Timestamped fixtures (payments/outbox) are per-file and self-clean.
     if (client) await client.end();
   });
 
@@ -189,19 +193,36 @@ describe('Phase 3A: Outbox Concurrency + Queue Maintenance', () => {
   });
 
   it('Concurrent maintenance workers do not double-transition', async () => {
-    const join = await QueueService.joinQueue({ restaurantId: RESTAURANT_ID, customerName: 'Race Ray', partySize: 2 });
     const sb = createAdminClient();
-    await sb.rpc('transition_queue_entry_atomic', { p_queue_entry_id: join.entry.id, p_target_status: 'CALLED', p_actor_user_id: null, p_reason: null });
-    await client.query(`UPDATE public.queue_entries SET called_at = NOW() - INTERVAL '20 minutes' WHERE id = $1`, [join.entry.id]);
+    // Bounded retries: the live pg_cron job (every minute on this database)
+    // may expire our backdated row between the UPDATE and the two worker
+    // calls. In that case neither worker wins, but the exactly-once
+    // invariant still holds and is verified via the outbox count below.
+    let entryId = '';
+    let decided = false;
+    for (let attempt = 0; attempt < 3 && !decided; attempt++) {
+      const join = await QueueService.joinQueue({ restaurantId: RESTAURANT_ID, customerName: 'Race Ray', partySize: 2 });
+      entryId = join.entry.id;
+      await sb.rpc('transition_queue_entry_atomic', { p_queue_entry_id: join.entry.id, p_target_status: 'CALLED', p_actor_user_id: null, p_reason: null });
+      await client.query(`UPDATE public.queue_entries SET called_at = NOW() - INTERVAL '20 minutes' WHERE id = $1`, [join.entry.id]);
 
-    const [a, b] = await Promise.all([
-      QueueService.expireOverdueCalledEntries(50),
-      QueueService.expireOverdueCalledEntries(50),
-    ]);
-    const total = (a.expiredIds.includes(join.entry.id) ? 1 : 0) + (b.expiredIds.includes(join.entry.id) ? 1 : 0);
-    expect(total).toBe(1);
+      const [a, b] = await Promise.all([
+        QueueService.expireOverdueCalledEntries(50),
+        QueueService.expireOverdueCalledEntries(50),
+      ]);
+      const total = (a.expiredIds.includes(join.entry.id) ? 1 : 0) + (b.expiredIds.includes(join.entry.id) ? 1 : 0);
+      // A real double-transition must fail fast (retrying would mask it).
+      expect(total).toBeLessThanOrEqual(1);
+      if (total === 1) {
+        decided = true;
+      } else {
+        const { data } = await supabase.from('queue_entries').select('status').eq('id', join.entry.id).single();
+        if (data?.status === 'NO_SHOW') decided = true; // pg_cron won; invariant checked below
+      }
+    }
+    expect(decided).toBe(true);
 
-    const { count } = await supabase.from('outbox_events').select('id', { count: 'exact' }).eq('aggregate_id', join.entry.id).eq('event_type', 'QUEUE_NO_SHOW');
+    const { count } = await supabase.from('outbox_events').select('id', { count: 'exact' }).eq('aggregate_id', entryId).eq('event_type', 'QUEUE_NO_SHOW');
     expect(count).toBe(1);
   });
 });

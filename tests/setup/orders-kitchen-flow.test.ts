@@ -86,7 +86,10 @@ describe('Phase 11: Orders, Kitchen Operations, Price Snapshots & Idempotency Te
   });
 
   afterAll(async () => {
+    // Remove fixed-id fixture restaurants so the shared database stays clean
+    // between runs (recreated by beforeAll; DELETE cascades to child rows).
     if (client) {
+      await client.query(`DELETE FROM public.restaurants WHERE id IN ($1, $2)`, [RESTAURANT_A_ID, RESTAURANT_B_ID]).catch(() => undefined);
       await client.end();
     }
   });
