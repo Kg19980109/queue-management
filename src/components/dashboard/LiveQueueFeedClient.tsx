@@ -6,6 +6,7 @@ import { updateQueueStatusAction, markNoShowAction } from '@/app/dashboard/actio
 import { broadcastCustomerQueueUpdate } from '@/lib/realtime/useCustomerQueueRealtime';
 import { SeatCustomerModal, SeatableTableItem } from '@/components/dashboard/SeatCustomerModal';
 import { StaffQueueChatModal } from '@/components/dashboard/StaffQueueChatModal';
+import { AddQueueGuestModal } from '@/components/dashboard/AddQueueGuestModal';
 import { chimeEngine } from '@/lib/audio-chime';
 
 interface LiveQueueFeedClientProps {
@@ -205,40 +206,82 @@ export function LiveQueueFeedClient({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-0.5">
-          {[
-            { label: `Active (${activeCount})`, value: 'ACTIVE' },
-            { label: `Waiting (${waitingCount})`, value: 'WAITING' },
-            { label: `Called (${calledCount})`, value: 'CALLED' },
-            { label: `Dining (${seatedCount})`, value: 'SEATED' },
-            { label: 'History', value: 'TERMINAL' },
-            { label: `All (${entries.length})`, value: 'ALL' },
-          ].map((tab) => (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => setStatusFilter(tab.value)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
-                statusFilter === tab.value
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500 shadow-md shadow-blue-500/25'
-                  : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08]'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex items-center justify-between gap-2 overflow-x-auto hide-scrollbar pb-0.5">
+          <div className="flex items-center gap-1.5 shrink-0">
+            {[
+              { label: `Active (${activeCount})`, value: 'ACTIVE' },
+              { label: `Waiting (${waitingCount})`, value: 'WAITING' },
+              { label: `Called (${calledCount})`, value: 'CALLED' },
+              { label: `Dining (${seatedCount})`, value: 'SEATED' },
+              { label: 'History', value: 'TERMINAL' },
+              { label: `All (${entries.length})`, value: 'ALL' },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                onClick={() => setStatusFilter(tab.value)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap shrink-0 border cursor-pointer ${
+                  statusFilter === tab.value
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500 shadow-md shadow-blue-500/25'
+                    : 'bg-white/[0.04] border-white/10 text-slate-300 hover:bg-white/[0.08]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="shrink-0 hidden sm:block">
+            <AddQueueGuestModal
+              label="Add Walk-In (+)"
+              icon="person_add"
+              triggerClassName="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 active:scale-95 text-white text-xs font-black shadow-md shadow-blue-500/25 transition-all flex items-center gap-1.5 cursor-pointer border border-blue-400/30 shrink-0"
+            />
+          </div>
         </div>
       </div>
 
       {/* Queue Feed Stream Cards */}
       <div className="flex flex-col gap-3.5">
         {filteredEntries.length === 0 ? (
-          <div className="bg-[#111827]/80 rounded-2xl border border-white/10 p-12 text-center flex flex-col items-center justify-center shadow-sm">
-            <span className="material-symbols-outlined text-4xl text-slate-600 mb-2">inbox</span>
-            <p className="text-slate-300 font-bold text-base">No queue entries found</p>
-            <p className="text-slate-500 text-xs mt-1">
-              {searchTerm ? 'No results matching your search criteria.' : 'No entries currently in this category.'}
+          <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-[#111827]/90 via-[#0C121E]/80 to-[#070B14] p-10 sm:p-14 text-center flex flex-col items-center justify-center shadow-xl relative overflow-hidden">
+            {/* Ambient radial glow */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.12)_0%,transparent_70%)] pointer-events-none" />
+
+            {/* Pulsing Radar Ring Icon */}
+            <div className="relative mb-5 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full border border-blue-500/30 bg-blue-500/10 flex items-center justify-center relative shadow-inner">
+                <div className="absolute inset-0 rounded-full border border-blue-400/40 animate-ping opacity-30" />
+                <span className="material-symbols-outlined text-4xl text-blue-400">sensors</span>
+              </div>
+            </div>
+
+            <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              {searchTerm ? 'No Matching Guests Found' : 'Queue Flow is Clear & Ready'}
+            </h3>
+            <p className="text-slate-400 text-xs sm:text-sm mt-1.5 max-w-md leading-relaxed">
+              {searchTerm
+                ? `No guests match "${searchTerm}". Check the spelling or search by ticket number.`
+                : 'All waiting parties have been seated or paged. Host stand is ready to intake new walk-ins.'}
             </p>
+
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 relative z-10">
+              {searchTerm ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-black transition-all cursor-pointer border border-white/10"
+                >
+                  Clear Search Filter
+                </button>
+              ) : (
+                <AddQueueGuestModal
+                  label="Add Walk-In Guest to Queue"
+                  icon="person_add"
+                  triggerClassName="px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:brightness-110 active:scale-95 text-white font-black text-sm shadow-xl shadow-blue-500/30 transition-all flex items-center gap-2 cursor-pointer border border-blue-400/40"
+                />
+              )}
+            </div>
           </div>
         ) : (
           filteredEntries.map((entry, index) => {

@@ -8,6 +8,7 @@ function getWaitTimeMins(joinedAt: string) {
   const diffMs = new Date().getTime() - new Date(joinedAt).getTime();
   return Math.max(0, Math.floor(diffMs / 60000));
 }
+
 import {
   updateQueueStatusAction,
   toggleQueueOpenAction,
@@ -16,13 +17,11 @@ import {
   updateETASettingsFormAction,
   updateQueueScheduleFormAction,
 } from '@/app/dashboard/actions';
-import { SeatCustomerModal, SeatableTableItem } from '@/components/dashboard/SeatCustomerModal';
 import { AddQueueGuestModal } from '@/components/dashboard/AddQueueGuestModal';
-import { ConfirmSubmitButton } from '@/components/dashboard/ConfirmSubmitButton';
-import { CollapsibleQueueSchedule } from '@/components/dashboard/CollapsibleQueueSchedule';
-import { CollapsibleQueueHealth } from '@/components/dashboard/CollapsibleQueueHealth';
 import { LiveQueueFeedClient } from '@/components/dashboard/LiveQueueFeedClient';
+import { QueueOperationsAccordion } from '@/components/dashboard/QueueOperationsAccordion';
 import { logger } from '@/lib/logging/logger';
+import Link from 'next/link';
 
 export default async function QueueManagementPage({
   searchParams,
@@ -35,8 +34,6 @@ export default async function QueueManagementPage({
 
   const { userId, restaurantId } = await RestaurantAdminService.getAuthorizedRestaurantContext();
   const supabase = createAdminClient();
-  // maybeSingle (not single): a missing row must render the fallback UI,
-  // never throw a 500.
   const { data: restaurant } = await supabase.from('restaurants').select('*').eq('id', restaurantId).maybeSingle();
 
   if (!restaurant) {
@@ -44,8 +41,6 @@ export default async function QueueManagementPage({
   }
 
   // Parallelize independent fetches for snappy load.
-  // Each section degrades independently: a transient DB failure in one fetch
-  // renders that section empty instead of 500ing the entire page.
   const [entries, activeEntries, tablesRes, scheduleInfo] = await Promise.all([
     QueueService.getAllQueueEntries(restaurant.id, statusFilter, searchTerm).catch((err) => {
       logger.warn('Queue page: entries fetch failed, degrading to empty', {
@@ -78,7 +73,7 @@ export default async function QueueManagementPage({
     })(),
   ]);
 
-  // Queue health must never crash the page — fall back to locally computed health
+  // Queue health aggregation
   let queueHealth: Awaited<ReturnType<typeof QueueService.getQueueHealth>>;
   try {
     queueHealth = await QueueService.getQueueHealth(restaurant.id, userId);
@@ -97,27 +92,15 @@ export default async function QueueManagementPage({
   const totalGuests = activeEntries.reduce((sum, e) => sum + e.party_size, 0);
   const queueEnabled = restaurant.queue_enabled ?? true;
   const operatingState = (restaurant as unknown as { queue_operating_state: string }).queue_operating_state || 'OPEN';
-  const isFull = activeEntries.filter(e => ['WAITING','NOTIFIED','CALLED'].includes(e.status)).length >= (restaurant.max_queue_capacity ?? 100);
 
   // Best next guest logic (first waiting)
   const nextUp = waitingEntries.length > 0 ? waitingEntries[0] : null;
 
-  // Build seatable map by filtering local available tables (avoids N RPC calls)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const availableTables = tablesRes.tables.filter((t: any) => t.status === 'AVAILABLE' && !t.is_archived) as unknown as SeatableTableItem[];
-  const uniquePartySizes = Array.from(new Set(entries.map((e) => e.party_size)));
-  const seatableTablesMap = new Map<number, SeatableTableItem[]>();
-  for (const size of uniquePartySizes) {
-    seatableTablesMap.set(
-      size,
-      availableTables.filter((t) => (t.capacity ?? 0) >= size).sort((a, b) => (a.capacity ?? 0) - (b.capacity ?? 0))
-    );
-  }
   const tablesTotal = tablesRes.stats.total;
   const tablesReady = tablesRes.stats.available;
   const tablesOccupied = tablesRes.stats.occupied;
-  const tablesCleaning = tablesRes.tables.filter(t => t.status === 'CLEANING').length;
-  const tablesReserved = tablesRes.tables.filter(t => t.status === 'RESERVED').length;
+  const tablesCleaning = tablesRes.tables.filter((t) => t.status === 'CLEANING').length;
+  const tablesReserved = tablesRes.tables.filter((t) => t.status === 'RESERVED').length;
 
   const occupiedPct = tablesTotal > 0 ? (tablesOccupied / tablesTotal) * 100 : 0;
   const cleaningPct = tablesTotal > 0 ? (tablesCleaning / tablesTotal) * 100 : 0;
@@ -132,278 +115,274 @@ export default async function QueueManagementPage({
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  const todayEntries = entries.filter(e => new Date(e.created_at) >= todayStart);
-  const seatedToday = todayEntries.filter(e => e.status === 'SEATED').length;
-  // Guests actually arrived (seat-time headcount) vs expected party size.
-  // Falls back to party_size for rows seated before the migration.
+  const todayEntries = entries.filter((e) => new Date(e.created_at) >= todayStart);
+  const seatedToday = todayEntries.filter((e) => e.status === 'SEATED').length;
   const guestsSeatedToday = todayEntries
-    .filter(e => e.status === 'SEATED')
+    .filter((e) => e.status === 'SEATED')
     .reduce((s, e) => s + ((e as unknown as { actual_guests?: number }).actual_guests ?? e.party_size ?? 0), 0);
-  const guestsExpectedToday = todayEntries
-    .filter(e => e.status === 'SEATED')
-    .reduce((s, e) => s + (e.party_size ?? 0), 0);
-  const noShowsToday = todayEntries.filter(e => e.status === 'NO_SHOW').length;
-  const totalResolvedToday = seatedToday + noShowsToday + todayEntries.filter(e => e.status === 'CANCELLED').length;
-  const noShowRate = totalResolvedToday > 0 ? ((noShowsToday / totalResolvedToday) * 100).toFixed(1) : '0.0';
 
   let bestMatchTable = null;
   if (nextUp) {
-     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-     const candidates = tablesRes.tables.filter((t: any) => t.status === 'AVAILABLE' && t.capacity >= nextUp.party_size);
-     if (candidates.length > 0) {
-        candidates.sort((a, b) => a.capacity - b.capacity);
-        bestMatchTable = candidates[0];
-     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const candidates = tablesRes.tables.filter((t: any) => t.status === 'AVAILABLE' && t.capacity >= nextUp.party_size);
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => a.capacity - b.capacity);
+      bestMatchTable = candidates[0];
+    }
   }
 
   return (
-    <div className="flex flex-col w-full px-4 sm:px-6 md:px-space-xl py-4 sm:py-space-lg gap-5 sm:gap-space-lg bg-[#0A0E17] min-h-screen font-body-md text-white antialiased relative z-10">
-      {/* Top Command & Action Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex flex-col gap-1 min-w-0">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-            <h1 className="text-[22px] sm:text-3xl lg:text-4xl font-black text-white tracking-tight font-headline-xl leading-tight">Live Queue</h1>
-            <div className={`inline-flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full border text-[11px] sm:text-xs shrink-0 self-start sm:self-auto ${queueEnabled ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
-              <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${queueEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`}></span>
-              <span className="tracking-widest uppercase font-bold leading-none">
-                {queueEnabled ? `${activeEntries.length} Groups • ${totalGuests} Guests` : 'Queue Closed'}
-              </span>
+    <div className="flex flex-col w-full px-3 sm:px-6 md:px-space-xl py-3 sm:py-space-md gap-3 sm:gap-4 bg-[#070B14] min-h-screen text-white antialiased relative z-10">
+      
+      {/* COMPACT MISSION-CONTROL COMMAND BAR (Combines Title, Intake Pills, Health Chip, and Hero Actions) */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#0E1524] border border-white/10 shadow-lg">
+        {/* Title & Live Headcount Beacon */}
+        <div className="flex flex-wrap items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2.5">
+            <span className="w-9 h-9 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-black">
+              <span className="material-symbols-outlined text-[20px]">queue</span>
+            </span>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-none">
+                  Live Queue
+                </h1>
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                    queueEnabled
+                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                      : 'bg-rose-500/15 border-rose-500/30 text-rose-300'
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      queueEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'
+                    }`}
+                  />
+                  {queueEnabled ? `${activeEntries.length} Active • ${totalGuests} Guests` : 'Closed'}
+                </span>
+              </div>
             </div>
           </div>
-          <p className="text-[13px] sm:text-sm text-slate-400 leading-relaxed">Real-time floor flow and instantaneous guest dispatch.</p>
-        </div>
-        
-        {/* Quick Action Controls */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {nextUp && (
-            <form action={updateQueueStatusAction.bind(null, nextUp.id, 'NOTIFIED', userId)} className="flex-1 sm:flex-none">
-              <button type="submit" className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-5 h-11 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-500/20 transition-all active:scale-95 border border-blue-500" id="call-next-hero-btn">
-                <span className="material-symbols-outlined text-[18px]">notifications_active</span>
-                <span>Notify {nextUp.display_number || nextUp.queue_number}</span>
-              </button>
-            </form>
-          )}
 
-          <form action={toggleQueueOpenAction.bind(null, restaurant.id, !queueEnabled, userId)} className="shrink-0">
-            <button
-              type="submit"
-              className={`flex items-center justify-center gap-1.5 px-3 sm:px-4 h-11 rounded-xl text-sm font-bold transition-colors border active:scale-95 ${
-                queueEnabled
-                  ? 'bg-[#111827] hover:bg-white/5 border-white/10 text-slate-300'
-                  : 'bg-emerald-500 hover:bg-emerald-600 border-emerald-500 text-white shadow-lg'
+          {/* Quick Health & Schedule Badges right in the header bar */}
+          <div className="hidden sm:flex items-center gap-2">
+            {scheduleInfo && (
+              <span
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                  scheduleInfo.availability.scheduledOpen
+                    ? 'bg-white/5 border-white/10 text-slate-300'
+                    : 'bg-rose-500/10 border-rose-500/20 text-rose-300'
+                }`}
+                title="Restaurant operating schedule status"
+              >
+                <span className="material-symbols-outlined text-[13px] text-blue-400">schedule</span>
+                <span>{scheduleInfo.availability.localTimeStr}</span>
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    scheduleInfo.availability.scheduledOpen ? 'bg-emerald-400' : 'bg-rose-400'
+                  }`}
+                />
+              </span>
+            )}
+
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black tracking-wider uppercase border ${
+                queueHealth.health === 'HEALTHY'
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                  : queueHealth.health === 'BUSY'
+                  ? 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+                  : 'bg-rose-500/10 border-rose-500/20 text-rose-300'
               }`}
             >
-              <span className="material-symbols-outlined text-[18px]">
-                {queueEnabled ? 'pause_circle' : 'play_circle'}
-              </span>
-              <span className="hidden xs:inline">{queueEnabled ? 'Pause' : 'Open'}</span>
-            </button>
-          </form>
-          <div className="shrink-0">
-            <AddQueueGuestModal />
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  queueHealth.health === 'HEALTHY'
+                    ? 'bg-emerald-400'
+                    : queueHealth.health === 'BUSY'
+                    ? 'bg-amber-400'
+                    : 'bg-rose-400 animate-ping'
+                }`}
+              />
+              {queueHealth.health}
+            </span>
           </div>
         </div>
-      </div>
 
-      {/* Queue Operating Controls */}
-      <div className="p-4 rounded-2xl bg-[#111827] border border-white/5 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
-            <span className="material-symbols-outlined text-[16px] text-emerald-400">tune</span>
-            Queue Intake Control
-          </h3>
-          <span className={`px-2.5 py-1 rounded-full text-xs font-black border ${operatingState === 'OPEN' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : operatingState === 'PAUSED' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : operatingState === 'CLOSING_SOON' ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 animate-pulse' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>
-            {operatingState} {isFull && operatingState === 'OPEN' ? '• FULL' : ''}
-          </span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {(['OPEN','PAUSED','CLOSING_SOON','CLOSED'] as const).map((state) => (
-            <form key={state} action={setQueueOperatingStateFormAction}>
-              <input type="hidden" name="restaurantId" value={restaurant.id} />
-              <input type="hidden" name="newState" value={state} />
-              <input type="hidden" name="actorUserId" value={userId} />
-              <button type="submit" className={`w-full h-11 rounded-xl text-xs font-black border transition-all active:scale-95 ${operatingState === state ? 'bg-white text-slate-900 border-white shadow-md' : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white'}`}>
-                {state.replace('_',' ')}
+        {/* Center: Sleek Segmented Intake Mode Switcher (Takes 0 extra height!) */}
+        <div className="flex items-center gap-2 self-start xl:self-auto overflow-x-auto hide-scrollbar max-w-full">
+          <div className="inline-flex items-center p-1 rounded-xl bg-[#080D18] border border-white/10 shadow-inner">
+            {(['OPEN', 'PAUSED', 'CLOSING_SOON', 'CLOSED'] as const).map((state) => (
+              <form key={state} action={setQueueOperatingStateFormAction} className="inline">
+                <input type="hidden" name="restaurantId" value={restaurant.id} />
+                <input type="hidden" name="newState" value={state} />
+                <input type="hidden" name="actorUserId" value={userId} />
+                <button
+                  type="submit"
+                  className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-black tracking-wider uppercase transition-all cursor-pointer ${
+                    operatingState === state
+                      ? state === 'OPEN'
+                        ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/30'
+                        : state === 'PAUSED'
+                        ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-500/30'
+                        : state === 'CLOSING_SOON'
+                        ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30'
+                        : 'bg-rose-500 text-white shadow-md shadow-rose-500/30'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {state === 'CLOSING_SOON' ? 'CLOSING' : state}
+                </button>
+              </form>
+            ))}
+          </div>
+
+          {/* Quick Action Buttons */}
+          <div className="flex items-center gap-2 shrink-0">
+            {nextUp && (
+              <form action={updateQueueStatusAction.bind(null, nextUp.id, 'NOTIFIED', userId)}>
+                <button
+                  type="submit"
+                  id="call-next-hero-btn"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:brightness-110 active:scale-95 text-white font-black text-xs shadow-lg shadow-blue-500/30 transition-all flex items-center gap-1.5 cursor-pointer border border-blue-400/30"
+                >
+                  <span className="material-symbols-outlined text-[16px]">notifications_active</span>
+                  <span>Call {nextUp.display_number || nextUp.queue_number}</span>
+                </button>
+              </form>
+            )}
+
+            <AddQueueGuestModal
+              label="Add Guest"
+              icon="person_add"
+              triggerClassName="px-3.5 py-2 rounded-xl bg-[#131D31] hover:bg-[#1A2742] active:scale-95 text-white text-xs font-bold transition-all border border-white/10 flex items-center gap-1.5 cursor-pointer"
+            />
+
+            <form action={toggleQueueOpenAction.bind(null, restaurant.id, !queueEnabled, userId)}>
+              <button
+                type="submit"
+                className={`p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  queueEnabled
+                    ? 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+                    : 'bg-emerald-600 text-white border-emerald-500 shadow-md'
+                }`}
+                title={queueEnabled ? 'Pause Queue' : 'Open Queue'}
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {queueEnabled ? 'pause' : 'play_arrow'}
+                </span>
               </button>
             </form>
-          ))}
+          </div>
         </div>
-        <p className="text-[11px] leading-relaxed text-slate-500">
-          <b className="text-slate-400">OPEN:</b> joins allowed • <b className="text-amber-400">PAUSED</b> new joins blocked (existing intact) • <b className="text-blue-400">CLOSING_SOON</b> warning but still allows joins • <b className="text-rose-400">CLOSED</b> joins blocked • <b className="text-slate-400">FULL</b> auto when {activeEntries.filter(e=>['WAITING','NOTIFIED','CALLED'].includes(e.status)).length}/{restaurant.max_queue_capacity} active
-        </p>
       </div>
 
-      {/* Queue Schedule - weekly operating hours (Collapsible & default collapsed) */}
-      <CollapsibleQueueSchedule
-        scheduleInfo={scheduleInfo}
-        updateAction={updateQueueScheduleFormAction}
-        timezone={(restaurant as unknown as { timezone?: string }).timezone || 'Asia/Kolkata'}
-      />
-
-      {/* Queue Health - server-side aggregation (Collapsible & default collapsed) */}
-      <CollapsibleQueueHealth
-        queueHealth={queueHealth}
-        maxQueueCapacity={restaurant.max_queue_capacity || 100}
-        callTimeoutMinutes={restaurant.call_timeout_minutes || 15}
-      />
-
-      {/* Needs Attention - operational view */}
-      {(() => {
-        const needsAttention = [...entries]
-          .filter(e => ['CALLED','NOTIFIED','WAITING'].includes(e.status))
-          .sort((a,b) => {
-            const order: Record<string, number> = { CALLED: 0, NOTIFIED: 1, WAITING: 2 };
-            const ao = order[a.status] ?? 9;
-            const bo = order[b.status] ?? 9;
-            if (ao !== bo) return ao - bo;
-            // overdue first
-            const aOverdue = a.status === 'CALLED' && a.called_at && (Date.now() - new Date(a.called_at).getTime()) > (restaurant.call_timeout_minutes*60*1000) ? 0 : 1;
-            const bOverdue = b.status === 'CALLED' && b.called_at && (Date.now() - new Date(b.called_at).getTime()) > (restaurant.call_timeout_minutes*60*1000) ? 0 : 1;
-            if (aOverdue !== bOverdue) return aOverdue - bOverdue;
-            return new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime();
-          })
-          .slice(0, 5);
-        if (needsAttention.length === 0) return null;
-        return (
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col gap-3">
-            <h3 className="text-xs font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
-              <span className="material-symbols-outlined text-[16px]">priority_high</span>
-              Needs Attention — {needsAttention.length}
-            </h3>
-            <div className="space-y-2">
-              {needsAttention.map(entry => {
-                const isOverdue = entry.status === 'CALLED' && entry.called_at && (Date.now() - new Date(entry.called_at).getTime()) > (restaurant.call_timeout_minutes*60*1000);
-                const calledAgeMins = entry.called_at ? Math.floor((Date.now() - new Date(entry.called_at).getTime())/60000) : null;
-                const timeoutIn = calledAgeMins !== null ? restaurant.call_timeout_minutes - calledAgeMins : null;
-                return (
-                  <div key={entry.id} className="flex items-center justify-between p-3 rounded-xl bg-[#111827] border border-white/5">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${entry.status==='CALLED' ? 'bg-blue-600 text-white' : entry.status==='NOTIFIED' ? 'bg-purple-600 text-white' : 'bg-slate-700 text-white'}`}>{entry.display_number || entry.queue_number}</span>
-                      <div className="min-w-0">
-                        <div className="text-sm font-bold text-white truncate">{entry.customer_name} • {entry.party_size} guests</div>
-                        <div className="text-xs text-slate-400 flex items-center gap-2">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${entry.status==='CALLED' ? 'bg-blue-500/20 border-blue-500/30 text-blue-400' : entry.status==='NOTIFIED' ? 'bg-purple-500/20 border-purple-500/30 text-purple-400' : 'bg-white/5 border-white/10 text-slate-300'}`}>{entry.status}</span>
-                          {entry.status==='CALLED' && calledAgeMins !== null && (
-                            <span className={`text-[11px] ${isOverdue ? 'text-rose-400 font-bold' : timeoutIn !== null && timeoutIn <= 2 ? 'text-amber-400 font-bold' : 'text-slate-400'}`}>
-                              {isOverdue ? `Overdue by ${Math.abs(timeoutIn!)}m` : timeoutIn !== null ? `Timeout in ${timeoutIn}m` : `Called ${calledAgeMins}m ago`}
-                            </span>
-                          )}
-                          {entry.status==='CALLED' && isOverdue && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {entry.status==='CALLED' && <form action={updateQueueStatusAction.bind(null, entry.id, 'NO_SHOW', userId, 'STAFF_MARKED_NO_SHOW')}><ConfirmSubmitButton idleLabel="No-Show" armedLabel="Confirm?" className="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-bold transition-colors hover:bg-rose-500/20 active:scale-95" /></form>}
-                      {entry.status==='CALLED' && <div className="scale-75 origin-right"><SeatCustomerModal entryId={entry.id} customerName={entry.customer_name} displayNumber={entry.display_number} partySize={entry.party_size} userId={userId} seatableTables={seatableTablesMap.get(entry.party_size) || []} /></div>}
-                      {entry.status==='NOTIFIED' && <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)}><button type="submit" className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold">Call</button></form>}
-                      {entry.status==='WAITING' && <form action={updateQueueStatusAction.bind(null, entry.id, 'NOTIFIED', userId)}><button type="submit" className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold">Notify</button></form>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Real-time KPI Dynamic Ribbon - horizontal scroll on mobile, grid on desktop */}
-      <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 sm:gap-4 pb-2 hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-5 md:grid md:grid-cols-3">
-        {/* Metric 1 */}
-        <div className="min-w-[220px] snap-center shrink-0 md:min-w-0 md:shrink md:snap-none p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-white/10 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="font-label-sm text-[10px] uppercase text-slate-400 tracking-widest font-bold">Total Waiting</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-              <span className="material-symbols-outlined text-blue-400 text-[18px]">groups</span>
-            </div>
-          </div>
-          <div className="my-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-white">{waitingCount}</span>
-            <span className="text-xs text-slate-400">groups</span>
-          </div>
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-bold">
-              <span className="material-symbols-outlined text-[14px]">trending_up</span> Steady flow
+      {/* STREAMLINED COCKPIT KPI RIBBON (Compact ~74px height prevents pushing queue off screen) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
+        {/* Metric 1: Waiting */}
+        <div className="bg-[#0E1524] rounded-2xl border border-white/10 p-3 sm:p-3.5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-blue-500/30 transition-colors">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+              Waiting
             </span>
-            <svg className="w-16 h-5 text-emerald-400/50" fill="none" viewBox="0 0 64 20">
-              <path d="M0 16 L12 12 L24 14 L36 8 L48 10 L64 3" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
-            </svg>
-          </div>
-        </div>
-        
-        {/* Metric 2 */}
-        <div className="min-w-[220px] snap-center shrink-0 md:min-w-0 md:shrink md:snap-none p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between hover:border-white/10 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="font-label-sm text-[10px] uppercase text-slate-400 tracking-widest font-bold">Currently Called</span>
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-              <span className="material-symbols-outlined text-indigo-400 text-[18px]">contactless</span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-2xl font-black text-white">{waitingCount}</span>
+              <span className="text-[11px] text-slate-400 font-semibold">parties</span>
             </div>
+            <span className="text-[10px] text-blue-300 truncate font-medium">
+              {waitingEntries.reduce((s, e) => s + e.party_size, 0)} guests in line
+            </span>
           </div>
-          <div className="my-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-white">{calledCount}</span>
-            <span className="text-xs text-slate-400">paged to stand</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold">
-            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
-            <span>Tables Pending</span>
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[20px]">groups</span>
           </div>
         </div>
 
-        {/* Metric 3 */}
-        <div className="min-w-[220px] snap-center shrink-0 md:min-w-0 md:shrink md:snap-none p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between hover:border-white/10 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="font-label-sm text-[10px] uppercase text-slate-400 tracking-widest font-bold">Avg Wait Time</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
-              <span className="material-symbols-outlined text-amber-500 text-[18px]">timer</span>
+        {/* Metric 2: Called */}
+        <div className="bg-[#0E1524] rounded-2xl border border-white/10 p-3 sm:p-3.5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+              Called
+            </span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-2xl font-black text-white">{calledCount}</span>
+              <span className="text-[11px] text-slate-400 font-semibold">paged</span>
             </div>
+            <span className="text-[10px] text-indigo-300 truncate font-medium">
+              Awaiting seating at stand
+            </span>
           </div>
-          <div className="my-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-amber-400">~{avgWaitTime}<span className="text-sm text-amber-400/50 font-normal">m</span></span>
-            <span className={`text-[10px] px-2 py-0.5 rounded border font-bold ${avgWaitTime <= (restaurant.avg_service_time_mins ?? 25) ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>{avgWaitTime <= (restaurant.avg_service_time_mins ?? 25) ? 'Healthy' : 'High'}</span>
-          </div>
-          <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold tracking-wide">
-            <span>Target: &lt; {restaurant.avg_service_time_mins ?? 25} mins</span>
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[20px]">contactless</span>
           </div>
         </div>
 
-        {/* Metric 4 */}
-        <div className="min-w-[220px] snap-center shrink-0 md:min-w-0 md:shrink md:snap-none p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between hover:border-white/10 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="font-label-sm text-[10px] uppercase text-slate-400 tracking-widest font-bold">Seated Today</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-              <span className="material-symbols-outlined text-emerald-400 text-[18px]">table_bar</span>
+        {/* Metric 3: Avg Wait */}
+        <div className="bg-[#0E1524] rounded-2xl border border-white/10 p-3 sm:p-3.5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-amber-500/30 transition-colors">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              Avg Wait
+            </span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-2xl font-black text-amber-300">~{avgWaitTime}m</span>
             </div>
+            <span className="text-[10px] text-emerald-400 truncate font-bold">
+              Target &lt; {restaurant.avg_service_time_mins ?? 25}m
+            </span>
           </div>
-          <div className="my-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-white">{seatedToday}</span>
-            <span className="text-xs text-slate-400">groups · {guestsSeatedToday} guests{guestsSeatedToday !== guestsExpectedToday ? ` (exp. ${guestsExpectedToday})` : ''}</span>
-          </div>
-          <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
-            <span className="material-symbols-outlined text-[14px]">north_east</span>
-            <span>Active Service</span>
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[20px]">timer</span>
           </div>
         </div>
 
-        {/* Metric 5 */}
-        <div className="min-w-[220px] snap-center shrink-0 md:min-w-0 md:shrink md:snap-none p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col justify-between hover:border-white/10 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="font-label-sm text-[10px] uppercase text-slate-400 tracking-widest font-bold">No-Show Rate</span>
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
-              <span className="material-symbols-outlined text-cyan-400 text-[18px]">person_cancel</span>
+        {/* Metric 4: Seated Today */}
+        <div className="bg-[#0E1524] rounded-2xl border border-white/10 p-3 sm:p-3.5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              Seated Today
+            </span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-2xl font-black text-white">{seatedToday}</span>
+              <span className="text-[11px] text-slate-400 font-semibold">parties</span>
             </div>
+            <span className="text-[10px] text-emerald-300 truncate font-medium">
+              {guestsSeatedToday} diners hosted
+            </span>
           </div>
-          <div className="my-2 flex items-baseline gap-2">
-            <span className="text-3xl font-black text-white">{noShowRate}%</span>
-            <span className={`text-[10px] px-2 py-0.5 rounded border font-bold ${parseFloat(noShowRate) < 5 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border-rose-500/30 text-rose-400'}`}>{parseFloat(noShowRate) < 5 ? 'Low' : 'High'}</span>
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[20px]">table_restaurant</span>
           </div>
-          <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden border border-white/5">
-            <div className={`h-full rounded-full ${parseFloat(noShowRate) < 5 ? 'bg-cyan-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(parseFloat(noShowRate), 100)}%` }}></div>
+        </div>
+
+        {/* Metric 5: Floor Readiness */}
+        <div className="bg-[#0E1524] rounded-2xl border border-white/10 p-3 sm:p-3.5 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-teal-500/30 transition-colors col-span-2 sm:col-span-1">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
+              Tables Ready
+            </span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-2xl font-black text-white">{tablesReady}</span>
+              <span className="text-[11px] text-slate-400 font-semibold">/ {tablesTotal} open</span>
+            </div>
+            <span className="text-[10px] text-teal-300 truncate font-medium">
+              {Math.round(occupiedPct)}% floor occupied
+            </span>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-[20px]">event_seat</span>
           </div>
         </div>
       </div>
 
-      {/* Main Workstation Layout: Queue Feed & Forms */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start mt-2">
-        {/* Queue Feed Stream (8 Columns) - using interactive client component matching dashboard feed */}
+      {/* MAIN WORKSTATION (Left: Live Queue Stream, Right: Host Cockpit & Smart Dispatch) */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-5 items-start">
+        
+        {/* LEFT COLUMN: LIVE QUEUE STREAM (8 Columns - Immediately visible above the fold!) */}
         <div className="xl:col-span-8 flex flex-col gap-4">
           <LiveQueueFeedClient
             initialEntries={entries}
@@ -415,169 +394,180 @@ export default async function QueueManagementPage({
           />
         </div>
 
-        {/* RIGHT DISPATCH & SMART TABLE ASSIGNMENT PANEL (4 Columns) */}
-        <div className="xl:col-span-4 flex flex-col gap-space-md mt-2">
-          {/* Active Callout Module (Sticky Staff Assistant) */}
-          <div className="p-space-lg rounded-2xl bg-[#111827] border border-white/5 shadow-md flex flex-col gap-space-md">
+        {/* RIGHT COLUMN: STICKY HOST COCKPIT & DISPATCH (4 Columns) */}
+        <div className="xl:col-span-4 flex flex-col gap-4 sticky top-4">
+          
+          {/* Card 1: Smart Dispatch / Next Up Assist */}
+          <div className="rounded-2xl bg-[#0E1524] border border-white/10 p-5 shadow-lg flex flex-col gap-3.5 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-blue-400 text-[22px]">smart_toy</span>
-                <h3 className="text-lg font-bold text-white">Smart Assignment</h3>
+                <span className="w-7 h-7 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center text-xs">
+                  <span className="material-symbols-outlined text-[17px]">smart_toy</span>
+                </span>
+                <h3 className="text-sm font-black text-white tracking-wide uppercase">
+                  Smart Dispatch
+                </h3>
               </div>
-              <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] uppercase font-bold tracking-widest border border-blue-500/20">Auto-Optimized</span>
+              <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-wider">
+                Auto-Optimized
+              </span>
             </div>
-            
+
             {nextUp ? (
-              <>
-                {/* Target Guest Preview */}
-                <div className="p-space-md rounded-xl bg-[#0A0E17] border border-white/5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xl shadow-md">
-                      {nextUp.display_number || nextUp.queue_number}
+              <div className="flex flex-col gap-3">
+                {/* Guest Pill */}
+                <div className="p-3.5 rounded-xl bg-[#080D18] border border-white/10 flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center font-mono font-black text-base shadow-md shrink-0">
+                      {(nextUp.display_number || nextUp.queue_number || '').toString().replace(/^#+/, '')}
                     </div>
-                    <div className="flex flex-col">
-                      <span className="font-bold text-white">{nextUp.customer_name}</span>
-                      <span className="text-sm text-slate-400">{nextUp.party_size} Guests • Waiting</span>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-black text-white text-sm truncate">
+                        {nextUp.customer_name}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        👥 {nextUp.party_size} {nextUp.party_size === 1 ? 'Guest' : 'Guests'} • Waiting {getWaitTimeMins(nextUp.joined_at)}m
+                      </span>
                     </div>
                   </div>
-                  <span className="material-symbols-outlined text-emerald-400 text-[20px]">check_circle</span>
-                </div>
-                
-                {/* Recommended Tables */}
-                <div className="flex flex-col gap-2.5">
-                  <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Best Matching Tables</span>
-                  {bestMatchTable ? (
-                    <div className="p-space-md rounded-xl bg-blue-900/20 hover:bg-blue-900/30 border border-blue-500/30 transition-colors cursor-pointer flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white font-bold">Table {bestMatchTable.tableNumber}</span>
-                          <span className="px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] uppercase font-bold tracking-widest">Available Now</span>
-                        </div>
-                        <span className="text-[10px] uppercase tracking-widest text-blue-400 font-bold">Perfect Match</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-space-md rounded-xl bg-slate-800/50 text-slate-400 text-sm flex items-center justify-center border border-white/5">
-                      No exact match table available right now.
-                    </div>
-                  )}
+                  <span className="material-symbols-outlined text-emerald-400 text-[22px] shrink-0">
+                    check_circle
+                  </span>
                 </div>
 
-                <div className="flex flex-col gap-2 pt-2">
-                  <form action={updateQueueStatusAction.bind(null, nextUp.id, 'NOTIFIED', userId)}>
-                    <button type="submit" className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md transition-all cursor-pointer flex items-center justify-center gap-2">
-                      <span className="material-symbols-outlined text-[18px]">notifications_active</span>
-                      <span>Notify Next — Almost Ready</span>
-                    </button>
-                  </form>
-                </div>
-              </>
+                {/* Best Table Match */}
+                {bestMatchTable ? (
+                  <div className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-950/40 via-[#0B1A24] to-[#080D18] border border-emerald-500/30 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-8 h-8 rounded-lg bg-emerald-600/20 text-emerald-300 font-mono font-black text-xs flex items-center justify-center border border-emerald-500/40">
+                        T{bestMatchTable.tableNumber.replace(/^T/, '')}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-emerald-300">
+                          Table {bestMatchTable.tableNumber}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {bestMatchTable.capacity} Seats • {bestMatchTable.zoneName || 'Ready'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider font-black text-emerald-400 px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30">
+                      Perfect Fit
+                    </span>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-[#080D18] text-slate-400 text-xs border border-white/5 text-center">
+                    No open table matches party size ({nextUp.party_size}) yet.
+                  </div>
+                )}
+
+                {/* Direct Action Button */}
+                <form action={updateQueueStatusAction.bind(null, nextUp.id, 'NOTIFIED', userId)}>
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:brightness-110 active:scale-95 text-white font-black text-xs shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer border border-blue-400/30"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">notifications_active</span>
+                    <span>Notify Next — Table Almost Ready</span>
+                  </button>
+                </form>
+              </div>
             ) : (
-              <div className="p-space-md text-center text-slate-400 bg-[#0A0E17] border border-white/5 rounded-xl text-sm">
-                No waiting guests at the moment.
+              <div className="p-4 rounded-xl bg-[#080D18] text-center border border-white/5 flex flex-col items-center justify-center gap-1">
+                <span className="material-symbols-outlined text-slate-600 text-[28px]">done_all</span>
+                <span className="text-xs font-bold text-slate-300">Host Station Caught Up</span>
+                <span className="text-[10px] text-slate-500">No guests waiting in line.</span>
               </div>
             )}
           </div>
 
-          {/* Floor Capacity & Snapshot Card */}
-          <div className="p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-sm flex flex-col gap-3">
+          {/* Card 2: Floor Saturation & Table Quick Board */}
+          <div className="rounded-2xl bg-[#0E1524] border border-white/10 p-5 shadow-lg flex flex-col gap-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-lg font-bold text-white">Floor Saturation</span>
-              <span className="text-sm font-bold text-blue-400">{Math.round(occupiedPct)}% Full</span>
-            </div>
-            
-            <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden flex">
-              <div className="bg-blue-500 h-full" style={{ width: `${occupiedPct}%` }} title={`Occupied: ${tablesOccupied}`}></div>
-              <div className="bg-rose-500 h-full" style={{ width: `${cleaningPct}%` }} title={`Cleaning: ${tablesCleaning}`}></div>
-              <div className="bg-amber-500 h-full" style={{ width: `${reservedPct}%` }} title={`Reserved: ${tablesReserved}`}></div>
-              <div className="bg-slate-600 h-full" style={{ width: `${readyPct}%` }} title={`Open: ${tablesReady}`}></div>
+              <span className="text-sm font-black text-white tracking-wide uppercase">
+                Floor Saturation
+              </span>
+              <span className="text-xs font-black text-blue-400">{Math.round(occupiedPct)}% Occupied</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-1 text-sm">
+            {/* Segmented Color Bar */}
+            <div className="w-full h-3 bg-[#080D18] rounded-full overflow-hidden flex border border-white/5">
+              <div
+                className="bg-amber-500 h-full transition-all"
+                style={{ width: `${occupiedPct}%` }}
+                title={`Occupied: ${tablesOccupied}`}
+              />
+              <div
+                className="bg-rose-500 h-full transition-all"
+                style={{ width: `${cleaningPct}%` }}
+                title={`Cleaning: ${tablesCleaning}`}
+              />
+              <div
+                className="bg-blue-500 h-full transition-all"
+                style={{ width: `${reservedPct}%` }}
+                title={`Reserved: ${tablesReserved}`}
+              />
+              <div
+                className="bg-emerald-500 h-full transition-all"
+                style={{ width: `${readyPct}%` }}
+                title={`Open: ${tablesReady}`}
+              />
+            </div>
+
+            {/* Legend */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-sm bg-blue-500"></span>
-                <span className="text-slate-400">Occupied: {tablesOccupied}</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <span className="text-slate-300 font-semibold">{tablesReady} Ready to Seat</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-sm bg-slate-600"></span>
-                <span className="text-slate-400">Open Now: {tablesReady}</span>
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                <span className="text-slate-300 font-semibold">{tablesOccupied} Occupied</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                <span className="text-slate-300 font-semibold">{tablesCleaning} Needs Clean</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                <span className="text-slate-300 font-semibold">{tablesReserved} Reserved</span>
               </div>
             </div>
 
-            <div className="relative mt-2 rounded-xl overflow-hidden h-20 bg-gradient-to-br from-[#1A2333] to-[#0A0E17] border border-white/5 flex items-center justify-center">
-              <div className="flex items-center gap-2 text-slate-400">
-                <span className="material-symbols-outlined text-[20px]">storefront</span>
-                <span className="text-sm font-bold text-white">{restaurant.name}</span>
-                <span className="text-xs bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-2 py-0.5 rounded-full font-bold">{tablesReady} ready</span>
-              </div>
-            </div>
+            {/* Quick Link to Floor Blueprint */}
+            <Link
+              href="/dashboard/tables"
+              className="mt-1 py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-bold transition-all flex items-center justify-between cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px] text-blue-400">table_bar</span>
+                <span>Open Floor Blueprint &amp; Seating Map</span>
+              </span>
+              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </Link>
           </div>
-          
-          {/* Legacy Configuration Cards - Moved Below */}
-          <div className="mt-8 border-t border-white/10 pt-8">
-            <h2 className="text-xl font-bold text-white mb-4">Queue Configuration</h2>
-            <div className="bg-[#111827] border border-white/5 rounded-2xl shadow-sm p-space-lg flex flex-col gap-space-md mb-4">
-              <div>
-                <h3 className="text-lg font-bold text-white">Queue Limits</h3>
-                <p className="text-sm text-slate-400 mt-1">Configure party boundaries & max capacity.</p>
-              </div>
 
-              <form action={updateQueueSettingsFormAction} className="flex flex-col gap-4">
-                <input type="hidden" name="restaurantId" value={restaurant.id} />
-                <input type="hidden" name="actorUserId" value={userId} />
+          {/* Card 3: Operations & Admin Accordion (Collapsible, keeps bottom clean!) */}
+          <QueueOperationsAccordion
+            scheduleInfo={scheduleInfo}
+            updateQueueScheduleFormAction={updateQueueScheduleFormAction}
+            timezone={(restaurant as unknown as { timezone?: string }).timezone || 'Asia/Kolkata'}
+            queueHealth={queueHealth}
+            maxQueueCapacity={restaurant.max_queue_capacity || 100}
+            callTimeoutMinutes={restaurant.call_timeout_minutes || 15}
+            restaurant={restaurant}
+            userId={userId}
+            updateQueueSettingsFormAction={updateQueueSettingsFormAction}
+            updateETASettingsFormAction={updateETASettingsFormAction}
+          />
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Max Capacity</label>
-                    <input type="number" name="maxQueueCapacity" defaultValue={restaurant.max_queue_capacity ?? 100} min={1} max={1000} required className="w-full bg-[#0A0E17] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Call Timeout</label>
-                    <input type="number" name="callTimeoutMinutes" defaultValue={restaurant.call_timeout_minutes ?? 15} min={1} max={120} required className="w-full bg-[#0A0E17] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors" />
-                  </div>
-                </div>
-
-                <div className="flex justify-end mt-2">
-                  <button type="submit" className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm">
-                    Save Limits
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            <div className="bg-[#111827] border border-white/5 rounded-2xl shadow-sm p-space-lg flex flex-col gap-space-md">
-              <div>
-                <h3 className="text-lg font-bold text-white">ETA Settings</h3>
-                <p className="text-sm text-slate-400 mt-1">Configure wait estimation formulas.</p>
-              </div>
-
-              <form action={updateETASettingsFormAction} className="flex flex-col gap-4">
-                <input type="hidden" name="restaurantId" value={restaurant.id} />
-                <input type="hidden" name="actorUserId" value={userId} />
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Avg Service</label>
-                    <input type="number" name="avgServiceTimeMins" defaultValue={restaurant.avg_service_time_mins ?? 15} min={1} max={180} required className="w-full bg-[#0A0E17] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Capacity Units</label>
-                    <input type="number" name="serviceCapacityUnits" defaultValue={restaurant.service_capacity_units ?? 3} min={1} max={50} required className="w-full bg-[#0A0E17] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors" />
-                  </div>
-                </div>
-
-                <div className="flex justify-end mt-2">
-                  <button type="submit" className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-lg transition-colors shadow-sm">
-                    Save ETA Settings
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
         </div>
       </div>
+
       {/* Keyboard Shortcut Listener Script */}
-      <script dangerouslySetInnerHTML={{ __html: `
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
         document.addEventListener('keydown', (e) => {
           if ((e.code === 'Space' || e.code === 'Enter') && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
             const heroBtn = document.getElementById('call-next-hero-btn');
@@ -589,7 +579,9 @@ export default async function QueueManagementPage({
             }
           }
         });
-      `}} />
+      `,
+        }}
+      />
     </div>
   );
 }

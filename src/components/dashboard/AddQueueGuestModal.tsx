@@ -3,7 +3,17 @@
 import React, { useState } from 'react';
 import { adminAddQueueGuestAction } from '@/app/dashboard/actions';
 
-export function AddQueueGuestModal() {
+interface AddQueueGuestModalProps {
+  label?: string;
+  triggerClassName?: string;
+  icon?: string;
+}
+
+export function AddQueueGuestModal({
+  label = 'Manual Add (+)',
+  triggerClassName,
+  icon = 'person_add',
+}: AddQueueGuestModalProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
 
@@ -26,10 +36,13 @@ export function AddQueueGuestModal() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#111827] hover:bg-white/5 border border-white/5 text-slate-300 text-sm font-bold transition-colors cursor-pointer"
+        className={
+          triggerClassName ||
+          'flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#111827] hover:bg-white/5 border border-white/10 text-slate-300 text-sm font-bold transition-all cursor-pointer active:scale-95'
+        }
       >
-        <span className="material-symbols-outlined text-[18px] text-blue-400">person_add</span>
-        <span>Manual Add (+)</span>
+        <span className="material-symbols-outlined text-[18px] text-blue-400">{icon}</span>
+        <span>{label}</span>
       </button>
 
       {isOpen && (
