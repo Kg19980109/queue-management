@@ -206,6 +206,31 @@ export async function updateTableStatusAction(
   }
 }
 
+export async function exitSeatedGuestAction(
+  entryId: string,
+  tableId?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { restaurantId, userId } = await RestaurantAdminService.getAuthorizedRestaurantContext();
+    await QueueService.exitSeatedCustomer(entryId, userId);
+    if (tableId) {
+      try {
+        await TableService.updateTableStatus(tableId, 'AVAILABLE', undefined, restaurantId, userId);
+      } catch {
+        // Table may already be updated
+      }
+    }
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/tables');
+    revalidatePath('/dashboard/queue');
+    revalidatePath('/dashboard', 'layout');
+    return { success: true };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to exit seated customer';
+    return { success: false, error: message };
+  }
+}
+
 export async function adminAddQueueGuestAction(formData: FormData): Promise<void> {
   try {
     const { restaurantId } = await RestaurantAdminService.getAuthorizedRestaurantContext();

@@ -7,7 +7,7 @@ import { createAdminClient } from '@/lib/db/supabase/admin';
 import { FloorManagerClient } from '@/components/dashboard/FloorManagerClient';
 
 export default async function TablesPage() {
-  const { restaurantId } = await RestaurantAdminService.getAuthorizedRestaurantContext();
+  const { restaurantId, userId } = await RestaurantAdminService.getAuthorizedRestaurantContext();
   const supabase = createAdminClient();
   const { data: restaurant } = await supabase.from('restaurants').select('*').eq('id', restaurantId).single();
 
@@ -30,12 +30,13 @@ export default async function TablesPage() {
 
   return (
     <FloorManagerClient
-        tables={tables}
-        zones={zones}
-        stats={stats}
-        restaurantName={restaurant.name}
-        queueEntries={queueEntries}
-        seatedEntries={seatedEntries}
-      />
+      tables={tables}
+      zones={zones}
+      stats={stats}
+      restaurantName={restaurant.name}
+      queueEntries={queueEntries}
+      seatedEntries={seatedEntries}
+      userId={userId}
+    />
   );
 }
