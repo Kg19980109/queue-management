@@ -49,13 +49,18 @@ export default async function CustomerMenuPage({
     );
   }
 
-  // Optional: Resolve queueEntryId if a valid queue token was provided
+  // Optional: Resolve queueEntryId if a valid queue token was provided.
+  // Phase 4H: also resolve the live queue status so a CALLED customer sees
+  // a return-to-restaurant strip instead of browsing cues (server-derived,
+  // no second state system).
   let queueEntryId = null;
+  let queueStatus: string | null = null;
   if (qtoken) {
     const { QueueService } = await import('@/lib/services/queue-service');
     const status = await QueueService.getQueueStatusByToken(qtoken);
     if (status && status.restaurantId === restaurant.id) {
       queueEntryId = status.entryId;
+      queueStatus = status.status;
     }
   }
 
@@ -98,6 +103,7 @@ export default async function CustomerMenuPage({
           tableId={tableId || null}
           currency={currency}
           queueToken={qtoken || null}
+          queueStatus={queueStatus}
         />
       </div>
 

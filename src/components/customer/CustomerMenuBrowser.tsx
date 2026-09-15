@@ -41,6 +41,8 @@ interface CustomerMenuBrowserProps {
   currency?: string;
   /** Validated queue bearer token — forwarded so order creation is authorized. */
   queueToken?: string | null;
+  /** Server-resolved queue status for CALLED-aware browsing cues (4H). */
+  queueStatus?: string | null;
 }
 
 export function CustomerMenuBrowser({
@@ -53,6 +55,7 @@ export function CustomerMenuBrowser({
   customerPhone,
   currency = 'INR',
   queueToken,
+  queueStatus,
 }: CustomerMenuBrowserProps) {
   const router = useRouter();
   // Phase 4G: cart survives menu ↔ ticket navigation via sessionStorage.
@@ -261,6 +264,25 @@ export function CustomerMenuBrowser({
 
   return (
     <div className="space-y-5 pb-32">
+      {/* Phase 4H: a CALLED customer browsing the menu gets one dominant,
+          honest instruction — return first, browse later. No duplicate
+          urgency banners; the ticket hero remains the authority. */}
+      {queueStatus === 'CALLED' && queueToken && (
+        <a
+          href={`/q/${restaurantSlug}/status/${queueToken}`}
+          className="flex items-center gap-3 rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4 shadow-lg transition-all hover:bg-sky-500/15 active:scale-[0.99]"
+        >
+          <span aria-hidden="true" className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75 motion-safe:animate-ping" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-black text-white">Your turn is here — please return 📢</span>
+            <span className="block text-[11px] font-semibold text-sky-200/90">Tap to open your ticket · ordering can wait</span>
+          </span>
+          <span aria-hidden="true" className="shrink-0 text-sky-300">→</span>
+        </a>
+      )}
       {/* Search + Category Tabs */}
       <div className="space-y-3">
         <div className="relative group">
@@ -273,8 +295,15 @@ export function CustomerMenuBrowser({
             className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.05] pl-10 pr-4 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-orange-400/50 focus:ring-2 focus:ring-orange-500/20 transition-all"
           />
           {q && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors">
-              <span className="material-symbols-outlined text-[16px]">close</span>
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Clear search"
+              className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center"
+            >
+              <span className="w-7 h-7 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors">
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </span>
             </button>
           )}
         </div>
@@ -387,7 +416,7 @@ export function CustomerMenuBrowser({
                             onClick={() =>
                               handleUpdateQuantity(item.id, -1)
                             }
-                            className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center transition-colors"
+                            className="relative w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center transition-colors before:absolute before:-inset-2 before:content-['']"
                           >
                             -
                           </button>
@@ -400,7 +429,7 @@ export function CustomerMenuBrowser({
                             onClick={() =>
                               handleUpdateQuantity(item.id, 1)
                             }
-                            className="w-8 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center transition-colors shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                            className="relative w-8 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center transition-colors shadow-[0_0_10px_rgba(16,185,129,0.3)] before:absolute before:-inset-2 before:content-['']"
                           >
                             +
                           </button>
@@ -480,7 +509,23 @@ export function CustomerMenuBrowser({
               {/* Queue context: ordering never strands the ticket. Solid pill
                   reads in both color schemes (translucent emerald washes out
                   on light cards). */}
-              {queueToken ? (
+              {queueStatus === 'CALLED' && queueToken ? (
+                <a
+                  href={`/q/${restaurantSlug}/status/${queueToken}`}
+                  className="flex items-center gap-2 rounded-2xl border border-sky-400/30 bg-sky-500/15 px-4 py-3 shadow-lg"
+                >
+                  <span aria-hidden="true" className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
+                  </span>
+                  <span className="text-xs font-black text-white">
+                    Your turn is here — return first 📢
+                  </span>
+                  <span className="ml-auto shrink-0 text-xs font-black text-sky-300">
+                    My ticket →
+                  </span>
+                </a>
+              ) : queueToken ? (
                 <a
                   href={`/q/${restaurantSlug}/status/${queueToken}`}
                   className="flex items-center justify-between gap-2 rounded-2xl bg-emerald-600 px-4 py-3 shadow-lg transition-all hover:bg-emerald-500 active:scale-[0.99]"
@@ -533,7 +578,7 @@ export function CustomerMenuBrowser({
                         onClick={() =>
                           handleUpdateQuantity(item.menuItemId, -1)
                         }
-                        className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center transition-colors"
+                        className="relative w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center transition-colors before:absolute before:-inset-2 before:content-['']"
                       >
                         -
                       </button>
@@ -546,7 +591,7 @@ export function CustomerMenuBrowser({
                         onClick={() =>
                           handleUpdateQuantity(item.menuItemId, 1)
                         }
-                        className="w-8 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center transition-colors shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                        className="relative w-8 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center transition-colors shadow-[0_0_10px_rgba(16,185,129,0.3)] before:absolute before:-inset-2 before:content-['']"
                       >
                         +
                       </button>

@@ -494,7 +494,7 @@ export class OrderService {
 
     const { data: order, error } = await supabase
       .from('orders')
-      .select('*, order_items(*), restaurants(name, slug)')
+      .select('*, order_items(*), restaurants(name, slug, currency)')
       .eq('order_token_hash', tokenHash)
       .maybeSingle();
 
@@ -516,6 +516,7 @@ export class OrderService {
       restaurantId: order.restaurant_id,
       restaurantName: (order.restaurants as unknown as { name: string })?.name || 'Restaurant',
       restaurantSlug: (order.restaurants as unknown as { slug: string })?.slug || '',
+      restaurantCurrency: (order.restaurants as unknown as { currency?: string })?.currency || 'INR',
       orderNumber: order.order_number,
       status: order.status as OrderStatus,
       paymentStatus: order.payment_status as PaymentStatus,

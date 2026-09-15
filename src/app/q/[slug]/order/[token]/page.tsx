@@ -1,6 +1,8 @@
 import React from 'react';
+import Link from 'next/link';
 import { OrderService } from '@/lib/services/order-service';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
+import { QueueService } from '@/lib/services/queue-service';
 import { RestaurantHeader } from '@/components/customer/RestaurantHeader';
 import { customerOrderStatusCopy } from '@/lib/customer-order-ux';
 import type { Metadata } from 'next';
@@ -43,6 +45,18 @@ export default async function CustomerOrderStatusPage({
 
   const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(slug);
   const orderDetails = await OrderService.getCustomerOrderStateByToken(token);
+
+  // Phase 4H: queue-aware order page. If the customer's ticket is CALLED,
+  // the return instruction leads — the order never contradicts it.
+  let queueCalled = false;
+  if (qtoken && restaurant) {
+    try {
+      const qs = await QueueService.getQueueStatusByToken(qtoken);
+      queueCalled = !!qs && qs.restaurantId === restaurant.id && qs.status === 'CALLED';
+    } catch {
+      queueCalled = false;
+    }
+  }
 
   if (!restaurant || !orderDetails) {
     return (
@@ -103,6 +117,23 @@ export default async function CustomerOrderStatusPage({
     <main className="qf-bg flex min-h-screen flex-col justify-between px-4 py-8 text-slate-100 selection:bg-orange-500 selection:text-white">
       <div className="mx-auto w-full max-w-md space-y-5">
         <RestaurantHeader restaurant={restaurant} />
+
+        {queueCalled && qtoken && (
+          <Link
+            href={`/q/${slug}/status/${qtoken}`}
+            className="flex items-center gap-3 rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4 shadow-lg transition-all hover:bg-sky-500/15 active:scale-[0.99]"
+          >
+            <span aria-hidden="true" className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-black text-white">Your turn is here — please return 📢</span>
+              <span className="block text-[11px] font-semibold text-sky-200/90">Your order is safe — tap to open your ticket</span>
+            </span>
+            <span aria-hidden="true" className="shrink-0 text-sky-300">→</span>
+          </Link>
+        )}
 
         {/* Order Success Header Banner */}
         <div className="qf-card animate-fadeUp relative space-y-3 overflow-hidden rounded-3xl p-6 text-center">
@@ -233,7 +264,7 @@ export default async function CustomerOrderStatusPage({
               </div>
             </div>
             <a
-              href={`/q/${slug}/payment/${token}`}
+              href={qtoken ? `/q/${slug}/payment/${token}?qtoken=${encodeURIComponent(qtoken)}` : `/q/${slug}/payment/${token}`}
               className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-md min-h-[44px] inline-flex items-center"
             >
               {orderDetails.paymentStatus === 'PAID' ? 'View Receipt' : `Pay ${formatPrice(Number(orderDetails.total))}`}

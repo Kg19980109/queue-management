@@ -61,6 +61,7 @@ export async function GET(request: Request) {
           total: orderState.total,
           restaurant_id: orderState.restaurantId,
           restaurant_name: orderState.restaurantName,
+          restaurant_currency: orderState.restaurantCurrency,
           status: orderState.status,
           payment_status: orderState.paymentStatus,
           subtotal: orderState.subtotal,
