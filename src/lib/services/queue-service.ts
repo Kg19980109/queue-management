@@ -484,7 +484,7 @@ export class QueueService {
       .from('queue_entries')
       .select('*')
       .eq('restaurant_id', restaurantId)
-      .in('status', ['WAITING', 'NOTIFIED', 'CALLED', 'SEATED'])
+      .in('status', ['WAITING', 'NOTIFIED', 'CALLED'])
       .order('joined_at', { ascending: true })
       .order('id', { ascending: true });
       
@@ -497,6 +497,14 @@ export class QueueService {
     if (error) {
       throw new Error(`Failed to fetch active queue: ${error.message}`);
     }
+
+    const priority: Record<string, number> = { CALLED: 0, NOTIFIED: 1, WAITING: 2 };
+    entries.sort((a, b) => {
+      const pa = priority[a.status] ?? 9;
+      const pb = priority[b.status] ?? 9;
+      if (pa !== pb) return pa - pb;
+      return new Date(a.joined_at || a.created_at).getTime() - new Date(b.joined_at || b.created_at).getTime();
+    });
 
     let activeCount = 0;
     const formatted = entries.map((entry) => {
@@ -531,8 +539,12 @@ export class QueueService {
       .eq('restaurant_id', restaurantId);
 
     if (filterStatus && filterStatus !== 'ALL') {
-      if (filterStatus === 'ACTIVE') {
-        query = query.in('status', ['WAITING', 'NOTIFIED', 'CALLED', 'SEATED']);
+      if (filterStatus === 'ACTIVE' || filterStatus === 'WAITING' || filterStatus === 'CALLED' || filterStatus === 'NOTIFIED') {
+        if (filterStatus === 'ACTIVE') {
+          query = query.in('status', ['WAITING', 'NOTIFIED', 'CALLED']);
+        } else {
+          query = query.eq('status', filterStatus);
+        }
         
         // Filter out active entries from previous days (before 5 AM cutoff)
         const { data: restaurant } = await supabase
@@ -560,12 +572,30 @@ export class QueueService {
       query = query.or(`customer_name.ilike.${q},display_number.ilike.${q},customer_phone.ilike.${q}`);
     }
 
-    const { data: entries, error } = await query
-      .order('created_at', { ascending: false })
-      .limit(200);
+    const isActiveQuery = !filterStatus || filterStatus === 'ACTIVE' || filterStatus === 'WAITING' || filterStatus === 'CALLED' || filterStatus === 'NOTIFIED';
+    
+    if (isActiveQuery) {
+      query = query.order('joined_at', { ascending: true }).order('id', { ascending: true });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    const { data: entries, error } = await query.limit(200);
 
     if (error) {
       throw new Error(`Failed to list queue entries: ${error.message}`);
+    }
+
+    if (isActiveQuery) {
+      const priority: Record<string, number> = { CALLED: 0, NOTIFIED: 1, WAITING: 2 };
+      entries.sort((a, b) => {
+        const pa = priority[a.status] ?? 9;
+        const pb = priority[b.status] ?? 9;
+        if (pa !== pb) return pa - pb;
+        return new Date(a.joined_at || a.created_at).getTime() - new Date(b.joined_at || b.created_at).getTime();
+      });
+    } else {
+      entries.sort((a, b) => new Date(b.created_at || b.joined_at).getTime() - new Date(a.created_at || a.joined_at).getTime());
     }
 
     return entries;

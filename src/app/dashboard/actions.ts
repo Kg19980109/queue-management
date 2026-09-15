@@ -190,6 +190,9 @@ export async function updateTableStatusAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     await TableService.updateTableStatus(tableId, targetStatus, currentStatus);
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/tables');
+    revalidatePath('/dashboard/queue');
     revalidatePath('/dashboard', 'layout');
     return { success: true };
   } catch (error: unknown) {
@@ -425,7 +428,9 @@ export async function updateQueueStatusAction(entryId: string, newStatus: QueueS
     }
     throw error instanceof Error ? error : new Error('Failed to update queue entry status.');
   }
+  revalidatePath('/dashboard');
   revalidatePath('/dashboard/queue');
+  revalidatePath('/dashboard', 'layout');
 }
 
 export async function markNoShowAction(formData: FormData): Promise<void> {
@@ -525,6 +530,9 @@ export async function seatQueueEntryAction(entryId: string, tableId: string, act
     }
     throw error instanceof Error ? error : new Error('Failed to seat queue entry.');
   }
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/queue');
+  revalidatePath('/dashboard/tables');
   revalidatePath('/dashboard', 'layout');
 }
 

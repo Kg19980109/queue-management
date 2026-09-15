@@ -487,10 +487,11 @@ export default async function QueueManagementPage({
         </form>
         <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar -mx-1 px-1 pb-1">
           {[
-            { label: `All (${entries.length})`, value: 'ALL' },
+            { label: `Active (${activeEntries.length})`, value: 'ACTIVE' },
             { label: `Waiting ${waitingCount}`, value: 'WAITING' },
             { label: `Called ${calledCount}`, value: 'CALLED' },
             { label: 'History', value: 'TERMINAL' },
+            { label: 'All Records', value: 'ALL' },
           ].map((tab) => (
             <Link
               key={tab.value}
@@ -667,6 +668,18 @@ export default async function QueueManagementPage({
                             armedLabel="Sure?"
                             className="shrink-0 px-3 h-11 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-1 transition-colors hover:bg-rose-500/20 active:scale-95"
                           />
+                        </form>
+                      )}
+
+                      {(isWaiting || isNotified || isCalled) && (
+                        <form action={updateQueueStatusAction.bind(null, entry.id, 'CANCELLED', userId)} className="shrink-0 flex items-center">
+                          <button
+                            type="submit"
+                            title="Cancel Entry"
+                            className="h-11 w-11 rounded-xl bg-white/[0.04] hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">close</span>
+                          </button>
                         </form>
                       )}
                     </div>
