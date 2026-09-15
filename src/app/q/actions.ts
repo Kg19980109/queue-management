@@ -5,6 +5,7 @@ import { PublicRestaurantService } from '@/lib/services/public-restaurant-servic
 import {
   setTicketCookie,
   clearTicketCookie,
+  getTicketToken,
 } from '@/lib/customer-ticket-cookie';
 import {
   checkRateLimit,
@@ -268,7 +269,11 @@ export async function delayQueuePublicAction(token: string, restaurantSlug: stri
   redirect(`/q/${restaurantSlug}/status/${token}?delayed=true`);
 }
 
-export async function exitDiningCustomerAction(token: string, restaurantSlug: string): Promise<void> {
+export async function exitDiningCustomerAction(
+  token: string,
+  restaurantSlug: string,
+  destination: 'landing' | 'status' = 'landing'
+): Promise<void> {
   try {
     const limited = await limitTokenAttempt('cancel', token);
     if (limited) {
@@ -306,5 +311,37 @@ export async function exitDiningCustomerAction(token: string, restaurantSlug: st
   revalidatePath(`/q/${restaurantSlug}`);
   revalidatePath('/dashboard/tables');
   revalidatePath('/dashboard');
-  redirect(`/q/${restaurantSlug}/status/${token}?exited=true`);
+
+  if (destination === 'landing') {
+    redirect(`/q/${restaurantSlug}?left_queue=1`);
+  } else {
+    redirect(`/q/${restaurantSlug}/status/${token}?exited=true`);
+  }
 }
+
+export async function quitPreviousQueueAction(restaurantSlug: string): Promise<void> {
+  try {
+    const raw = await getTicketToken(restaurantSlug);
+    if (raw) {
+      const status = await QueueService.getQueueStatusByToken(raw);
+      if (status) {
+        if (status.status === 'SEATED') {
+          await QueueService.exitSeatedCustomer(status.entryId);
+        } else if (['WAITING', 'NOTIFIED', 'CALLED'].includes(status.status)) {
+          await QueueService.updateQueueStatus({
+            entryId: status.entryId,
+            newStatus: 'CANCELLED',
+          });
+        }
+      }
+    }
+  } catch {
+    // Non-blocking cleanup
+  }
+  await clearTicketCookie(restaurantSlug);
+  revalidatePath(`/q/${restaurantSlug}`);
+  revalidatePath('/dashboard/tables');
+  revalidatePath('/dashboard');
+  redirect(`/q/${restaurantSlug}?new_entry=1`);
+}
+

@@ -139,10 +139,9 @@ export default async function CustomerQueueStatusPage({
 
   return (
     <main className="qf-bg relative flex min-h-[100dvh] flex-col text-slate-100 selection:bg-orange-500/30 selection:text-orange-100">
-      {/* Phase 4E: the cookie is retained for SEATED (menu handoff stays
-          reachable from the landing resume banner) and cleared only for dead
-          states (CANCELLED / NO_SHOW / EXPIRED). */}
-      <TicketCookieSync slug={slug} token={token} isTerminal={isTerminal && status.status !== 'SEATED'} />
+      {/* Phase 4E: the cookie is retained for active SEATED dining, but cleared
+          when dining is completed (status.completedAt) or terminal states (CANCELLED / NO_SHOW / EXPIRED). */}
+      <TicketCookieSync slug={slug} token={token} isTerminal={Boolean(status.completedAt) || (isTerminal && status.status !== 'SEATED')} />
       <CustomerQueueRealtime entryId={status.entryId} isTerminal={isTerminal} />
 
       {/* Warm ambient glow (decorative) */}

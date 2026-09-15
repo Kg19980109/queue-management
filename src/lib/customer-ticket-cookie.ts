@@ -53,17 +53,32 @@ export async function setTicketCookie(slug: string, token: string): Promise<bool
   return true;
 }
 
-/** Remove the ticket cookie (terminal tickets, invalid tokens, dismissal). */
+/** Remove the ticket cookie (terminal tickets, invalid tokens, dismissal, quit queue). */
 export async function clearTicketCookie(slug: string): Promise<void> {
   const name = cookieNameForSlug(slug);
   if (!name) return;
+  const cleanSlug = slug.trim().toLowerCase();
   const store = await cookies();
+
+  try {
+    store.delete(name);
+  } catch {}
+
+  try {
+    store.delete({
+      name,
+      path: `/q/${cleanSlug}`,
+    });
+  } catch {}
+
+  // Explicitly expire the cookie at the EXACT path it was created with
   store.set(name, '', {
     httpOnly: true,
     secure: isProduction(),
     sameSite: 'lax',
-    path: `/q/${slug.trim().toLowerCase()}`,
+    path: `/q/${cleanSlug}`,
     maxAge: 0,
+    expires: new Date(0),
   });
 }
 

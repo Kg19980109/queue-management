@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight, Phone } from 'lucide-react';
+import { ChevronRight, Phone, UtensilsCrossed, LogOut } from 'lucide-react';
 import { PublicRestaurantService } from '@/lib/services/public-restaurant-service';
 import { QueueService } from '@/lib/services/queue-service';
 import { ETAService } from '@/lib/services/eta-service';
@@ -14,6 +14,7 @@ import { LandingAutoRefresh } from '@/components/customer/LandingAutoRefresh';
 import { CustomerErrorState } from '@/components/customer/CustomerErrorState';
 import { resolveJoinability, formatWaitLabel } from '@/lib/customer-join-ux';
 import { getTicketToken, clearTicketCookie } from '@/lib/customer-ticket-cookie';
+import { quitPreviousQueueAction } from '@/app/q/actions';
 import { logger } from '@/lib/logging/logger';
 import type { Metadata } from 'next';
 
@@ -47,10 +48,21 @@ export async function generateMetadata({
  */
 export default async function PublicRestaurantQueuePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ left_queue?: string; new_entry?: string; fresh?: string }>;
 }) {
   const { slug } = await params;
+  const search = searchParams ? await searchParams : {};
+  const leftQueueParam = Boolean(search?.left_queue);
+  const freshParam = Boolean(search?.new_entry || search?.fresh);
+
+  if (leftQueueParam || freshParam) {
+    try {
+      await clearTicketCookie(slug);
+    } catch {}
+  }
   const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(slug);
 
   if (!restaurant) {
@@ -123,21 +135,34 @@ export default async function PublicRestaurantQueuePage({
   // Dead states (CANCELLED / NO_SHOW / EXPIRED) have their cookies cleared
   // on visit and always land on the join form.
   let activeTicketToken: string | null = null;
-  type ActiveTicketState = 'WAITING' | 'NOTIFIED' | 'CALLED' | 'SEATED';
+  type ActiveTicketState = 'WAITING' | 'NOTIFIED' | 'CALLED';
   let activeTicketState: ActiveTicketState = 'WAITING';
-  try {
-    const raw = await getTicketToken(slug);
-    if (raw) {
-      const s = await QueueService.getQueueStatusByToken(raw);
-      if (s && s.restaurantId === restaurant.id && ['WAITING', 'NOTIFIED', 'CALLED', 'SEATED'].includes(s.status) && !s.completedAt) {
-        activeTicketToken = raw;
-        activeTicketState = s.status as ActiveTicketState;
-      } else if (s?.completedAt) {
-        await clearTicketCookie(slug);
+  let seatedTicket: { token: string; displayNumber: string | null; customerName: string } | null = null;
+
+  if (!leftQueueParam && !freshParam) {
+    try {
+      const raw = await getTicketToken(slug);
+      if (raw) {
+        const s = await QueueService.getQueueStatusByToken(raw);
+        if (s && s.restaurantId === restaurant.id && !s.completedAt) {
+          if (s.status === 'SEATED') {
+            seatedTicket = {
+              token: raw,
+              displayNumber: s.displayNumber,
+              customerName: s.customerName,
+            };
+          } else if (['WAITING', 'NOTIFIED', 'CALLED'].includes(s.status)) {
+            activeTicketToken = raw;
+            activeTicketState = s.status as ActiveTicketState;
+          }
+        } else if (s?.completedAt) {
+          await clearTicketCookie(slug);
+        }
       }
+    } catch {
+      activeTicketToken = null;
+      seatedTicket = null;
     }
-  } catch {
-    activeTicketToken = null;
   }
 
   return (
@@ -150,8 +175,16 @@ export default async function PublicRestaurantQueuePage({
       <div aria-hidden="true" className="pointer-events-none absolute -right-[10%] top-[15%] -z-0 h-[40%] w-[45%] rounded-full bg-emerald-500/12 blur-[110px]" />
 
       <div className="relative z-10 mx-auto w-full max-w-md space-y-5 px-4 py-6 sm:py-8">
-        {/* Resume banner (server cookie, no JS storage) */}
-        <TicketResumeBanner slug={slug} />
+        {/* Left queue confirmation banner */}
+        {leftQueueParam && (
+          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/15 p-4 text-center shadow-lg animate-fadeUp">
+            <p className="text-xs font-black text-emerald-300">✨ You have left the queue!</p>
+            <p className="mt-1 text-[11px] text-slate-300">Thank you for dining with us. Whenever you return, enter your details below to join again.</p>
+          </div>
+        )}
+
+        {/* Resume banner (server cookie, only for active waiting/called tickets) */}
+        {!leftQueueParam && !freshParam && <TicketResumeBanner slug={slug} />}
 
         <div className="animate-fadeUp">
           <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
@@ -185,7 +218,46 @@ export default async function PublicRestaurantQueuePage({
         />
         </div>
 
-        <div className="animate-fadeUp" style={{ animationDelay: '200ms' }}>
+        <div className="animate-fadeUp space-y-4" style={{ animationDelay: '200ms' }}>
+        {/* Seated guest banner — allows rejoining while keeping previous ticket accessible */}
+        {seatedTicket && (
+          <div className="rounded-3xl border border-emerald-500/30 bg-emerald-950/40 p-4 shadow-xl backdrop-blur-sm space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <UtensilsCrossed className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 border border-emerald-400/30 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-300">
+                  Seated Guest · {seatedTicket.displayNumber ? `Ticket Q-${seatedTicket.displayNumber.replace(/^#+/, '')}` : 'Table Ready'}
+                </div>
+                <p className="mt-1 text-xs font-bold text-white">
+                  Welcome back {seatedTicket.customerName}! Hope you enjoyed your meal 🎉
+                </p>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  Visiting again today? Fill in the form below to get a new queue ticket, or quit your previous ticket.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Link
+                href={`/q/${slug}/status/${seatedTicket.token}`}
+                className="flex-1 text-center py-2.5 px-3 rounded-xl border border-white/15 bg-white/5 text-xs font-bold text-slate-200 hover:bg-white/10 active:scale-95 transition-all"
+              >
+                View Seated Ticket →
+              </Link>
+              <form action={quitPreviousQueueAction.bind(null, slug)} className="flex-1">
+                <button
+                  type="submit"
+                  className="w-full py-2.5 px-3 rounded-xl border border-emerald-500/30 bg-emerald-500/15 text-xs font-bold text-emerald-300 hover:bg-emerald-500/25 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Quit Previous Ticket</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
         {activeTicketToken ? (
           <section
             aria-label="Already in queue"
@@ -199,18 +271,14 @@ export default async function PublicRestaurantQueuePage({
               Spot saved
             </p>
             <p className="mt-2 text-base font-black tracking-tight text-white">
-              {activeTicketState === 'SEATED'
-                ? "You're seated — enjoy your meal 🎉"
-                : activeTicketState === 'CALLED'
-                  ? 'Your turn is being called 📢'
-                  : "You're already in the queue 🎉"}
+              {activeTicketState === 'CALLED'
+                ? 'Your turn is being called 📢'
+                : "You're already in the queue 🎉"}
             </p>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              {activeTicketState === 'SEATED'
-                ? 'Your table is ready — your ticket is live below.'
-                : activeTicketState === 'CALLED'
-                  ? 'Please return to the restaurant now — your ticket is live below.'
-                  : 'No need to fill the form again — your ticket is live below.'}
+              {activeTicketState === 'CALLED'
+                ? 'Please return to the restaurant now — your ticket is live below.'
+                : 'No need to fill the form again — your ticket is live below.'}
             </p>
             <Link
               href={`/q/${slug}/status/${activeTicketToken}`}
@@ -218,9 +286,20 @@ export default async function PublicRestaurantQueuePage({
             >
               View My Ticket →
             </Link>
-            <p className="mt-2 text-[11px] text-slate-400">
-              Different guest? Ask the host to cancel this ticket first.
-            </p>
+            <div className="mt-3 pt-3 border-t border-white/10 flex flex-col items-center gap-2">
+              <form action={quitPreviousQueueAction.bind(null, slug)} className="w-full">
+                <button
+                  type="submit"
+                  className="w-full flex h-11 items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-xs font-bold text-rose-300 hover:bg-rose-500/20 active:scale-95 transition-all cursor-pointer"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Quit Queue & Start New Ticket</span>
+                </button>
+              </form>
+              <p className="text-[10px] text-slate-400">
+                Returning for another meal or joining as a different guest? Tap above to start fresh.
+              </p>
+            </div>
           </section>
         ) : canJoin ? (
           <QueueJoinForm restaurant={restaurant} />

@@ -241,6 +241,15 @@ export function QueueTicketCard({
               <span className="font-mono text-white">{tableDisplay}</span>
             </div>
           )}
+
+          {!isCompleted && (
+            <div className="mt-4 pt-3 border-t border-emerald-500/20 text-center">
+              <p className="text-[11px] text-emerald-200/80 mb-2">
+                Leaving after dining or planning another visit later today?
+              </p>
+              <ExitDiningDialog token={token} restaurantSlug={restaurantSlug} />
+            </div>
+          )}
         </div>
       )}
 

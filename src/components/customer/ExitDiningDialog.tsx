@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useTransition, useRef, useEffect } from 'react';
-import { CheckCircle2, LoaderCircle, UtensilsCrossed } from 'lucide-react';
+import { CheckCircle2, LoaderCircle, UtensilsCrossed, LogOut, PlusCircle } from 'lucide-react';
 import { exitDiningCustomerAction } from '@/app/q/actions';
 
 interface ExitDiningDialogProps {
@@ -34,16 +34,24 @@ export function ExitDiningDialog({ token, restaurantSlug }: ExitDiningDialogProp
     return () => document.removeEventListener('keydown', onKey);
   }, [isOpen]);
 
-  const handleExit = () => {
+  const handleExit = (startNewTicket = false) => {
     if (isPending) return;
     setError(null);
     startTransition(async () => {
       try {
-        await exitDiningCustomerAction(token, restaurantSlug);
+        await exitDiningCustomerAction(token, restaurantSlug, 'landing');
+        window.location.href = `/q/${restaurantSlug}?${startNewTicket ? 'new_entry=1' : 'left_queue=1'}`;
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Unable to complete dining exit.';
-        if (msg.includes('NEXT_REDIRECT')) return;
-        setError('Failed to exit dining session. Please try again.');
+        const msg = err instanceof Error ? err.message : '';
+        if (
+          msg.includes('NEXT_REDIRECT') ||
+          (err && typeof err === 'object' && 'digest' in err && String((err as { digest?: string }).digest).startsWith('NEXT_REDIRECT'))
+        ) {
+          window.location.href = `/q/${restaurantSlug}?${startNewTicket ? 'new_entry=1' : 'left_queue=1'}`;
+          return;
+        }
+        // Even on network error, ensure client redirect so user is never trapped
+        window.location.href = `/q/${restaurantSlug}?${startNewTicket ? 'new_entry=1' : 'left_queue=1'}`;
       }
     });
   };
@@ -54,11 +62,11 @@ export function ExitDiningDialog({ token, restaurantSlug }: ExitDiningDialogProp
         ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(true)}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] text-xs font-bold text-slate-300 transition-all hover:border-white/20 hover:bg-white/[0.08] hover:text-white active:scale-[0.98] cursor-pointer"
+        className="flex h-13 min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-sm font-bold text-emerald-300 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/20 hover:text-white active:scale-[0.98] cursor-pointer shadow-lg shadow-emerald-500/10"
         aria-haspopup="dialog"
       >
-        <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-emerald-400" />
-        <span>Done Dining & Exit Queue</span>
+        <LogOut aria-hidden="true" className="h-4 w-4 text-emerald-400" />
+        <span>Leave Queue / Done Dining</span>
       </button>
 
       {isOpen && (
@@ -78,7 +86,7 @@ export function ExitDiningDialog({ token, restaurantSlug }: ExitDiningDialogProp
                   Finished Dining?
                 </h3>
                 <p className="text-xs leading-relaxed text-slate-400">
-                  This will complete your ticket and free up your table for the next guests. You can join the queue again whenever you return!
+                  This will complete your ticket and exit the queue flow. You can return and join the queue again whenever you are hungry!
                 </p>
               </div>
             </div>
@@ -89,23 +97,23 @@ export function ExitDiningDialog({ token, restaurantSlug }: ExitDiningDialogProp
               </div>
             )}
 
-            <div className="mt-6 flex flex-col gap-2">
+            <div className="mt-6 flex flex-col gap-2.5">
               <button
                 ref={confirmRef}
                 type="button"
                 disabled={isPending}
-                onClick={handleExit}
+                onClick={() => handleExit(false)}
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-sm font-black text-white shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-[0.98] cursor-pointer disabled:opacity-50"
               >
                 {isPending ? (
                   <>
                     <LoaderCircle className="h-4 w-4 animate-spin" />
-                    <span>Finishing Dining...</span>
+                    <span>Exiting Queue...</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="h-4 w-4" />
-                    <span>Yes, Done Dining</span>
+                    <span>Yes, Leave Queue & Finish</span>
                   </>
                 )}
               </button>
@@ -113,10 +121,20 @@ export function ExitDiningDialog({ token, restaurantSlug }: ExitDiningDialogProp
               <button
                 type="button"
                 disabled={isPending}
-                onClick={() => setIsOpen(false)}
-                className="h-10 w-full rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-colors cursor-pointer"
+                onClick={() => handleExit(true)}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-xs font-bold text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
               >
-                Still Dining / Stay
+                <PlusCircle className="h-4 w-4 text-emerald-400" />
+                <span>Leave & Join Again (Next Meal)</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setIsOpen(false)}
+                className="h-9 w-full rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                Still Dining / Stay on Ticket
               </button>
             </div>
           </div>
