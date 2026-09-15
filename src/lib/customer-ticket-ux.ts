@@ -164,10 +164,49 @@ export function formatTableNumber(tableNumber: string | null | undefined): strin
 }
 
 /**
+ * Phase 4E — customer attention levels (presentation ONLY).
+ *
+ * No new queue states: CALLED is the one real state here; the rest classify
+ * how loudly the ticket should present the authoritative WAITING state.
+ * The layer never modifies backend state and never invents transitions.
+ *
+ * Priority (highest first): CALLED > ALMOST_YOUR_TURN > GETTING_CLOSE > NORMAL.
+ */
+export type AttentionLevel = 'NORMAL' | 'GETTING_CLOSE' | 'ALMOST_YOUR_TURN' | 'CALLED';
+
+export function customerAttentionLevel(
+  status: QueueStatus,
+  proximity: ProximityLevel | null
+): AttentionLevel {
+  if (status === 'CALLED') return 'CALLED';
+  if (status !== 'WAITING') return 'NORMAL';
+  if (proximity === 'ALMOST_YOUR_TURN') return 'ALMOST_YOUR_TURN';
+  if (proximity === 'GETTING_CLOSE') return 'GETTING_CLOSE';
+  return 'NORMAL';
+}
+
+/**
  * Phase 4D: Notification banner deduplication.
  * Prevents duplicate banners when the ticket's primary state already presents
  * the authoritative message (e.g. CALLED or SEATED).
+ *
+ * Phase 4E extension: a stale "your table is ready / called" notification
+ * must never resurface as primary content once the ticket has moved to ANY
+ * terminal state (SEATED, NO_SHOW, CANCELLED, EXPIRED). The hero owns the
+ * truth; the banner may only carry genuinely different secondary context.
  */
+export function isCalledNotification(notification: { title?: string; message?: string }): boolean {
+  const text = `${notification.title || ''} ${notification.message || ''}`.toLowerCase();
+  return (
+    text.includes('table is being called') ||
+    text.includes('table is ready') ||
+    text.includes('return to the restaurant') ||
+    text.includes('come to the host stand') ||
+    text.includes('your turn') ||
+    text.includes('called')
+  );
+}
+
 export function shouldShowNotificationBanner(
   status: QueueStatus,
   notification: { title?: string; message?: string } | null
@@ -176,17 +215,19 @@ export function shouldShowNotificationBanner(
   if (status === 'SEATED') return false;
 
   if (status === 'CALLED') {
-    const text = `${notification.title || ''} ${notification.message}`.toLowerCase();
     // Suppress if the notification message duplicates the "table called / return to restaurant" message
-    if (
-      text.includes('table is being called') ||
-      text.includes('table is ready') ||
-      text.includes('return to the restaurant') ||
-      text.includes('your turn') ||
-      text.includes('called')
-    ) {
+    if (isCalledNotification(notification)) {
       return false;
     }
+  }
+
+  // Phase 4E: terminal states own their hero; a leftover CALLED-type
+  // notification would read as "you are being called right now" even when
+  // the customer returns minutes later to a NO_SHOW / CANCELLED / EXPIRED
+  // ticket. Non-called notifications (different useful info) may still show
+  // as secondary context.
+  if (isTicketTerminal(status) && isCalledNotification(notification)) {
+    return false;
   }
 
   return true;

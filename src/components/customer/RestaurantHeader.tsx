@@ -63,7 +63,7 @@ export function RestaurantHeader({ restaurant, waitingCount }: RestaurantHeaderP
         <p className="text-[11px] font-black uppercase tracking-[0.25em] text-orange-400">
           🍴 Now seating
         </p>
-        <h1 className="text-[26px] font-black leading-tight tracking-tight text-white drop-shadow-lg sm:text-[30px]">
+        <h1 className="qf-keep-dark text-[26px] font-black leading-tight tracking-tight text-white drop-shadow-lg sm:text-[30px]">
           {restaurant.name}
         </h1>
         {restaurant.description && (

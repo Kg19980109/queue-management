@@ -139,7 +139,10 @@ export default async function CustomerQueueStatusPage({
 
   return (
     <main className="qf-bg relative flex min-h-[100dvh] flex-col text-slate-100 selection:bg-orange-500/30 selection:text-orange-100">
-      <TicketCookieSync slug={slug} token={token} isTerminal={isTerminal} />
+      {/* Phase 4E: the cookie is retained for SEATED (menu handoff stays
+          reachable from the landing resume banner) and cleared only for dead
+          states (CANCELLED / NO_SHOW / EXPIRED). */}
+      <TicketCookieSync slug={slug} token={token} isTerminal={isTerminal && status.status !== 'SEATED'} />
       <CustomerQueueRealtime entryId={status.entryId} isTerminal={isTerminal} />
 
       {/* Warm ambient glow (decorative) */}
@@ -184,12 +187,12 @@ export default async function CustomerQueueStatusPage({
               { label: 'Order', icon: '🍽️', done: myOrders.length > 0, now: false },
               { label: 'Seated', icon: '🪑', done: false, now: ['NOTIFIED', 'CALLED'].includes(status.status) },
             ].map((s, i, arr) => (
-              <li key={s.label} className="flex flex-1 items-center gap-1 last:flex-none">
-                <span className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[11px] font-black ${s.done ? 'bg-emerald-500/15 text-emerald-300' : s.now ? 'bg-orange-500/15 text-orange-300' : 'text-slate-500'}`}>
-                  <span aria-hidden="true" className="text-sm">{s.icon}</span>
-                  {s.done ? '✓ ' : ''}{s.label}
+              <li key={s.label} className="flex min-w-0 flex-1 items-center gap-0.5">
+                <span className={`flex min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 py-2 text-[10px] font-black whitespace-nowrap ${s.done ? 'bg-emerald-500/15 text-emerald-300' : s.now ? 'bg-orange-500/15 text-orange-300' : 'text-slate-500'}`}>
+                  <span aria-hidden="true" className="shrink-0 text-xs">{s.icon}</span>
+                  <span className="truncate">{s.done ? '✓ ' : ''}{s.label}</span>
                 </span>
-                {i < arr.length - 1 && <span aria-hidden="true" className="px-0.5 text-slate-600">›</span>}
+                {i < arr.length - 1 && <span aria-hidden="true" className="shrink-0 px-0.5 text-slate-600">›</span>}
               </li>
             ))}
           </ol>

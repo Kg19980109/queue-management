@@ -15,13 +15,26 @@ ALTER TABLE public.queue_entries
 
 -- 2b. Extend seat RPC to accept + persist actual guests (overload-safe:
 --     old 3-arg calls keep working via default NULL)
+--
+-- IMPORTANT: CREATE OR REPLACE with a new signature ADDS an overload instead
+-- of replacing the old one, leaving two ambiguous
+-- seat_queue_entry_atomic variants (3-arg + 4-arg). Since the 4th parameter
+-- has a DEFAULT, every 3-arg call matches BOTH overloads and Postgres /
+-- PostgREST cannot choose ("best candidate function" error), and the fresh
+-- overload inherits default PUBLIC execute grants (Phase 3E violation).
+-- So: drop the legacy 3-arg overload first, then re-apply least privilege.
+--
+-- The body below is a faithful port of the 20260917 version (same checks,
+-- same JSONB success return incl. seated_table_id persistence, audit log,
+-- and pg_notify) plus actual_guests handling.
+DROP FUNCTION IF EXISTS public.seat_queue_entry_atomic(UUID, UUID, UUID);
 CREATE OR REPLACE FUNCTION public.seat_queue_entry_atomic(
   p_queue_entry_id UUID,
   p_table_id UUID,
-  p_actor_user_id UUID,
+  p_actor_user_id UUID DEFAULT NULL,
   p_actual_guests INT DEFAULT NULL
 )
-RETURNS public.queue_entries
+RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
@@ -29,43 +42,73 @@ AS $$
 DECLARE
   v_entry public.queue_entries%ROWTYPE;
   v_table public.restaurant_tables%ROWTYPE;
+  v_now TIMESTAMPTZ := NOW();
+  v_seating_count INT;
 BEGIN
   SELECT * INTO v_entry FROM public.queue_entries WHERE id = p_queue_entry_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'QUEUE_ENTRY_NOT_FOUND'; END IF;
   IF v_entry.status = 'SEATED' THEN RAISE EXCEPTION 'QUEUE_ENTRY_ALREADY_SEATED'; END IF;
-  IF v_entry.status NOT IN ('WAITING', 'NOTIFIED', 'CALLED') THEN
-    RAISE EXCEPTION 'QUEUE_ENTRY_NOT_SEATABLE';
+  IF v_entry.status NOT IN ('WAITING','NOTIFIED','CALLED') THEN
+    RAISE EXCEPTION 'QUEUE_ENTRY_NOT_SEATABLE: status % cannot be seated', v_entry.status;
   END IF;
-
   SELECT * INTO v_table FROM public.restaurant_tables WHERE id = p_table_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'TABLE_NOT_FOUND'; END IF;
   IF v_table.restaurant_id != v_entry.restaurant_id THEN RAISE EXCEPTION 'TENANT_MISMATCH'; END IF;
+  IF v_table.is_archived THEN RAISE EXCEPTION 'TABLE_ARCHIVED'; END IF;
   IF v_table.status != 'AVAILABLE' THEN RAISE EXCEPTION 'TABLE_NOT_AVAILABLE'; END IF;
-
-  -- Validate actual headcount when supplied (0 = nobody showed is a no-show, not a seat)
-  IF p_actual_guests IS NOT NULL THEN
-    IF p_actual_guests <= 0 THEN RAISE EXCEPTION 'INVALID_ACTUAL_GUESTS'; END IF;
-    IF p_actual_guests > v_table.capacity THEN RAISE EXCEPTION 'INSUFFICIENT_TABLE_CAPACITY'; END IF;
+  -- Check actor permission if provided (defense in depth)
+  IF p_actor_user_id IS NOT NULL THEN
+    IF NOT public.has_restaurant_role(p_actor_user_id, v_entry.restaurant_id, ARRAY['RESTAURANT_ADMIN','STAFF']) THEN
+      -- Allow SUPER_ADMIN via is_super_admin check
+      IF NOT public.is_super_admin(p_actor_user_id) THEN
+        RAISE EXCEPTION 'UNAUTHORIZED';
+      END IF;
+    END IF;
   END IF;
 
-  UPDATE public.restaurant_tables SET status = 'OCCUPIED', updated_at = NOW() WHERE id = p_table_id;
+  -- Actual headcount confirmed at the door (defaults to expected party size).
+  -- 0 = nobody showed is a no-show, not a seat; must fit the table.
+  IF p_actual_guests IS NOT NULL THEN
+    IF p_actual_guests <= 0 THEN RAISE EXCEPTION 'INVALID_ACTUAL_GUESTS'; END IF;
+    v_seating_count := p_actual_guests;
+  ELSE
+    v_seating_count := v_entry.party_size;
+  END IF;
+  IF v_table.capacity < v_seating_count THEN RAISE EXCEPTION 'INSUFFICIENT_TABLE_CAPACITY'; END IF;
 
   UPDATE public.queue_entries
   SET status = 'SEATED',
-      seated_at = NOW(),
+      seated_table_id = p_table_id,
+      seated_at = v_now,
       actual_guests = COALESCE(p_actual_guests, actual_guests, party_size),
-      updated_at = NOW()
+      updated_at = v_now
   WHERE id = p_queue_entry_id
   RETURNING * INTO v_entry;
-
-  INSERT INTO public.queue_events (restaurant_id, queue_entry_id, event_type, actor_user_id, metadata)
-  VALUES (v_entry.restaurant_id, v_entry.id, 'QUEUE_SEATED', p_actor_user_id,
-    jsonb_build_object('tableId', p_table_id, 'tableNumber', v_table.table_number,
-      'partySize', v_entry.party_size, 'actualGuests', v_entry.actual_guests));
-
-  RETURN v_entry;
+  UPDATE public.restaurant_tables SET status = 'OCCUPIED', updated_at = v_now WHERE id = p_table_id;
+  INSERT INTO public.queue_events (restaurant_id,queue_entry_id,event_type,actor_user_id,metadata)
+  VALUES (v_entry.restaurant_id, p_queue_entry_id, 'QUEUE_SEATED', p_actor_user_id,
+    jsonb_build_object('table_id',p_table_id,'table_number',v_table.table_number,'party_size',v_entry.party_size,
+      'actual_guests',v_entry.actual_guests,'previous_status',v_entry.status));
+  INSERT INTO public.outbox_events (restaurant_id,event_type,aggregate_type,aggregate_id,payload,status)
+  VALUES (v_entry.restaurant_id, 'QUEUE_SEATED','QUEUE',p_queue_entry_id::text,
+    jsonb_build_object('previousStatus',v_entry.status,'newStatus','SEATED','customerName',v_entry.customer_name,
+      'displayNumber',v_entry.display_number,'tableId',p_table_id,'actualGuests',v_entry.actual_guests), 'PENDING');
+  IF p_actor_user_id IS NOT NULL THEN
+    INSERT INTO public.audit_logs (restaurant_id,actor_user_id,action,entity_type,entity_id,metadata)
+    VALUES (v_entry.restaurant_id, p_actor_user_id, 'queue_entry_seated','queue_entry',p_queue_entry_id,
+      jsonb_build_object('tableId',p_table_id,'tableNumber',v_table.table_number,'customerName',v_entry.customer_name,
+        'displayNumber',v_entry.display_number,'actualGuests',v_entry.actual_guests));
+  END IF;
+  PERFORM pg_notify('queue_entry_update', json_build_object('restaurant_id',v_entry.restaurant_id,'entry_id',p_queue_entry_id,'event','QUEUE_SEATED')::text);
+  RETURN jsonb_build_object('success',true,'queueEntryId',p_queue_entry_id,'tableId',p_table_id,
+    'tableNumber',v_table.table_number,'seatedAt',v_now,'actualGuests',v_entry.actual_guests);
 END;
 $$;
+
+-- Phase 3E least privilege on the surviving signature (service_role only —
+-- the app authorizes via AuthorizationService before calling).
+REVOKE ALL ON FUNCTION public.seat_queue_entry_atomic(UUID, UUID, UUID, INT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.seat_queue_entry_atomic(UUID, UUID, UUID, INT) TO service_role;
 
 -- 1. Daily-reset join: same guards as 20260920000000, only the number
 --    allocation changes (scoped to post-5AM-cutoff entries).

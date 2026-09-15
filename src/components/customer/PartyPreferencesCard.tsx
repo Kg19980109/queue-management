@@ -6,7 +6,7 @@ export function PartyPreferencesCard({ customerName, phone, partySize }: { custo
   return (
     <div className="animate-fadeUp flex w-full flex-col gap-3" style={{ animationDelay: '220ms' }}>
       <div className="flex items-center justify-between px-1">
-        <h3 className="text-lg font-black tracking-tight text-white">Your party 🎉</h3>
+        <h3 className="qf-keep-dark text-lg font-black tracking-tight text-white">Your party 🎉</h3>
         <span className="rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-300">✓ Confirmed</span>
       </div>
 

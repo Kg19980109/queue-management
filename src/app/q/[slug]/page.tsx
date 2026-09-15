@@ -118,13 +118,20 @@ export default async function PublicRestaurantQueuePage({
   // If this browser already holds a live ticket (HttpOnly cookie), don't
   // push the join form again — going "back" to the info page after joining
   // was the top customer complaint. Show resume instead of a duplicate form.
+  // Phase 4E: SEATED tickets are retained (cookie survives seating) so the
+  // resume copy reflects the current state — waiting, called, or seated.
+  // Dead states (CANCELLED / NO_SHOW / EXPIRED) have their cookies cleared
+  // on visit and always land on the join form.
   let activeTicketToken: string | null = null;
+  type ActiveTicketState = 'WAITING' | 'NOTIFIED' | 'CALLED' | 'SEATED';
+  let activeTicketState: ActiveTicketState = 'WAITING';
   try {
     const raw = await getTicketToken(slug);
     if (raw) {
       const s = await QueueService.getQueueStatusByToken(raw);
-      if (s && s.restaurantId === restaurant.id && ['WAITING', 'NOTIFIED', 'CALLED'].includes(s.status)) {
+      if (s && s.restaurantId === restaurant.id && ['WAITING', 'NOTIFIED', 'CALLED', 'SEATED'].includes(s.status)) {
         activeTicketToken = raw;
+        activeTicketState = s.status as ActiveTicketState;
       }
     }
   } catch {
@@ -157,10 +164,10 @@ export default async function PublicRestaurantQueuePage({
           ].map((s) => (
             <li
               key={s.n}
-              className="qf-card flex flex-col items-center gap-1 rounded-2xl px-2 py-3 text-center"
+              className="qf-card flex min-w-0 flex-col items-center gap-1 overflow-hidden rounded-2xl px-1 py-3 text-center"
             >
               <span aria-hidden="true" className="text-xl leading-none">{s.icon}</span>
-              <span className="text-[11px] font-black tracking-tight text-white">{s.label}</span>
+              <span className="w-full truncate text-[10px] font-black tracking-tight text-white">{s.label}</span>
               <span className="text-[10px] font-bold text-slate-500">Step {s.n}</span>
             </li>
           ))}
@@ -189,9 +196,19 @@ export default async function PublicRestaurantQueuePage({
               </span>
               Spot saved
             </p>
-            <p className="mt-2 text-base font-black tracking-tight text-white">You&apos;re already in the queue 🎉</p>
+            <p className="mt-2 text-base font-black tracking-tight text-white">
+              {activeTicketState === 'SEATED'
+                ? "You're seated — enjoy your meal 🎉"
+                : activeTicketState === 'CALLED'
+                  ? 'Your turn is being called 📢'
+                  : "You're already in the queue 🎉"}
+            </p>
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
-              No need to fill the form again — your ticket is live below.
+              {activeTicketState === 'SEATED'
+                ? 'Your table is ready — your ticket is live below.'
+                : activeTicketState === 'CALLED'
+                  ? 'Please return to the restaurant now — your ticket is live below.'
+                  : 'No need to fill the form again — your ticket is live below.'}
             </p>
             <Link
               href={`/q/${slug}/status/${activeTicketToken}`}

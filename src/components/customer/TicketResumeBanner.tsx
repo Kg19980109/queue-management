@@ -12,9 +12,50 @@ import { PublicRestaurantService } from '@/lib/services/public-restaurant-servic
  * this authorized user's own page link — required for navigation — but is
  * never persisted in browser JS storage, history-independent resume works
  * without it, and Referrer-Policy + no third-party leaks contain it.
+ *
+ * Phase 4E — the resume copy reflects the CURRENT authoritative state, not
+ * the moment the customer joined: a customer returning after being called
+ * sees "your turn is being called", after seating sees "you're seated".
+ * Dead states (CANCELLED / NO_SHOW / EXPIRED) never resume: their cookies
+ * are cleared on visit (see TicketCookieSync), so only the join form shows.
  */
+
+export type ResumeState = 'WAITING' | 'NOTIFIED' | 'CALLED' | 'SEATED';
+
+export function resumeCopyForState(state: ResumeState): { title: string; body: string } {
+  switch (state) {
+    case 'CALLED':
+      return {
+        title: 'Your turn is being called',
+        body: 'Head back to the restaurant now — tap to view your ticket',
+      };
+    case 'SEATED':
+      return {
+        title: "You're seated — enjoy!",
+        body: 'Tap to view your ticket and order more',
+      };
+    case 'NOTIFIED':
+      return {
+        title: 'Your table is getting close',
+        body: 'Tap to view your live ticket',
+      };
+    case 'WAITING':
+    default:
+      return {
+        title: 'You have an active ticket',
+        body: 'Tap to view your queue • not lost',
+      };
+  }
+}
+
+/** States eligible for resume. Dead terminals are intentionally excluded. */
+export function isResumableTicketStatus(status: string): status is ResumeState {
+  return status === 'WAITING' || status === 'NOTIFIED' || status === 'CALLED' || status === 'SEATED';
+}
+
 export async function TicketResumeBanner({ slug }: { slug: string }) {
   let token: string | null = null;
+  let ticketState: ResumeState = 'WAITING';
   try {
     const raw = await getTicketToken(slug);
     if (raw) {
@@ -24,9 +65,10 @@ export async function TicketResumeBanner({ slug }: { slug: string }) {
         status &&
         restaurant &&
         restaurant.id === status.restaurantId &&
-        ['WAITING', 'NOTIFIED', 'CALLED'].includes(status.status)
+        isResumableTicketStatus(status.status)
       ) {
         token = raw;
+        ticketState = status.status;
       }
     }
   } catch {
@@ -34,6 +76,9 @@ export async function TicketResumeBanner({ slug }: { slug: string }) {
   }
 
   if (!token) return null;
+
+  const copy = resumeCopyForState(ticketState);
+  const highlighted = ticketState === 'CALLED' || ticketState === 'SEATED';
 
   return (
     <div className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 p-[1.5px] shadow-lg shadow-emerald-500/20 animate-[fadeIn_0.4s_ease]">
@@ -43,8 +88,8 @@ export async function TicketResumeBanner({ slug }: { slug: string }) {
             <span className="material-symbols-outlined text-white text-[20px]">confirmation_number</span>
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-black text-white leading-tight">You have an active ticket</div>
-            <div className="text-xs text-emerald-300 font-medium truncate">Tap to view your queue • not lost</div>
+            <div className="text-sm font-black text-white leading-tight">{copy.title}</div>
+            <div className={`text-xs font-medium truncate ${highlighted ? 'text-amber-300' : 'text-emerald-300'}`}>{copy.body}</div>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">

@@ -225,6 +225,31 @@ html.light .shadow-2xl{ box-shadow: 0 8px 28px rgba(15,23,42,0.10) !important; }
 .shimmer{ position:relative; overflow:hidden; }
 .shimmer::after{ content:""; position:absolute; inset:0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent); transform:translateX(-100%); animation: shimmer 2.2s infinite; }
 
+/* Phase 4E: customer ticket cards (.qf-card) are dark immersive surfaces in
+   EVERY color scheme. Without this guard, html.light remaps headings and
+   slate/accent text to near-black while the card background stays dark —
+   leaving the CALLED hero ("Your table is being called") unreadable for
+   light-mode phones. Specificity (0,3,0+) beats the generic light rules. */
+html.light .qf-card h1.text-white,
+html.light .qf-card h2.text-white,
+html.light .qf-card h3.text-white,
+html.light .qf-keep-dark.text-white {
+  color: #ffffff !important;
+}
+html.light .qf-card .text-slate-100 { color: #f1f5f9 !important; }
+html.light .qf-card .text-slate-200 { color: #e2e8f0 !important; }
+html.light .qf-card .text-slate-300 { color: #cbd5e1 !important; }
+html.light .qf-card .text-slate-400 { color: #94a3b8 !important; }
+html.light .qf-card .text-slate-500 { color: #64748b !important; }
+html.light .qf-card .text-emerald-400 { color: #34d399 !important; }
+html.light .qf-card .text-blue-400 { color: #60a5fa !important; }
+html.light .qf-card .text-amber-400 { color: #fbbf24 !important; }
+html.light .qf-card .border-white\/5 { border-color: rgba(255,255,255,0.05) !important; }
+html.light .qf-card .border-white\/10 { border-color: rgba(255,255,255,0.1) !important; }
+html.light .qf-card .border-white\/20 { border-color: rgba(255,255,255,0.2) !important; }
+html.light .qf-card .bg-white\/5 { background-color: rgba(255,255,255,0.05) !important; }
+html.light .qf-card .bg-white\/10 { background-color: rgba(255,255,255,0.1) !important; }
+
 /* ========== CUSTOMER THEME — warm, appetizing, easy to read ========== */
 @keyframes fadeUp { 0%{opacity:0;transform:translateY(14px)} 100%{opacity:1;transform:translateY(0)} }
 @keyframes ctaShine { 0%{transform:translateX(-120%) skewX(-18deg)} 100%{transform:translateX(240%) skewX(-18deg)} }

@@ -159,7 +159,10 @@ export function QueueTicketCard({
         </p>
       </div>
 
-      {/* CALLED Hero Callout — visually dominant, calm, return-to-restaurant instruction */}
+      {/* CALLED Hero Callout — visually dominant, calm, return-to-restaurant instruction.
+          Phase 4E: future optional attention-sound insertion point lives HERE
+          (inside the CALLED hero, after user interaction has occurred — never
+          autoplay, never request permission automatically). No audio in this phase. */}
       {isCalled && (
         <div
           role="region"

@@ -33,7 +33,7 @@ export function KitchenPreOrderCard({
   return (
     <div className="w-full flex-col gap-4 px-1">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-black tracking-tight text-white sm:text-xl">Hungry already? 😋</h3>
+        <h3 className="qf-keep-dark text-lg font-black tracking-tight text-white sm:text-xl">Hungry already? 😋</h3>
         <Link href={menuUrl} className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-orange-400/25 bg-orange-500/10 px-3 text-xs font-black text-orange-300 transition-colors hover:bg-orange-500/20">
           Full menu <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
         </Link>

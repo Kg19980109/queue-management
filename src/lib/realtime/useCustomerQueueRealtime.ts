@@ -11,6 +11,17 @@ import type { RealtimeConnectionState } from './types';
  * We use a broadcast channel named `queue-entry:${entryId}` - bearer via entryId (UUID, not guessable).
  * Server/staff broadcasts to this channel after queue status changes; customer refetches authoritative status.
  * Fallback polling remains as safety net.
+ *
+ * Phase 4E attention/recovery contract (presentation only, never authority):
+ * - broadcast ping        → authoritative router.refresh()
+ * - tab becomes visible   → authoritative router.refresh() (throttled, timestamp
+ *                           guard only — NOT another polling timer)
+ * - browser goes online   → authoritative router.refresh() immediately instead
+ *                           of waiting for the next 10s fallback tick
+ * - offline               → last-known ticket stays rendered; the status line
+ *                           shows Reconnecting… (see CustomerQueueRealtime)
+ * Missed events need no catch-up queue: every trigger re-reads server truth,
+ * so a customer returning 5 minutes after CALLED still sees CALLED.
  */
 export function useCustomerQueueRealtime(entryId: string, enabled = true) {
   const router = useRouter();
@@ -58,13 +69,28 @@ export function useCustomerQueueRealtime(entryId: string, enabled = true) {
       if (document.visibilityState === 'visible' && navigator.onLine) revalidate();
     }, 10000);
 
-    const onVisibility = () => { if (document.visibilityState === 'visible') revalidate(); };
+    // Phase 4E: return-to-tab / reconnect recovery. One shared timestamp
+    // guard (not a timer) so rapid hidden→visible toggles or online flaps
+    // cannot flood the server with refreshes; each accepted trigger still
+    // performs a full authoritative revalidation.
+    const lastRecoveryRef = { at: 0 };
+    const recover = (reason: 'visible' | 'online') => {
+      const now = Date.now();
+      if (now - lastRecoveryRef.at < 2000) return;
+      lastRecoveryRef.at = now;
+      if (reason === 'visible' && document.visibilityState !== 'visible') return;
+      revalidate();
+    };
+    const onVisibility = () => { recover('visible'); };
+    const onOnline = () => { recover('online'); };
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('online', onOnline);
 
     return () => {
       isMounted = false;
       clearInterval(fallback);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('online', onOnline);
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current as unknown as never);
         channelRef.current = null;
