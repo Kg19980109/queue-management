@@ -185,16 +185,16 @@ export function CustomerMenuBrowser({
     .filter((cat) => cat.items.length > 0);
 
   return (
-    <div className="space-y-5 pb-28">
-      {/* Search + Category Tabs - wow */}
+    <div className="space-y-5 pb-32">
+      {/* Search + Category Tabs */}
       <div className="space-y-3">
         <div className="relative group">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-400 transition-colors text-[18px]">search</span>
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-orange-400 transition-colors text-[20px]">search</span>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search dishes..."
-            className="w-full h-11 pl-10 pr-4 rounded-2xl bg-slate-900 border border-white/10 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+            placeholder="🔍 Search biryani, pizza, desserts…"
+            className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.05] pl-10 pr-4 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-orange-400/50 focus:ring-2 focus:ring-orange-500/20 transition-all"
           />
           {q && (
             <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors">
@@ -206,19 +206,19 @@ export function CustomerMenuBrowser({
           <button
             type="button"
             onClick={() => setActiveCategory('')}
-            className={`px-4 h-9 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-wider shrink-0 border ${!activeCategory ? 'bg-white text-slate-900 border-white shadow-md' : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'}`}
+            className={`h-10 px-4 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-wider shrink-0 border ${!activeCategory ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-transparent shadow-lg shadow-orange-500/25' : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'}`}
           >
-            All
+            ✨ All
           </button>
           {categories.map((cat) => (
             <button
               key={cat.id}
               type="button"
               onClick={() => setActiveCategory(cat.id)}
-              className={`px-4 h-9 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-wider shrink-0 border ${
+              className={`h-10 px-4 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-wider shrink-0 border ${
                 activeCategory === cat.id
-                  ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-md'
-                  : 'bg-white/5 text-slate-400 border-white/10 hover:border-white/20 hover:bg-white/10'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-transparent shadow-lg shadow-orange-500/25'
+                  : 'bg-white/5 text-slate-300 border-white/10 hover:border-white/20 hover:bg-white/10'
               }`}
             >
               {cat.name}
@@ -237,11 +237,11 @@ export function CustomerMenuBrowser({
         </div>
       ) : filteredCategories.map((cat) => (
           <div key={cat.id} className="space-y-3">
-            <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-              <h3 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">
+            <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+              <h3 className="text-xs font-black text-orange-300 uppercase tracking-widest">
                 {cat.name}
               </h3>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-400 font-bold">{cat.items.length}</span>
+              <span className="rounded-full bg-orange-500/15 border border-orange-400/20 px-2 py-0.5 text-[10px] text-orange-200 font-black">{cat.items.length}</span>
             </div>
 
             <div className="space-y-3">
@@ -251,33 +251,33 @@ export function CustomerMenuBrowser({
                 return (
                     <div
                       key={item.id}
-                      className={`bg-slate-900 border rounded-2xl p-3 sm:p-4 flex gap-3 transition-all animate-staggerIn hover:scale-[1.01] hover:shadow-lg ${
+                      className={`qf-card rounded-3xl p-3 flex gap-3 transition-all animate-staggerIn hover:scale-[1.01] ${
                         item.available
-                          ? 'border-white/10 hover:border-emerald-500/20 hover:shadow-emerald-500/5'
-                          : 'border-white/5 opacity-60'
+                          ? 'hover:border-orange-400/30'
+                          : 'opacity-60'
                       }`}
                       style={{animationDelay:`${idx*40}ms`}}
                     >
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-800 border border-white/5 shrink-0 flex items-center justify-center">
-                        {item.imageUrl ? (<img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />) : (<span className="material-symbols-outlined text-slate-600 text-[28px]">lunch_dining</span>)}
+                      <div className="flex h-18 min-h-[72px] w-18 min-w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/25 via-amber-500/10 to-emerald-500/10 text-3xl">
+                        {item.imageUrl ? (<img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" loading="lazy" />) : (<span aria-hidden="true">🍽️</span>)}
                       </div>
                       <div className="space-y-1 flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-bold text-white text-[14px] leading-tight line-clamp-1 flex-1">
+                          <h4 className="font-black text-white text-[14px] leading-tight line-clamp-1 flex-1">
                             {item.name}
                           </h4>
                           {!item.available && (
-                            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 border border-amber-500/30 text-amber-400 uppercase tracking-wider">
-                              Sold Out
+                            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 border border-amber-400/30 text-amber-300 uppercase tracking-wider">
+                              Sold out
                             </span>
                           )}
                         </div>
                         {item.description && (
-                          <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                          <p className="text-[11px] text-slate-300 line-clamp-2 leading-relaxed">
                             {item.description}
                           </p>
                         )}
-                        <div className="text-[13px] font-black text-white pt-1">
+                        <div className="text-[15px] font-black text-emerald-300 pt-0.5">
                           {formatPrice(item.price)}
                         </div>
                       </div>
@@ -318,7 +318,7 @@ export function CustomerMenuBrowser({
                         <button
                           type="button"
                           onClick={() => handleAddToCart(item)}
-                          className="px-5 py-2.5 rounded-xl bg-primary/90 hover:bg-primary text-white text-xs font-bold shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_20px_rgba(37,99,235,0.5)] transition-all uppercase tracking-wider"
+                          className="qf-cta px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:brightness-110 text-white text-xs font-black shadow-lg shadow-orange-500/25 transition-all uppercase tracking-wider active:scale-95"
                         >
                           + Add
                         </button>
@@ -334,12 +334,13 @@ export function CustomerMenuBrowser({
       {/* Floating Cart Sticky Bottom Bar */}
       {totalItemsCount > 0 && (
         <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-40">
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-500 text-slate-950 rounded-2xl p-4 shadow-[0_10px_40px_rgba(16,185,129,0.3)] flex items-center justify-between gap-4 border border-emerald-400/40 animate-in slide-in-from-bottom-4">
+          <div className="rounded-3xl bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 p-[1.5px] shadow-[0_10px_40px_rgba(249,115,22,0.35)] animate-in slide-in-from-bottom-4">
+          <div className="flex items-center justify-between gap-4 rounded-3xl bg-[#141b2e]/95 p-4 backdrop-blur">
             <div>
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-950/70">
-                {totalItemsCount} {totalItemsCount === 1 ? 'Item' : 'Items'} selected
+              <div className="text-[10px] font-black uppercase tracking-widest text-orange-300">
+                🛒 {totalItemsCount} {totalItemsCount === 1 ? 'Item' : 'Items'} selected
               </div>
-              <div className="text-xl font-black font-mono">
+              <div className="font-mono text-2xl font-black text-white">
                 {formatPrice(cartSubtotal)}
               </div>
             </div>
@@ -347,11 +348,12 @@ export function CustomerMenuBrowser({
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="px-6 py-3 bg-slate-950 hover:bg-slate-900 text-emerald-400 text-xs font-bold rounded-xl shadow-lg transition-all flex items-center gap-2"
+              className="qf-cta px-6 py-3.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:brightness-110 text-white text-xs font-black shadow-lg transition-all flex items-center gap-2 active:scale-95"
             >
               <span>View Cart & Order</span>
               <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
             </button>
+          </div>
           </div>
         </div>
       )}

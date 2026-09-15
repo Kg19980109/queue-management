@@ -123,13 +123,14 @@ export function QueueTicketCard({
   return (
     <section
       aria-label={`Queue ticket ${ticketNo}`}
-      className={`relative overflow-hidden rounded-3xl border bg-slate-900/90 p-5 shadow-2xl backdrop-blur sm:p-7 ${tone.ring} ${
+      className={`qf-card animate-fadeUp relative overflow-hidden rounded-3xl p-5 sm:p-7 ${tone.ring} ${
         isCalled ? 'ring-2 ring-sky-400/40' : isSeated ? 'ring-2 ring-emerald-400/30' : ''
       }`}
+      style={{ animationDelay: '120ms' }}
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
+        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-500 via-emerald-400 to-teal-400"
       />
 
       {/* Screen-reader announcement only on authoritative state transitions */}
@@ -139,22 +140,22 @@ export function QueueTicketCard({
 
       {/* Hero: queue number */}
       <div className="text-center">
-        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-          Your number
+        <p className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">
+          🎟️ Your number
         </p>
         <p
           aria-label={`Your queue number is ${ticketNo}`}
-          className="mt-1 font-mono text-6xl font-black tabular-nums tracking-tight text-white sm:text-7xl"
+          className="qf-display mt-2 font-mono text-7xl font-black tabular-nums tracking-tight drop-shadow-[0_4px_24px_rgba(52,211,153,0.35)] sm:text-8xl"
         >
           {ticketNo}
         </p>
         {restaurantName && (
-          <p className="mt-1.5 truncate text-[13px] font-semibold text-slate-400">
+          <p className="mt-2 truncate text-sm font-black tracking-tight text-white">
             {restaurantName}
           </p>
         )}
-        <p className="mt-1 text-[11px] text-slate-500">
-          {status.customerName} · party of {status.partySize}
+        <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-[12px] font-bold text-slate-300">
+          👤 {status.customerName} · {status.partySize} {status.partySize === 1 ? 'guest' : 'guests'}
         </p>
       </div>
 
@@ -244,55 +245,55 @@ export function QueueTicketCard({
       {/* Wait facts: position · ahead · ETA (shown ONLY when showWaitInfo === true) */}
       {meta.showWaitInfo && (
         <dl className="mt-5 grid grid-cols-3 gap-2">
-          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
-            <dt className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <div className="min-w-0 rounded-2xl border border-violet-400/20 bg-violet-500/10 p-3 text-center">
+            <dt className="flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-widest text-violet-300">
               <ListOrdered aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
               Place
             </dt>
             <dd
               aria-label={posLabel ?? 'Position unavailable'}
               key={status.position ?? 'none'}
-              className="mt-1 truncate text-xl font-black tabular-nums text-white motion-safe:animate-numberPop"
+              className="mt-1 truncate text-2xl font-black tabular-nums text-white motion-safe:animate-numberPop"
             >
               {status.position === null || status.position <= 0
                 ? '—'
                 : status.position === 1
-                  ? 'Next'
+                  ? 'Next 🎉'
                   : `#${status.position}`}
             </dd>
-            <dd className="truncate text-[10px] font-semibold text-slate-500">
+            <dd className="truncate text-[10px] font-semibold text-violet-300/70">
               {status.position === 1 ? 'front of line' : 'in line'}
             </dd>
           </div>
-          <div className="min-w-0 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.07] p-3 text-center">
-            <dt className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest text-emerald-400">
+          <div className="min-w-0 rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-3 text-center">
+            <dt className="flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-300">
               <Users aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
               Ahead
             </dt>
             <dd
               aria-label={aheadLabel ?? 'Parties ahead unavailable'}
-              className="mt-1 truncate text-xl font-black tabular-nums text-emerald-300"
+              className="mt-1 truncate text-2xl font-black tabular-nums text-emerald-200"
             >
               {status.peopleAhead === null || status.peopleAhead < 0 ? '—' : status.peopleAhead}
             </dd>
-            <dd className="truncate text-[10px] font-semibold text-emerald-400/70">
+            <dd className="truncate text-[10px] font-semibold text-emerald-300/70">
               {status.peopleAhead === 0
-                ? 'no one ahead'
+                ? 'no one ahead ✨'
                 : status.peopleAhead === 1
                   ? '1 party ahead'
                   : 'parties ahead'}
             </dd>
           </div>
-          <div className="min-w-0 rounded-2xl border border-blue-500/25 bg-blue-500/[0.07] p-3 text-center">
-            <dt className="flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest text-blue-300">
+          <div className="min-w-0 rounded-2xl border border-amber-400/25 bg-amber-500/10 p-3 text-center">
+            <dt className="flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-widest text-amber-300">
               <Clock aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
               Wait
             </dt>
-            <dd className="mt-1 truncate text-xl font-black tabular-nums text-blue-200">
+            <dd className="mt-1 truncate text-2xl font-black tabular-nums text-amber-200">
               {waitLabel}
             </dd>
-            <dd className="truncate text-[10px] font-semibold text-blue-300/70">
-              live estimate
+            <dd className="truncate text-[10px] font-semibold text-amber-300/70">
+              live estimate ⏱️
             </dd>
           </div>
         </dl>
@@ -334,7 +335,7 @@ export function QueueTicketCard({
         {isSeated ? (
           <Link
             href={`/q/${restaurantSlug}/menu?qtoken=${token}`}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400 active:scale-[0.98]"
+            className="qf-cta flex h-13 min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 text-sm font-black text-white shadow-lg shadow-orange-500/30 transition-all hover:brightness-110 active:scale-[0.98]"
           >
             <UtensilsCrossed aria-hidden="true" className="h-4 w-4" />
             <span>View Restaurant Menu</span>

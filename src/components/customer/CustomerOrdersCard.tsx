@@ -42,16 +42,19 @@ export function CustomerOrdersCard({ orders, restaurantSlug, queueToken }: Custo
   return (
     <section
       aria-label={`My orders, ${orders.length} order${orders.length === 1 ? '' : 's'}`}
-      className="rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-2xl sm:p-6"
+      className="qf-card animate-fadeUp rounded-3xl p-5 sm:p-6"
+      style={{ animationDelay: '180ms' }}
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-black tracking-tight text-white">
-          <ReceiptText aria-hidden="true" className="h-4 w-4 text-emerald-400" />
+        <h2 className="flex items-center gap-2 text-[15px] font-black tracking-tight text-white">
+          <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow">
+            <ReceiptText aria-hidden="true" className="h-4 w-4 text-white" />
+          </span>
           My Orders ({orders.length})
         </h2>
         <Link
           href={menuUrl}
-          className="inline-flex min-h-[36px] items-center gap-1 rounded-full px-3 text-xs font-bold text-emerald-400 hover:text-emerald-300"
+          className="inline-flex min-h-[40px] items-center gap-1 rounded-full border border-orange-400/25 bg-orange-500/10 px-3 text-xs font-black text-orange-300 transition-colors hover:bg-orange-500/20"
         >
           + Add more <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
         </Link>

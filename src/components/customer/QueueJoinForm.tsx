@@ -60,17 +60,19 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
   return (
     <section
       aria-label="Join the queue"
-      className="relative space-y-5 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-2xl sm:space-y-6 sm:p-8"
+      className="qf-card relative space-y-5 overflow-hidden rounded-3xl p-5 sm:space-y-6 sm:p-7"
     >
-      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-emerald-400" />
 
       <div className="relative space-y-1.5 text-center">
-        <h2 className="text-lg font-black tracking-tight text-white sm:text-xl">
-          Join the line — save your spot
+        <p className="inline-flex items-center gap-1.5 rounded-full border border-orange-400/25 bg-orange-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-orange-300">
+          🎟️ Free · No app needed
+        </p>
+        <h2 className="text-xl font-black tracking-tight text-white sm:text-2xl">
+          Save your spot in line
         </h2>
-        <p className="px-2 text-[12px] leading-relaxed text-slate-400 sm:text-xs">
-          Enter your details to get a live ticket. We&apos;ll let you know when
-          it&apos;s your turn.
+        <p className="mx-auto max-w-[300px] px-2 text-[13px] leading-relaxed text-slate-300">
+          Tell us who&apos;s coming — we&apos;ll buzz you when your table is almost ready.
         </p>
       </div>
 
@@ -177,7 +179,7 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
         <button
           type="submit"
           disabled={isPending}
-          className="relative flex h-[56px] w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-[15px] font-black text-white shadow-lg shadow-emerald-500/25 transition-all duration-200 hover:from-emerald-400 hover:via-teal-400 hover:to-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:text-base"
+          className="qf-cta relative flex h-[58px] w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 text-[15px] font-black text-white shadow-lg shadow-orange-500/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:text-base"
         >
           {isPending ? (
             <>
@@ -187,13 +189,13 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
           ) : (
             <>
               <Ticket aria-hidden="true" className="h-5 w-5" />
-              Join the queue
+              Get my ticket
               <ArrowRight aria-hidden="true" className="h-[18px] w-[18px]" />
             </>
           )}
         </button>
-        <p className="text-center text-[11px] text-slate-500">
-          Free · No app needed · Takes ~10 seconds
+        <p className="text-center text-[11px] font-semibold text-slate-400">
+          ⚡ Takes ~10 seconds · Keep this page open for live updates
         </p>
       </form>
     </section>

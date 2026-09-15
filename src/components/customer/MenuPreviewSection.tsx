@@ -18,13 +18,21 @@ interface MenuPreviewSectionProps {
   currency?: string;
 }
 
+const FOOD_EMOJI = ['🍛', '🍕', '🍔', '🍜', '🥘', '🍰', '🥗', '🍗', '🌮', '🍝', '🥪', '🍩'];
+
+function emojiFor(name: string, index: number) {
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return FOOD_EMOJI[(h + index) % FOOD_EMOJI.length];
+}
+
 export function MenuPreviewSection({ categories, currency = 'INR' }: MenuPreviewSectionProps) {
   if (!categories || categories.length === 0) {
     return (
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center">
-        <span className="material-symbols-outlined text-slate-500 text-[28px]">restaurant_menu</span>
-        <p className="text-sm font-bold text-slate-300 mt-2">Menu updating</p>
-        <p className="text-xs text-slate-500 mt-1">Ask host for today&apos;s specials</p>
+      <div className="qf-card rounded-3xl p-8 text-center">
+        <span aria-hidden="true" className="text-4xl">👨‍🍳</span>
+        <p className="mt-2 text-sm font-black text-white">Kitchen is prepping the menu</p>
+        <p className="mt-1 text-xs text-slate-400">Ask the host for today&apos;s specials 😋</p>
       </div>
     );
   }
@@ -41,42 +49,45 @@ export function MenuPreviewSection({ categories, currency = 'INR' }: MenuPreview
   };
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 sm:p-6 space-y-5">
-      <div className="text-center space-y-1">
-        <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> While You Wait
+    <div className="qf-card space-y-5 rounded-3xl p-5 sm:p-6">
+      <div className="space-y-1 text-center">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-400/25 bg-orange-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-orange-300">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400"></span> While you wait
         </span>
-        <h3 className="text-lg font-black text-white tracking-tight">
-          Menu Preview
+        <h3 className="text-xl font-black tracking-tight text-white">
+          Craving something? 😋
         </h3>
-        <p className="text-xs text-slate-500">
-          Popular dishes — full menu after joining
+        <p className="text-xs text-slate-400">
+          A taste of the menu — full spread after you join
         </p>
       </div>
 
       <div className="space-y-5">
         {categories.slice(0,3).map((cat) => (
           <div key={cat.id} className="space-y-2.5">
-            <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-1.5 flex items-center justify-between">
+            <h4 className="flex items-center justify-between border-b border-white/10 pb-1.5 text-[11px] font-black uppercase tracking-widest text-orange-300">
               <span>{cat.name}</span>
-              <span className="font-mono font-bold text-slate-500">{cat.items.length}</span>
+              <span className="rounded-full bg-white/5 px-2 py-0.5 font-mono font-bold text-slate-400">{cat.items.length}</span>
             </h4>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {cat.items.slice(0,4).map((item) => (
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {cat.items.slice(0,4).map((item, idx) => (
                 <div
                   key={item.id}
-                  className="bg-slate-950/60 border border-slate-800 rounded-2xl p-3 flex justify-between gap-3 hover:border-white/10 transition-colors"
+                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-all hover:border-orange-400/30 hover:bg-white/[0.06] active:scale-[0.99]"
                 >
+                  <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500/25 to-amber-500/10 text-2xl">
+                    {emojiFor(item.name, idx)}
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <h5 className="font-bold text-white text-[13px] truncate">{item.name}</h5>
+                    <h5 className="truncate text-[13px] font-black text-white">{item.name}</h5>
                     {item.description && (
-                      <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
+                      <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-400">
                         {item.description}
                       </p>
                     )}
                   </div>
-                  <span className="text-xs font-black text-white shrink-0">
+                  <span className="shrink-0 rounded-lg bg-emerald-500/15 px-2 py-1 text-xs font-black text-emerald-300">
                     {formatPrice(item.price)}
                   </span>
                 </div>

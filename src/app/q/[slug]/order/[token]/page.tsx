@@ -92,41 +92,42 @@ export default async function CustomerOrderStatusPage({
   const currentStep = getStepIndex(orderDetails.status);
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 px-4 py-8 flex flex-col justify-between selection:bg-emerald-500 selection:text-slate-950">
-      <div className="w-full max-w-md mx-auto space-y-6">
+    <main className="qf-bg flex min-h-screen flex-col justify-between px-4 py-8 text-slate-100 selection:bg-orange-500 selection:text-white">
+      <div className="mx-auto w-full max-w-md space-y-5">
         <RestaurantHeader restaurant={restaurant} />
 
         {/* Order Success Header Banner */}
-        <div className="bg-gradient-to-br from-emerald-950/80 to-slate-900 border border-emerald-500/30 rounded-3xl p-6 text-center space-y-3 shadow-2xl">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-2xl font-bold flex items-center justify-center mx-auto">
+        <div className="qf-card animate-fadeUp relative space-y-3 overflow-hidden rounded-3xl p-6 text-center">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-teal-400 to-orange-400" />
+          <div className="animate-checkPop mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-3xl font-black text-white shadow-xl shadow-emerald-500/40">
             ✓
           </div>
           <div>
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400">
-              Order Placed
+            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-300">
+              🎉 Order confirmed
             </span>
-            <h2 className="text-xl font-black text-white tracking-tight">
+            <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
               Order #{orderDetails.orderNumber}
             </h2>
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed">
+          <p className="text-[13px] leading-relaxed text-slate-200">
             {orderDetails.status === 'SERVED'
-              ? 'Your food has been served! Enjoy your meal.'
+              ? 'Your food has been served! Enjoy your meal. 😋'
               : orderDetails.status === 'READY'
-              ? 'Your order is ready!'
+              ? 'Your order is ready — hot and fresh! 🔔'
               : orderDetails.status === 'PREPARING'
-              ? 'Your food is being prepared in the kitchen.'
+              ? 'The chef is cooking your food right now… 👨‍🍳🔥'
               : orderDetails.status === 'CANCELLED'
               ? 'This order was cancelled.'
-              : 'Your order was received and is awaiting kitchen confirmation.'}
+              : 'We sent your order to the kitchen — sit back and relax! ✨'}
           </p>
         </div>
 
         {/* FSM Progress Timeline */}
         {orderDetails.status !== 'CANCELLED' && (
-          <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Live Order Progress
+          <div className="qf-card animate-fadeUp space-y-4 rounded-3xl p-6" style={{ animationDelay: '100ms' }}>
+            <h3 className="text-center text-[11px] font-black uppercase tracking-widest text-slate-300">
+              👨‍🍳 Live kitchen progress
             </h3>
             <div className="flex items-center justify-between gap-1">
               {ORDER_STEPS.map((step, idx) => {
@@ -168,15 +169,15 @@ export default async function CustomerOrderStatusPage({
         )}
 
         {/* Queue Boundary Callout */}
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-xs text-amber-300 leading-relaxed flex items-start gap-3">
-          <span className="text-base">⏳</span>
+        <div className="flex items-start gap-3 rounded-3xl border border-amber-400/25 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-200">
+          <span className="text-xl">⏳</span>
           <div>
-            <strong>Queue Notice</strong>: Ordering food does not mean your table is ready yet. You are still holding your place in line.
+            <strong>Good news:</strong> ordering food doesn&apos;t affect your queue spot — your place in line is still saved! 🎟️
           </div>
         </div>
 
         {/* Order Details & Price Snapshots */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-4">
+        <div className="qf-card animate-fadeUp space-y-4 rounded-3xl p-6" style={{ animationDelay: '160ms' }}>
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Order Items
@@ -211,7 +212,7 @@ export default async function CustomerOrderStatusPage({
         </div>
 
         {/* Payment Status Card (Strictly Decoupled Domain) */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-4">
+        <div className="qf-card animate-fadeUp space-y-4 rounded-3xl p-6" style={{ animationDelay: '220ms' }}>
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Payment Status

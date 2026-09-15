@@ -132,20 +132,41 @@ export default async function PublicRestaurantQueuePage({
   }
 
   return (
-    <main className="relative flex min-h-[100dvh] flex-col justify-between overflow-hidden bg-slate-950 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-100">
+    <main className="qf-bg relative flex min-h-[100dvh] flex-col justify-between overflow-hidden text-slate-100 selection:bg-orange-500/30 selection:text-orange-100">
       <LandingAutoRefresh />
 
-      {/* Background glow (decorative) */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-[420px] bg-gradient-to-b from-emerald-900/20 via-slate-900/5 to-transparent" />
-      <div aria-hidden="true" className="pointer-events-none absolute -left-[10%] -top-[10%] -z-0 h-[50%] w-[60%] rounded-full bg-emerald-500/15 blur-[100px]" />
-      <div aria-hidden="true" className="pointer-events-none absolute -right-[10%] top-[15%] -z-0 h-[40%] w-[45%] rounded-full bg-blue-500/12 blur-[100px]" />
+      {/* Warm ambient glows (decorative) */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-[460px] bg-gradient-to-b from-orange-600/15 via-emerald-900/10 to-transparent" />
+      <div aria-hidden="true" className="pointer-events-none absolute -left-[10%] -top-[10%] -z-0 h-[50%] w-[60%] rounded-full bg-orange-500/12 blur-[110px]" />
+      <div aria-hidden="true" className="pointer-events-none absolute -right-[10%] top-[15%] -z-0 h-[40%] w-[45%] rounded-full bg-emerald-500/12 blur-[110px]" />
 
       <div className="relative z-10 mx-auto w-full max-w-md space-y-5 px-4 py-6 sm:py-8">
         {/* Resume banner (server cookie, no JS storage) */}
         <TicketResumeBanner slug={slug} />
 
-        <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
+        <div className="animate-fadeUp">
+          <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
+        </div>
 
+        {/* How it works — 3 glanceable steps for first-time guests */}
+        <ol className="animate-fadeUp grid grid-cols-3 gap-2" style={{ animationDelay: '80ms' }} aria-label="How it works">
+          {[
+            { n: '1', icon: '🎟️', label: 'Join queue' },
+            { n: '2', icon: '🍽️', label: 'Pre-order food' },
+            { n: '3', icon: '🔔', label: 'Get seated' },
+          ].map((s) => (
+            <li
+              key={s.n}
+              className="qf-card flex flex-col items-center gap-1 rounded-2xl px-2 py-3 text-center"
+            >
+              <span aria-hidden="true" className="text-xl leading-none">{s.icon}</span>
+              <span className="text-[11px] font-black tracking-tight text-white">{s.label}</span>
+              <span className="text-[10px] font-bold text-slate-500">Step {s.n}</span>
+            </li>
+          ))}
+        </ol>
+
+        <div className="animate-fadeUp" style={{ animationDelay: '140ms' }}>
         <QueueStatusCard
           state={landingState}
           waitingCount={waitingCount}
@@ -153,19 +174,28 @@ export default async function PublicRestaurantQueuePage({
           nextOpening={nextOpening}
           capacity={{ active: activeQueueCount, max: restaurant.maxQueueCapacity }}
         />
+        </div>
 
+        <div className="animate-fadeUp" style={{ animationDelay: '200ms' }}>
         {activeTicketToken ? (
           <section
             aria-label="Already in queue"
-            className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-center shadow-2xl"
+            className="rounded-3xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/20 via-slate-900/90 to-teal-500/10 p-5 text-center shadow-2xl shadow-emerald-500/10"
           >
-            <p className="text-sm font-black text-white">You&apos;re already in the queue</p>
-            <p className="mt-1 text-xs text-emerald-200/80">
-              Your spot is saved — no need to fill the form again.
+            <p className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/15 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-emerald-300">
+              <span aria-hidden="true" className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+              Spot saved
+            </p>
+            <p className="mt-2 text-base font-black tracking-tight text-white">You&apos;re already in the queue 🎉</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-300">
+              No need to fill the form again — your ticket is live below.
             </p>
             <Link
               href={`/q/${slug}/status/${activeTicketToken}`}
-              className="mt-3 flex h-12 items-center justify-center gap-2 rounded-2xl bg-emerald-500 text-sm font-bold text-white shadow-lg transition-all hover:bg-emerald-400 active:scale-[0.98]"
+              className="qf-cta mt-3 flex h-13 min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 text-sm font-black text-white shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 active:scale-[0.98]"
             >
               View My Ticket →
             </Link>
@@ -182,10 +212,11 @@ export default async function PublicRestaurantQueuePage({
               : 'Ask the host if you need help.'}
           </p>
         )}
+        </div>
 
         {/* Contact + secondary menu access (only when data exists) */}
         {(restaurant.phone || restaurant.address) && (
-          <section aria-label="Restaurant information" className="space-y-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <section aria-label="Restaurant information" className="qf-card space-y-2 rounded-2xl p-4">
             {restaurant.address && (
               <p className="text-center text-[13px] text-slate-300">
                 {restaurant.address}{restaurant.city ? `, ${restaurant.city}` : ''}
@@ -205,13 +236,13 @@ export default async function PublicRestaurantQueuePage({
           </section>
         )}
 
-        <div>
+        <div className="animate-fadeUp" style={{ animationDelay: '260ms' }}>
           <MenuPreviewSection categories={menuCategories} />
           <Link
             href={`/q/${slug}/menu`}
-            className="mt-2 flex min-h-[44px] items-center justify-center gap-1 rounded-2xl text-[13px] font-semibold text-slate-400 transition-colors hover:text-emerald-300"
+            className="qf-card mt-2 flex min-h-[52px] items-center justify-center gap-1.5 rounded-2xl text-[13px] font-black text-orange-300 transition-all hover:border-orange-500/30 hover:text-orange-200 active:scale-[0.99]"
           >
-            View full menu
+            🍽️ View full menu
             <ChevronRight aria-hidden="true" className="h-4 w-4" />
           </Link>
         </div>

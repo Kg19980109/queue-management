@@ -127,8 +127,8 @@ export default async function CustomerQueueStatusPage({
 
   // Only fetch menu while still queueing (save DB on terminal tickets).
   const menuCategories = !isTerminal ? await PublicRestaurantService.getPublicMenuPreview(restaurant.id) : [];
-  // My Orders: every pre-order linked to this queue entry — previously invisible
-  // after navigating away from the menu, so customers thought orders were lost.
+  // My Orders: every pre-order linked to this queue entry so customers
+  // never think their order vanished after navigating back to the ticket.
   let myOrders: Awaited<ReturnType<typeof OrderService.listCustomerOrdersByQueueEntry>> = [];
   try {
     myOrders = await OrderService.listCustomerOrdersByQueueEntry(status.entryId, status.restaurantId);
@@ -138,39 +138,62 @@ export default async function CustomerQueueStatusPage({
   const menuUrl = `/q/${slug}/menu?qtoken=${token}`;
 
   return (
-    <main className="relative flex min-h-[100dvh] flex-col bg-slate-950 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-100">
+    <main className="qf-bg relative flex min-h-[100dvh] flex-col text-slate-100 selection:bg-orange-500/30 selection:text-orange-100">
       <TicketCookieSync slug={slug} token={token} isTerminal={isTerminal} />
       <CustomerQueueRealtime entryId={status.entryId} isTerminal={isTerminal} />
 
-      {/* Background glow (decorative) */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[380px] bg-gradient-to-b from-emerald-900/20 via-slate-900/5 to-transparent" />
+      {/* Warm ambient glow (decorative) */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[380px] bg-gradient-to-b from-orange-600/12 via-emerald-900/10 to-transparent" />
 
       <div className="relative z-10 mx-auto w-full max-w-md flex-1 space-y-4 px-4 py-6 sm:py-8">
         {/* Slim top bar: restaurant + live context + menu. No app shell. */}
-        <header className="flex items-center justify-between gap-3">
+        <header className="animate-fadeUp flex items-center justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <div aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-black text-white shadow-md">
+            <div aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-rose-500 text-base font-black text-white shadow-lg shadow-orange-500/30">
               {restaurant.name.slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold tracking-tight text-white">
+              <p className="truncate text-[15px] font-black tracking-tight text-white">
                 {restaurant.name}
               </p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">
-                Live queue ticket
+              <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-300">
+                <span aria-hidden="true" className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                </span>
+                Live ticket
               </p>
             </div>
           </div>
           {!isTerminal && (
             <Link
               href={menuUrl}
-              className="inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-4 text-[13px] font-semibold text-slate-300 transition-colors hover:text-emerald-300"
+              className="qf-cta inline-flex min-h-[48px] shrink-0 items-center gap-1.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-5 text-[13px] font-black text-white shadow-lg shadow-orange-500/30 transition-all hover:brightness-110 active:scale-95"
             >
               <UtensilsCrossed aria-hidden="true" className="h-4 w-4" />
               Menu
             </Link>
           )}
         </header>
+
+        {/* Journey steps: Ticket → Order → Seated */}
+        {!isTerminal && (
+          <ol aria-label="Your journey" className="animate-fadeUp flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-3" style={{ animationDelay: '60ms' }}>
+            {[
+              { label: 'Ticket', icon: '🎟️', done: true, now: status.status === 'WAITING' },
+              { label: 'Order', icon: '🍽️', done: myOrders.length > 0, now: false },
+              { label: 'Seated', icon: '🪑', done: false, now: ['NOTIFIED', 'CALLED'].includes(status.status) },
+            ].map((s, i, arr) => (
+              <li key={s.label} className="flex flex-1 items-center gap-1 last:flex-none">
+                <span className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[11px] font-black ${s.done ? 'bg-emerald-500/15 text-emerald-300' : s.now ? 'bg-orange-500/15 text-orange-300' : 'text-slate-500'}`}>
+                  <span aria-hidden="true" className="text-sm">{s.icon}</span>
+                  {s.done ? '✓ ' : ''}{s.label}
+                </span>
+                {i < arr.length - 1 && <span aria-hidden="true" className="px-0.5 text-slate-600">›</span>}
+              </li>
+            ))}
+          </ol>
+        )}
 
         {/* Hero ticket */}
         <TicketNotificationBanner notification={ticketNotification} />

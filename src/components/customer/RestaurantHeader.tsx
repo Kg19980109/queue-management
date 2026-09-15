@@ -35,36 +35,39 @@ export function RestaurantHeader({ restaurant, waitingCount }: RestaurantHeaderP
           : 'Queue open';
 
   return (
-    <header className="flex flex-col items-center space-y-3 pb-1 pt-2 text-center sm:space-y-4 sm:pt-4">
+    <header className="flex flex-col items-center space-y-3 pb-1 pt-3 text-center sm:space-y-4 sm:pt-4">
       <div className="relative">
         {restaurant.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={restaurant.logoUrl}
             alt={`${restaurant.name} logo`}
-            className="h-16 w-16 rounded-2xl border-2 border-emerald-500/30 object-cover shadow-lg shadow-emerald-500/10 sm:h-20 sm:w-20"
+            className="h-20 w-20 rounded-3xl border-2 border-orange-400/40 object-cover shadow-xl shadow-orange-500/20 sm:h-22 sm:w-22"
           />
         ) : (
           <div
             aria-hidden="true"
-            className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-500 text-xl font-black tracking-wider text-white shadow-xl shadow-emerald-500/20 sm:h-20 sm:w-20 sm:text-2xl"
+            className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-orange-500 via-amber-500 to-rose-500 text-2xl font-black tracking-wider text-white shadow-xl shadow-orange-500/30 ring-4 ring-orange-500/20 sm:h-22 sm:w-22"
           >
             {getInitials(restaurant.name)}
           </div>
         )}
         {restaurant.queueEnabled && state !== 'CLOSED' && (
-          <span aria-hidden="true" className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-slate-950 bg-emerald-500">
+          <span aria-hidden="true" className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-[3px] border-[#0b0f1a] bg-emerald-500 shadow-lg">
             <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
           </span>
         )}
       </div>
 
       <div className="space-y-1.5 px-4">
-        <h1 className="text-[22px] font-black leading-tight tracking-tight text-white sm:text-[26px]">
+        <p className="text-[11px] font-black uppercase tracking-[0.25em] text-orange-400">
+          🍴 Now seating
+        </p>
+        <h1 className="text-[26px] font-black leading-tight tracking-tight text-white drop-shadow-lg sm:text-[30px]">
           {restaurant.name}
         </h1>
         {restaurant.description && (
-          <p className="mx-auto line-clamp-2 max-w-sm text-[12px] leading-relaxed text-slate-400 sm:text-[13px]">
+          <p className="mx-auto line-clamp-2 max-w-sm text-[13px] leading-relaxed text-slate-300 sm:text-sm">
             {restaurant.description}
           </p>
         )}

@@ -63,30 +63,30 @@ export default async function CustomerMenuPage({
   const currency = (restaurant as unknown as { currency?: string })?.currency || 'INR';
 
   return (
-    <main className="min-h-[100dvh] bg-slate-950 text-slate-100 px-4 py-6 sm:py-8 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
+    <main className="qf-bg flex min-h-[100dvh] flex-col px-4 py-6 text-slate-100 selection:bg-orange-500 selection:text-white sm:py-8">
       {qtoken && <TicketCookieSync slug={slug} token={qtoken} isTerminal={false} />}
       <CustomerTicketFloat slug={slug} qtoken={qtoken} />
-      <div className="w-full max-w-md mx-auto space-y-5 sm:space-y-6">
+      <div className="mx-auto w-full max-w-md space-y-5 sm:space-y-6">
         <RestaurantHeader restaurant={restaurant} />
 
-        <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800/80 border border-slate-700/50 rounded-2xl p-3.5 shadow-lg relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 via-transparent to-blue-500/5 pointer-events-none"></div>
-          <div className="flex items-center gap-2 relative">
-            <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow"><span className="material-symbols-outlined text-white text-[18px]">restaurant_menu</span></span>
-            <span className="text-xs font-black text-white uppercase tracking-widest">
+        <div className="qf-card animate-fadeUp relative flex items-center justify-between gap-2 overflow-hidden rounded-3xl p-4">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-emerald-400" />
+          <div className="relative flex items-center gap-2.5">
+            <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-xl shadow">🍽️</span>
+            <span className="text-sm font-black uppercase tracking-widest text-white">
               Food Menu
             </span>
-            <span className="text-[10px] px-2 py-1 rounded-full bg-emerald-500 text-white font-black shadow">{menuCategories.flatMap(c=>c.items).length} items • Live</span>
+            <span className="rounded-full bg-gradient-to-r from-orange-500 to-amber-500 px-2.5 py-1 text-[10px] font-black text-white shadow">{menuCategories.flatMap(c=>c.items).length} items • Live</span>
           </div>
           {qtoken ? (
             <a
               href={`/q/${slug}/status/${qtoken}`}
-              className="relative text-xs font-black text-white bg-emerald-500 hover:bg-emerald-600 px-3 py-1.5 rounded-full flex items-center gap-1 shadow transition-colors"
+              className="relative inline-flex min-h-[44px] items-center gap-1 rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-3 py-1.5 text-xs font-black text-emerald-200 transition-colors hover:bg-emerald-500/25"
             >
-              <span className="material-symbols-outlined text-[14px]">confirmation_number</span> Ticket
+              <span className="material-symbols-outlined text-[16px]">confirmation_number</span> My Ticket
             </a>
           ) : (
-            <span className="text-[11px] font-bold text-slate-500">Browse & order</span>
+            <span className="text-[11px] font-bold text-slate-400">Browse & order 👇</span>
           )}
         </div>
 
