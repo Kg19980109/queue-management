@@ -64,13 +64,21 @@ describe('Phase 10: Queue Operations, Deterministic ETA Engine & Atomic Seating 
     `, [RESTAURANT_ID, RESTAURANT_SLUG, OTHER_RESTAURANT_ID, OTHER_RESTAURANT_SLUG]);
 
     // Seed test actor user and grant queue.seat permission for RESTAURANT_ID.
-    // The actor UUID is used in all seatQueueEntry calls below.
-    // We must pick a valid auth.users ID to satisfy FK constraints.
-    const userRes = await client.query('SELECT id FROM auth.users LIMIT 1;');
-    if (userRes.rows.length === 0) {
-      throw new Error('No users found in auth.users. Please run seed script first.');
-    }
-    TEST_ACTOR_ID = userRes.rows[0].id;
+    // Dedicated fixture actor (never a shared seed user): earlier versions used
+    // `SELECT id FROM auth.users LIMIT 1`, which could pick a shared user
+    // (e.g. alice) and grant them a second ACTIVE membership — breaking every
+    // parallel suite that resolves memberships with maybeSingle().
+    // The actor never signs in (server-side actor id only), so a minimal
+    // auth.users row without identities is sufficient for FK constraints.
+    TEST_ACTOR_ID = 'b0000000-0000-4000-b000-000000000010';
+    await client.query(`
+      INSERT INTO auth.users (id, instance_id, email, aud, role)
+      VALUES ('${TEST_ACTOR_ID}', '00000000-0000-0000-0000-000000000000', 'phase10-actor@queueflow.io', 'authenticated', 'authenticated')
+      ON CONFLICT (id) DO NOTHING;
+      INSERT INTO public.user_profiles (id, display_name, email)
+      VALUES ('${TEST_ACTOR_ID}', 'Phase 10 Test Actor', 'phase10-actor@queueflow.io')
+      ON CONFLICT (id) DO NOTHING;
+    `);
 
     // Ensure restaurant membership with RESTAURANT_ADMIN role exists for test actor
     await client.query(`

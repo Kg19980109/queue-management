@@ -33,6 +33,12 @@ export default async function PlatformLayout({
               Dashboard
             </Link>
             <Link
+              href="/platform/footfall"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+            >
+              Footfall
+            </Link>
+            <Link
               href="/platform/restaurants"
               className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
             >

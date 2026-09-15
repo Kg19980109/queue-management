@@ -574,6 +574,78 @@ export class PlatformService {
     return { success: true, targetUserId, membershipId: membership.id };
   }
 
+  // ---------------------------------------------------------------------------
+  // Platform footfall analytics (super admin): how many people came, per
+  // restaurant per day / per month. "People" = guests actually seated
+  // (actual_guests confirmed at seat time, falling back to expected
+  // party_size for rows seated before that column existed).
+  // ---------------------------------------------------------------------------
+
+  static async getFootfallAnalytics(params: {
+    restaurantId?: string;
+    fromISO: string;
+    toISO: string;
+    granularity: 'day' | 'month';
+  }) {
+    await AuthorizationService.requirePermission({ permission: PERMISSIONS.PLATFORM_VIEW });
+    const adminClient = createAdminClient();
+
+    const { restaurantId, fromISO, toISO, granularity } = params;
+    const from = new Date(fromISO);
+    const to = new Date(toISO);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) {
+      throw new ValidationError('Invalid date range');
+    }
+
+    // Seated entries in range (seated_at = moment guests actually arrived).
+    let seatedQuery = adminClient
+      .from('queue_entries')
+      .select('id, restaurant_id, party_size, actual_guests, seated_at, restaurants(name, slug)')
+      .eq('status', 'SEATED')
+      .gte('seated_at', from.toISOString())
+      .lte('seated_at', to.toISOString())
+      .order('seated_at', { ascending: true })
+      .limit(20000);
+    if (restaurantId) seatedQuery = seatedQuery.eq('restaurant_id', restaurantId);
+
+    // Non-cancelled orders in range (kitchen demand + revenue alongside footfall).
+    let ordersQuery = adminClient
+      .from('orders')
+      .select('id, restaurant_id, total, status, created_at')
+      .neq('status', 'CANCELLED')
+      .gte('created_at', from.toISOString())
+      .lte('created_at', to.toISOString())
+      .order('created_at', { ascending: true })
+      .limit(20000);
+    if (restaurantId) ordersQuery = ordersQuery.eq('restaurant_id', restaurantId);
+
+    const [{ data: seated, error: sErr }, { data: orders, error: oErr }] = await Promise.all([
+      seatedQuery,
+      ordersQuery,
+    ]);
+    if (sErr) throw new DomainError(`Failed to fetch seating footfall: ${sErr.message}`);
+    if (oErr) throw new DomainError(`Failed to fetch order footfall: ${oErr.message}`);
+
+    return aggregateFootfall(
+      (seated || []).map((e) => ({
+        restaurantId: e.restaurant_id as string,
+        restaurantName:
+          (e.restaurants as unknown as { name?: string } | null)?.name || 'Unknown',
+        partySize: (e.party_size as number) ?? 0,
+        actualGuests: (e.actual_guests as number | null) ?? null,
+        at: e.seated_at as string,
+      })),
+      (orders || []).map((o) => ({
+        restaurantId: o.restaurant_id as string,
+        total: Number(o.total) || 0,
+        at: o.created_at as string,
+      })),
+      granularity,
+      from,
+      to
+    );
+  }
+
   /**
    * Retrieve paginated administrative audit logs.
    */
@@ -636,4 +708,170 @@ export class PlatformService {
       totalPages: Math.ceil((count || 0) / limit),
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Pure footfall aggregation helpers (no DB — unit tested).
+// Dates are bucketed in UTC; day buckets use YYYY-MM-DD, month buckets YYYY-MM.
+// ---------------------------------------------------------------------------
+
+export interface SeatedFootfallRow {
+  restaurantId: string;
+  restaurantName: string;
+  partySize: number;
+  actualGuests: number | null;
+  at: string;
+}
+
+export interface OrderFootfallRow {
+  restaurantId: string;
+  total: number;
+  at: string;
+}
+
+export interface FootfallBucket {
+  key: string;
+  label: string;
+  groups: number;
+  guests: number;
+  expected: number;
+  orders: number;
+  revenue: number;
+}
+
+export interface RestaurantFootfall {
+  restaurantId: string;
+  restaurantName: string;
+  groups: number;
+  guests: number;
+  expected: number;
+  orders: number;
+  revenue: number;
+}
+
+export function bucketKeyFor(at: string, granularity: 'day' | 'month'): string | null {
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  if (granularity === 'month') return `${y}-${m}`;
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function bucketLabelFor(key: string, granularity: 'day' | 'month'): string {
+  const parts = key.split('-').map(Number);
+  if (granularity === 'month') {
+    const [y = 1970, m = 1] = parts;
+    return new Date(Date.UTC(y, m - 1, 1)).toLocaleString('en-US', {
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+  }
+  const [y = 1970, m = 1, d = 1] = parts;
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-IN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
+}
+
+/** Fill every day/month key in [from, to] so charts/tables have no gaps. */
+export function rangeKeys(from: Date, to: Date, granularity: 'day' | 'month'): string[] {
+  const keys: string[] = [];
+  const cursor =
+    granularity === 'month'
+      ? new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1))
+      : new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
+  const end =
+    granularity === 'month'
+      ? new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1))
+      : new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate()));
+  let guard = 0;
+  while (cursor <= end && guard < 500) {
+    keys.push(bucketKeyFor(cursor.toISOString(), granularity) as string);
+    if (granularity === 'month') cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    else cursor.setUTCDate(cursor.getUTCDate() + 1);
+    guard += 1;
+  }
+  return keys;
+}
+
+export function aggregateFootfall(
+  seated: SeatedFootfallRow[],
+  orders: OrderFootfallRow[],
+  granularity: 'day' | 'month',
+  from: Date,
+  to: Date
+): { buckets: FootfallBucket[]; byRestaurant: RestaurantFootfall[]; totals: Omit<FootfallBucket, 'key' | 'label'> } {
+  const bucketMap = new Map<string, FootfallBucket>();
+  for (const key of rangeKeys(from, to, granularity)) {
+    bucketMap.set(key, {
+      key,
+      label: bucketLabelFor(key, granularity),
+      groups: 0,
+      guests: 0,
+      expected: 0,
+      orders: 0,
+      revenue: 0,
+    });
+  }
+
+  const restMap = new Map<string, RestaurantFootfall>();
+  const rest = (id: string, name: string): RestaurantFootfall => {
+    let r = restMap.get(id);
+    if (!r) {
+      r = { restaurantId: id, restaurantName: name, groups: 0, guests: 0, expected: 0, orders: 0, revenue: 0 };
+      restMap.set(id, r);
+    }
+    return r;
+  };
+
+  const totals = { groups: 0, guests: 0, expected: 0, orders: 0, revenue: 0 };
+
+  for (const e of seated) {
+    const key = bucketKeyFor(e.at, granularity);
+    if (!key) continue;
+    const b = bucketMap.get(key);
+    const guests = e.actualGuests ?? e.partySize ?? 0;
+    if (b) {
+      b.groups += 1;
+      b.guests += guests;
+      b.expected += e.partySize ?? 0;
+    }
+    const r = rest(e.restaurantId, e.restaurantName);
+    r.groups += 1;
+    r.guests += guests;
+    r.expected += e.partySize ?? 0;
+    totals.groups += 1;
+    totals.guests += guests;
+    totals.expected += e.partySize ?? 0;
+  }
+
+  for (const o of orders) {
+    const key = bucketKeyFor(o.at, granularity);
+    const b = key ? bucketMap.get(key) : undefined;
+    if (b) {
+      b.orders += 1;
+      b.revenue += o.total;
+    }
+    const r = restMap.get(o.restaurantId);
+    if (r) {
+      r.orders += 1;
+      r.revenue += o.total;
+    }
+    totals.orders += 1;
+    totals.revenue += o.total;
+  }
+
+  const roundRevenue = (n: number) => Math.round(n * 100) / 100;
+  return {
+    buckets: [...bucketMap.values()].map((b) => ({ ...b, revenue: roundRevenue(b.revenue) })),
+    byRestaurant: [...restMap.values()]
+      .map((r) => ({ ...r, revenue: roundRevenue(r.revenue) }))
+      .sort((a, b) => b.guests - a.guests),
+    totals: { ...totals, revenue: roundRevenue(totals.revenue) },
+  };
 }

@@ -12,7 +12,9 @@ describe('Phase 3: Super Admin Platform Security & Live Database Tests', () => {
   const RESTAURANT_A_ID = '11111111-1111-4111-a111-111111111111';
   const RESTAURANT_B_ID = '22222222-2222-4222-a222-222222222222';
 
-  const SUPER_ADMIN_ID = 'a0000000-0000-4000-a000-000000000001';
+  // Resolved by email in beforeAll: the super-admin Auth user may have been
+  // recreated (new UUID) since seeding, so never hard-rely on the seed id.
+  let SUPER_ADMIN_ID = 'a0000000-0000-4000-a000-000000000001';
   const ADMIN_A_ID = 'a0000000-0000-4000-a000-000000000002';
   const STAFF_A_ID = 'a0000000-0000-4000-a000-000000000004';
 
@@ -25,6 +27,12 @@ describe('Phase 3: Super Admin Platform Security & Live Database Tests', () => {
       ssl: { rejectUnauthorized: false },
     });
     await client.connect();
+  try {
+    const found = await client.query(`SELECT id FROM auth.users WHERE lower(email) = 'superadmin@queueflow.io' LIMIT 1`);
+    if (found.rows.length > 0) SUPER_ADMIN_ID = found.rows[0].id;
+  } catch {
+    // Fall back to the seed UUID.
+  }
   });
 
   afterAll(async () => {
