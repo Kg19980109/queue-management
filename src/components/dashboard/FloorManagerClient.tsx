@@ -225,108 +225,161 @@ export function FloorManagerClient({
                  </div>
                  
                   <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                    {tableList.map(table => {
-                     const isSelected = selectedTableId === table.id;
-                     
-                     // Derive UI state based on mockup
-                     let borderClass = 'border-white/5';
-                     let bgClass = 'bg-[#0A0E17]';
-                     let shadowClass = '';
-                     let statusText = table.status;
-                     let statusColor = 'text-slate-400';
+                      {tableList.map((table) => {
+                        const isSelected = selectedTableId === table.id;
 
-                     if (table.status === 'AVAILABLE') {
-                       borderClass = 'border-emerald-500';
-                       bgClass = 'bg-emerald-900/10';
-                       shadowClass = 'shadow-[0_0_15px_rgba(16,185,129,0.15)]';
-                       statusText = 'READY';
-                       statusColor = 'text-emerald-400';
-                     } else if (table.status === 'OCCUPIED') {
-                       borderClass = 'border-amber-500';
-                       bgClass = 'bg-amber-900/10';
-                       shadowClass = 'shadow-[0_0_15px_rgba(245,158,11,0.15)]';
-                       statusText = 'OCCUPIED';
-                       statusColor = 'text-amber-400';
-                     } else if (table.status === 'CLEANING') {
-                       borderClass = 'border-rose-500';
-                       bgClass = 'bg-rose-900/10';
-                       shadowClass = 'shadow-[0_0_15px_rgba(225,29,72,0.15)]';
-                       statusText = 'NEEDS CLEAN';
-                       statusColor = 'text-rose-400';
-                     } else if (table.status === 'RESERVED') {
-                       borderClass = 'border-blue-500';
-                       bgClass = 'bg-blue-900/10';
-                       shadowClass = 'shadow-[0_0_15px_rgba(59,130,246,0.15)]';
-                       statusText = 'RESERVED';
-                       statusColor = 'text-blue-400';
-                     }
+                        // High-contrast, glowing status styling
+                        let theme = {
+                          container: 'border-white/10 bg-[#0A0E17]/80 hover:border-white/20',
+                          glow: '',
+                          statusDot: 'bg-slate-400',
+                          badge: 'border-white/10 bg-white/5 text-slate-300',
+                          notch: 'bg-[#141C2B] text-slate-200 border border-white/10',
+                          statusText: table.status,
+                        };
 
-                     if (isSelected) {
-                       borderClass = 'border-white';
-                       shadowClass = 'shadow-[0_0_20px_rgba(255,255,255,0.2)]';
-                     }
+                        if (table.status === 'AVAILABLE') {
+                          theme = {
+                            container: 'border-emerald-500/40 bg-gradient-to-br from-[#062016]/80 via-[#0A1724]/90 to-[#0A0E17]/95 hover:border-emerald-400',
+                            glow: 'shadow-[0_0_20px_rgba(16,185,129,0.15)] hover:shadow-[0_0_28px_rgba(16,185,129,0.25)]',
+                            statusDot: 'bg-emerald-400 animate-pulse',
+                            badge: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300',
+                            notch: 'bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-md shadow-emerald-900/40',
+                            statusText: 'READY',
+                          };
+                        } else if (table.status === 'OCCUPIED') {
+                          theme = {
+                            container: 'border-amber-500/40 bg-gradient-to-br from-[#291A08]/80 via-[#151221]/90 to-[#0A0E17]/95 hover:border-amber-400',
+                            glow: 'shadow-[0_0_20px_rgba(245,158,11,0.15)] hover:shadow-[0_0_28px_rgba(245,158,11,0.25)]',
+                            statusDot: 'bg-amber-400 animate-pulse',
+                            badge: 'border-amber-500/40 bg-amber-500/15 text-amber-300',
+                            notch: 'bg-gradient-to-br from-amber-600 to-yellow-700 text-white shadow-md shadow-amber-900/40',
+                            statusText: 'OCCUPIED',
+                          };
+                        } else if (table.status === 'CLEANING') {
+                          theme = {
+                            container: 'border-rose-500/40 bg-gradient-to-br from-[#290814]/80 via-[#170E1A]/90 to-[#0A0E17]/95 hover:border-rose-400',
+                            glow: 'shadow-[0_0_20px_rgba(244,63,94,0.18)] hover:shadow-[0_0_28px_rgba(244,63,94,0.3)]',
+                            statusDot: 'bg-rose-400 animate-ping',
+                            badge: 'border-rose-500/40 bg-rose-500/15 text-rose-300',
+                            notch: 'bg-gradient-to-br from-rose-600 to-pink-700 text-white shadow-md shadow-rose-900/40',
+                            statusText: 'NEEDS CLEAN',
+                          };
+                        } else if (table.status === 'RESERVED') {
+                          theme = {
+                            container: 'border-blue-500/40 bg-gradient-to-br from-[#081729]/80 via-[#0E1528]/90 to-[#0A0E17]/95 hover:border-blue-400',
+                            glow: 'shadow-[0_0_20px_rgba(59,130,246,0.15)] hover:shadow-[0_0_28px_rgba(59,130,246,0.25)]',
+                            statusDot: 'bg-blue-400',
+                            badge: 'border-blue-500/40 bg-blue-500/15 text-blue-300',
+                            notch: 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-md shadow-blue-900/40',
+                            statusText: 'RESERVED',
+                          };
+                        }
 
-                     return (
-                       <button 
-                         key={table.id}
-                         onClick={() => setSelectedTableId(table.id)}
-                         className={`text-left rounded-xl p-4 border flex flex-col gap-3 transition-all hover:scale-[1.02] cursor-pointer relative overflow-hidden ${borderClass} ${bgClass} ${shadowClass}`}
-                       >
-                         <div className="flex items-start justify-between">
-                           <div className="flex items-center gap-2">
-                             <span className={`text-2xl font-black tracking-tight ${statusColor}`}>
-                               {table.tableNumber.startsWith('T') ? table.tableNumber : `T${table.tableNumber}`}
-                             </span>
-                           </div>
-                           
-                           {/* Status Badge right top */}
-                           <span className={`border ${statusColor.replace('text-', 'border-')}/50 ${statusColor.replace('text-', 'bg-')}/20 ${statusColor} text-[10px] font-bold px-2 py-1 rounded tracking-wide`}>
-                             {statusText}
-                           </span>
-                         </div>
+                        const isOccupiedWithGuest = table.status === 'OCCUPIED' && seatedMap.get(table.id);
+                        const sg = seatedMap.get(table.id);
 
-                          {table.status === 'OCCUPIED' && seatedMap.get(table.id) ? (
-                            <div className="mt-2 pt-2 border-t border-amber-500/20 flex flex-col gap-1">
-                              {(() => {
-                                const sg = seatedMap.get(table.id);
-                                return (
-                                  <>
-                                    <div className="flex items-center justify-between gap-1">
-                                      <span className="font-bold text-amber-300 text-xs truncate flex items-center gap-1">
-                                        <span>👤</span>
-                                        <span className="truncate">{sg.customer_name}</span>
+                        return (
+                          <button
+                            key={table.id}
+                            onClick={() => setSelectedTableId(table.id)}
+                            className={`text-left rounded-2xl p-4 border flex flex-col justify-between transition-all duration-200 hover:scale-[1.02] cursor-pointer relative overflow-hidden backdrop-blur-md ${theme.container} ${theme.glow} ${
+                              isSelected ? 'ring-2 ring-white shadow-[0_0_25px_rgba(255,255,255,0.3)]' : ''
+                            }`}
+                          >
+                            <div>
+                              {/* Card Header: Table Notch & Status Live Pill */}
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-mono font-black text-base ${theme.notch}`}
+                                  >
+                                    {table.tableNumber.startsWith('T') ? table.tableNumber : `T${table.tableNumber}`}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[11px] font-extrabold text-slate-300">
+                                      {table.zoneName || 'Table'}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-medium">
+                                      👥 {table.capacity} Seats
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <span
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase border ${theme.badge}`}
+                                >
+                                  <span className={`w-1.5 h-1.5 rounded-full ${theme.statusDot}`} />
+                                  {theme.statusText}
+                                </span>
+                              </div>
+
+                              {/* Card Body: Dynamic Content by Status */}
+                              {isOccupiedWithGuest ? (
+                                <div className="mt-3 pt-2.5 border-t border-amber-500/20 flex flex-col gap-1.5">
+                                  <div className="flex items-center justify-between gap-1.5">
+                                    <span className="font-bold text-amber-200 text-xs truncate flex items-center gap-1.5">
+                                      <span className="w-5 h-5 rounded-full bg-amber-500/30 text-amber-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+                                        {sg.customer_name?.charAt(0) || 'G'}
                                       </span>
-                                      <span className="font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">
-                                        Q-{(sg.display_number || sg.queue_number || '').toString().replace(/^#+/, '')}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-[11px] text-slate-300">
-                                      <span>{sg.actual_guests || sg.party_size} guests</span>
-                                      <span className="text-amber-400 font-mono text-[10px] flex items-center gap-0.5">
-                                        <span>⏱️</span>
-                                        <span>{formatDiningDuration(sg.seated_at)}</span>
-                                      </span>
-                                    </div>
-                                  </>
-                                );
-                              })()}
+                                      <span className="truncate">{sg.customer_name}</span>
+                                    </span>
+                                    <span className="font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                                      Q-{(sg.display_number || sg.queue_number || '').toString().replace(/^#+/, '')}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between text-[11px] text-slate-300">
+                                    <span className="text-slate-400 font-medium">
+                                      {sg.actual_guests || sg.party_size} guests
+                                    </span>
+                                    <span className="text-amber-400 font-mono text-[11px] font-bold flex items-center gap-1">
+                                      <span>⏱️</span>
+                                      <span>{formatDiningDuration(sg.seated_at)}</span>
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : table.status === 'AVAILABLE' ? (
+                                <div className="mt-3 pt-2.5 border-t border-emerald-500/20 flex items-center justify-between text-xs">
+                                  <span className="text-emerald-400/90 font-bold flex items-center gap-1">
+                                    <span>✨</span> Ready to Seat
+                                  </span>
+                                  <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                    Open
+                                  </span>
+                                </div>
+                              ) : table.status === 'CLEANING' ? (
+                                <div className="mt-3 pt-2.5 border-t border-rose-500/20 flex flex-col gap-2">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-rose-400 font-bold flex items-center gap-1">
+                                      <span>🧹</span> Sanitizing...
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStatusChange(table.id, 'AVAILABLE');
+                                    }}
+                                    className="w-full py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 text-[11px] font-black border border-emerald-500/40 transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
+                                  >
+                                    <span>✨</span> Mark Ready
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="mt-3 pt-2.5 border-t border-blue-500/20 flex items-center justify-between text-xs">
+                                  <span className="text-blue-400 font-bold">Party Incoming</span>
+                                  <span className="text-[10px] text-blue-300 bg-blue-500/15 px-2 py-0.5 rounded border border-blue-500/30">
+                                    Hold
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                          ) : (
-                            <div className="flex flex-col gap-1 mt-2">
-                              <span className="text-sm font-semibold text-white truncate">
-                                {table.capacity} Guests Capacity
-                              </span>
-                              <span className="text-xs text-slate-400">
-                                {table.status === 'AVAILABLE' ? 'Ready for guests' : table.status === 'OCCUPIED' ? 'Guests seated' : table.status === 'CLEANING' ? 'Needs cleaning' : 'Reserved'}
-                              </span>
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
               
           </div>
         </div>

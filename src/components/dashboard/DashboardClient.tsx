@@ -226,228 +226,261 @@ export function DashboardClient({
               // Filter tables matching party size directly from current tables state
               const seatableForParty = availableTables.filter((t) => (t.capacity || 0) >= entry.party_size);
 
-              return (
-                <div
-                  key={entry.id}
-                  className={`relative p-4 sm:p-5 rounded-2xl bg-[#111827] border border-white/5 shadow-md flex flex-col gap-3 overflow-hidden transition-all group hover:border-white/15 ${
-                    loading ? 'opacity-50 pointer-events-none' : ''
-                  }`}
-                >
-                  {/* Left Status Color Band */}
+              // Theme styling per status
+              const cardTheme = isCalled
+                  ? {
+                      container: 'bg-gradient-to-r from-blue-950/40 via-[#0F172A] to-[#0A0F1D] border-blue-500/35 shadow-[0_0_25px_rgba(59,130,246,0.12)]',
+                      accentLine: 'bg-gradient-to-b from-blue-400 via-blue-500 to-indigo-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]',
+                      ticketBox: 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg shadow-blue-500/30 border border-blue-400/40',
+                      badge: 'bg-blue-500/20 border-blue-400/40 text-blue-300 font-bold',
+                    }
+                  : isNotified
+                  ? {
+                      container: 'bg-gradient-to-r from-purple-950/40 via-[#0F172A] to-[#0A0F1D] border-purple-500/35 shadow-[0_0_25px_rgba(168,85,247,0.12)]',
+                      accentLine: 'bg-gradient-to-b from-purple-400 via-purple-500 to-pink-500 shadow-[0_0_10px_rgba(168,85,247,0.8)]',
+                      ticketBox: 'bg-gradient-to-br from-purple-600 to-pink-700 text-white shadow-lg shadow-purple-500/30 border border-purple-400/40',
+                      badge: 'bg-purple-500/20 border-purple-400/40 text-purple-300 font-bold',
+                    }
+                  : isSeated
+                  ? {
+                      container: 'bg-gradient-to-r from-emerald-950/40 via-[#0F172A] to-[#0A0F1D] border-emerald-500/30 shadow-[0_0_25px_rgba(16,185,129,0.12)]',
+                      accentLine: 'bg-gradient-to-b from-emerald-400 to-teal-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]',
+                      ticketBox: 'bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-500/30 border border-emerald-400/40',
+                      badge: 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300 font-bold',
+                    }
+                  : isNext
+                  ? {
+                      container: 'bg-gradient-to-r from-cyan-950/40 via-[#0F172A] to-[#0A0F1D] border-cyan-500/35 shadow-[0_0_20px_rgba(6,182,212,0.12)]',
+                      accentLine: 'bg-gradient-to-b from-cyan-400 to-blue-500 shadow-[0_0_10px_rgba(6,182,212,0.8)]',
+                      ticketBox: 'bg-gradient-to-br from-cyan-900/60 to-blue-900/80 text-cyan-300 shadow-md border border-cyan-500/40',
+                      badge: 'bg-cyan-500/20 border-cyan-400/40 text-cyan-300 font-bold',
+                    }
+                  : {
+                      container: 'bg-[#111827] hover:bg-[#141E30] border-white/10 hover:border-white/20 shadow-md',
+                      accentLine: 'bg-slate-700',
+                      ticketBox: 'bg-[#1E293B] border border-white/10 text-slate-200 shadow-sm',
+                      badge: 'bg-white/5 border-white/10 text-slate-300',
+                    };
+
+                // Formatted display number
+                const rawNum = (entry.display_number || entry.queue_number || '').toString();
+                const cleanNum = rawNum.startsWith('Q-') ? rawNum : `Q-${rawNum.replace(/^#+/, '')}`;
+
+                // Elapsed wait time
+                const joinedTimestamp = new Date(entry.joined_at || entry.created_at).getTime();
+                const waitMins = Math.max(0, Math.floor((Date.now() - joinedTimestamp) / 60000));
+
+                return (
                   <div
-                    className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-                      isSeated
-                        ? 'bg-emerald-500'
-                        : isNotified
-                        ? 'bg-purple-500'
-                        : isCalled
-                        ? 'bg-blue-500'
-                        : hasPreOrder
-                        ? 'bg-amber-500'
-                        : isNext
-                        ? 'bg-blue-400'
-                        : 'bg-slate-600'
+                    key={entry.id}
+                    className={`relative p-4 sm:p-5 rounded-2xl border flex flex-col gap-3.5 overflow-hidden transition-all duration-200 group ${cardTheme.container} ${
+                      loading ? 'opacity-50 pointer-events-none' : ''
                     }`}
-                  ></div>
+                  >
+                    {/* Glowing status indicator ribbon on left */}
+                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${cardTheme.accentLine}`} />
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pl-1">
-                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                      {/* Monospace Ticket Box */}
-                      <div
-                        className={`flex flex-col items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-xl shrink-0 shadow-sm ${
-                          isSeated
-                            ? 'bg-emerald-600 text-white'
-                            : isNotified
-                            ? 'bg-purple-600 text-white'
-                            : isCalled
-                            ? 'bg-blue-600 text-white'
-                            : isNext
-                            ? 'bg-blue-900/30 text-blue-400 border border-blue-500/20'
-                            : 'bg-[#1A2333] border border-white/5 text-slate-300'
-                        }`}
-                      >
-                        <span className="font-black text-xl sm:text-2xl tracking-tight font-headline-xl leading-none">
-                          {entry.display_number || entry.queue_number}
-                        </span>
-                        {isSeated && (
-                          <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Dining</span>
-                        )}
-                        {isNotified && (
-                          <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Arriving</span>
-                        )}
-                        {isCalled && (
-                          <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Priority</span>
-                        )}
-                        {isNext && (
-                          <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Next</span>
-                        )}
-                        {isWaiting && !isNext && (
-                          <span className="text-[8px] uppercase tracking-widest mt-0.5">#{index + 1}</span>
-                        )}
-                      </div>
-
-                      {/* Guest Details */}
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[16px] sm:text-lg font-bold text-white truncate">
-                            {entry.customer_name}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pl-1.5">
+                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                        {/* Visual Ticket Monospace Card */}
+                        <div
+                          className={`flex flex-col items-center justify-center w-15 h-15 sm:w-17 sm:h-17 rounded-2xl shrink-0 transition-transform group-hover:scale-105 ${cardTheme.ticketBox}`}
+                        >
+                          <span className="font-mono font-black text-xl sm:text-2xl tracking-tight leading-none">
+                            {cleanNum}
                           </span>
-                          {isVIP && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold border border-amber-500/30 shrink-0">
-                              <span
-                                className="material-symbols-outlined text-[12px]"
-                                style={{ fontVariationSettings: "'FILL' 1" }}
-                              >
-                                star
+                          <span className="text-[8px] uppercase tracking-widest font-black mt-1 px-1 rounded">
+                            {isSeated
+                              ? 'DINING'
+                              : isCalled
+                              ? 'PRIORITY'
+                              : isNotified
+                              ? 'ARRIVING'
+                              : isNext
+                              ? 'UP NEXT'
+                              : `#${index + 1} IN LINE`}
+                          </span>
+                        </div>
+
+                        {/* Guest Profile & Metadata */}
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-base sm:text-lg font-black text-white tracking-tight truncate">
+                              {entry.customer_name}
+                            </span>
+                            {isVIP && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-[10px] font-black border border-amber-500/30 shrink-0">
+                                <span>⭐</span> VIP
                               </span>
-                              VIP
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs sm:text-sm text-slate-400 truncate">
-                          {entry.customer_phone || 'No phone'} • {entry.party_size} guests{' '}
-                          {isLargeGroup ? '• Large group' : ''}
-                        </span>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                            <span className="material-symbols-outlined text-[14px]">schedule</span>
-                            {new Date(entry.joined_at || entry.created_at).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                          {isCalled && entry.called_at && (
-                            <span
-                              className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${(() => {
-                                const age = Date.now() - new Date(entry.called_at).getTime();
-                                const timeoutMs = callTimeoutMinutes * 60 * 1000;
-                                const remaining = timeoutMs - age;
-                                if (remaining <= 0) return 'bg-rose-500/20 border-rose-500/30 text-rose-400 animate-pulse';
-                                if (remaining <= 2 * 60 * 1000)
-                                  return 'bg-amber-500/20 border-amber-500/30 text-amber-400';
-                                return 'bg-blue-500/10 border-blue-500/20 text-blue-400';
-                              })()}`}
-                            >
-                              {(() => {
-                                const ageMins = Math.floor((Date.now() - new Date(entry.called_at).getTime()) / 60000);
-                                const remaining = callTimeoutMinutes - ageMins;
-                                if (remaining <= 0) return `Overdue ${Math.abs(remaining)}m`;
-                                if (remaining <= 2) return `Timeout in ${remaining}m`;
-                                return `Called ${ageMins}m ago`;
-                              })()}
-                            </span>
-                          )}
-                          <span
-                            className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-widest font-bold shrink-0 ${
-                              isSeated
-                                ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-400'
-                                : isNotified
-                                ? 'bg-purple-900/30 border-purple-500/30 text-purple-400'
-                                : isCalled
-                                ? 'bg-blue-900/30 border-blue-500/30 text-blue-400'
-                                : 'bg-white/5 border-white/10 text-slate-400'
-                            }`}
-                          >
-                            {entry.status}
-                          </span>
-                        </div>
-
-                        {/* Customer Late Alert Banner */}
-                        {entry.lateInfo?.isLate && (
-                          <div className="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs">
-                            <span className="material-symbols-outlined text-[15px] text-amber-400">schedule</span>
-                            <span className="font-bold">Running Late (+{entry.lateInfo.delayMinutes || 10}m)</span>
-                            {entry.lateInfo.note && (
-                              <span className="text-[11px] text-amber-200/80 truncate">· &ldquo;{entry.lateInfo.note}&rdquo;</span>
                             )}
-                            {entry.lateInfo.tablePassedToNext && (
-                              <span className="ml-auto text-[9px] font-black uppercase px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-500/40">
-                                Table Passed · Spot Held
+                            {isLargeGroup && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 text-[10px] font-black border border-orange-500/30 shrink-0">
+                                <span>🔥</span> Large Group
                               </span>
                             )}
                           </div>
-                        )}
+
+                          {/* Contact & Party details */}
+                          <div className="flex items-center gap-2 mt-0.5 text-xs sm:text-[13px] text-slate-300 flex-wrap">
+                            <span className="font-semibold text-slate-200">
+                              👥 {entry.party_size} {entry.party_size === 1 ? 'guest' : 'guests'}
+                            </span>
+                            <span className="text-slate-600">•</span>
+                            {entry.customer_phone ? (
+                              <a
+                                href={`tel:${entry.customer_phone}`}
+                                className="font-mono text-xs text-slate-400 hover:text-blue-400 hover:underline flex items-center gap-1"
+                              >
+                                <span>📞</span> {entry.customer_phone}
+                              </a>
+                            ) : (
+                              <span className="text-slate-500 text-xs">No phone</span>
+                            )}
+                          </div>
+
+                          {/* Time & State Pills */}
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap text-xs">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/[0.04] border border-white/5 text-[11px] text-slate-400 font-medium">
+                              <span>⏳</span> Waited {waitMins}m
+                            </span>
+
+                            {isCalled && entry.called_at && (
+                              <span
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${(() => {
+                                  const age = Date.now() - new Date(entry.called_at).getTime();
+                                  const timeoutMs = callTimeoutMinutes * 60 * 1000;
+                                  const remaining = timeoutMs - age;
+                                  if (remaining <= 0) return 'bg-rose-500/20 border-rose-500/40 text-rose-300 animate-pulse';
+                                  if (remaining <= 2 * 60 * 1000)
+                                    return 'bg-amber-500/20 border-amber-500/40 text-amber-300';
+                                  return 'bg-blue-500/20 border-blue-500/40 text-blue-300';
+                                })()}`}
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+                                {(() => {
+                                  const ageMins = Math.floor((Date.now() - new Date(entry.called_at).getTime()) / 60000);
+                                  const remaining = callTimeoutMinutes - ageMins;
+                                  if (remaining <= 0) return `Overdue by ${Math.abs(remaining)}m`;
+                                  if (remaining <= 2) return `Timeout in ${remaining}m!`;
+                                  return `Called ${ageMins}m ago (${remaining}m left)`;
+                                })()}
+                              </span>
+                            )}
+
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full border text-[10px] uppercase tracking-widest font-black shrink-0 ${cardTheme.badge}`}
+                            >
+                              {entry.status}
+                            </span>
+                          </div>
+
+                          {/* Customer Late Alert Banner */}
+                          {entry.lateInfo?.isLate && (
+                            <div className="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs">
+                              <span className="material-symbols-outlined text-[15px] text-amber-400">schedule</span>
+                              <span className="font-bold">Running Late (+{entry.lateInfo.delayMinutes || 10}m)</span>
+                              {entry.lateInfo.note && (
+                                <span className="text-[11px] text-amber-200/90 truncate">
+                                  · &ldquo;{entry.lateInfo.note}&rdquo;
+                                </span>
+                              )}
+                              {entry.lateInfo.tablePassedToNext && (
+                                <span className="ml-auto text-[9px] font-black uppercase px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-500/40 shrink-0">
+                                  Table Passed · Spot Held
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Status Pill on the Right */}
-                    <div className="flex items-center sm:flex-col sm:items-end justify-between shrink-0">
-                      {isNotified && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-900/30 border border-purple-500/30 text-purple-400 text-[10px] tracking-widest uppercase font-bold">
-                          NOTIFIED
-                        </span>
-                      )}
-                      {isCalled && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-900/30 border border-blue-500/30 text-blue-400 text-[10px] tracking-widest uppercase font-bold">
-                          CALLED
-                        </span>
-                      )}
-                      {isWaiting && (
-                        <span
-                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] tracking-widest uppercase font-bold border ${
-                            isNext
-                              ? 'bg-blue-900/30 border-blue-500/30 text-blue-400'
-                              : 'bg-transparent border-white/10 text-slate-400'
-                          }`}
-                        >
-                          WAITING
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* ACTION RIBBON: Identical to Live Queue page */}
-                  <div className="flex flex-col gap-3 pt-3 border-t border-white/5 -mx-4 -mb-4 px-4 py-3 rounded-b-2xl bg-[#0A0E17]/40">
-                    {(isCalled || hasPreOrder || anyEntry.notes) && (
-                      <div className="flex items-center gap-2 text-xs">
-                        {isCalled && (
-                          <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Ready to be
-                            seated
+                      {/* Status Highlight on Right */}
+                      <div className="flex items-center sm:flex-col sm:items-end justify-between shrink-0">
+                        {isNotified && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/40 text-purple-300 text-[10px] tracking-widest uppercase font-black shadow-sm">
+                            <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                            NOTIFIED
                           </span>
                         )}
-                        {hasPreOrder && <span className="text-slate-400">Dishes ready</span>}
-                        {anyEntry.notes && <span className="text-slate-400 truncate">{anyEntry.notes}</span>}
+                        {isCalled && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/40 text-blue-300 text-[10px] tracking-widest uppercase font-black shadow-sm">
+                            <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+                            CALLED · READY
+                          </span>
+                        )}
+                        {isWaiting && (
+                          <span
+                            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] tracking-widest uppercase font-bold border ${
+                              isNext
+                                ? 'bg-cyan-500/20 border-cyan-400/40 text-cyan-300 font-black'
+                                : 'bg-white/5 border-white/10 text-slate-400'
+                            }`}
+                          >
+                            {isNext ? '⚡ NEXT TO CALL' : 'WAITING'}
+                          </span>
+                        )}
                       </div>
-                    )}
+                    </div>
 
-                    <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-end gap-2 w-full">
-                      {/* Step 1: WAITING -> Notify */}
-                      {isWaiting && (
-                        <button
-                          type="button"
-                          onClick={() => handleNotify(entry.id)}
-                          disabled={loading}
-                          className="col-span-2 sm:col-span-1 px-5 h-11 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-bold shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                        >
-                          Notify — Almost Ready
-                        </button>
+                    {/* ACTION RIBBON: High-Visibility, Tactile Staff Action Bar */}
+                    <div className="flex flex-col gap-2.5 pt-3 border-t border-white/10 -mx-4 -mb-4 px-4 py-3 rounded-b-2xl bg-[#080D1A]/60">
+                      {(isCalled || hasPreOrder || anyEntry.notes) && (
+                        <div className="flex items-center gap-2 text-xs flex-wrap">
+                          {isCalled && (
+                            <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Ready to be seated
+                            </span>
+                          )}
+                          {hasPreOrder && (
+                            <span className="text-amber-300 font-semibold flex items-center gap-1">
+                              <span>🍽️</span> Dishes Pre-Ordered
+                            </span>
+                          )}
+                          {anyEntry.notes && (
+                            <span className="text-slate-400 truncate">Note: {anyEntry.notes}</span>
+                          )}
+                        </div>
                       )}
 
-                      {/* Step 2: NOTIFIED -> Call */}
-                      {isNotified && (
-                        <button
-                          type="button"
-                          onClick={() => handleCall(entry.id)}
-                          disabled={loading}
-                          className="col-span-2 sm:col-span-1 px-5 h-11 rounded-xl bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-sm font-bold shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                        >
-                          Call — Table Ready
-                        </button>
-                      )}
+                      <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-end gap-2 w-full items-center">
+                        {/* Step 1: WAITING -> Notify */}
+                        {isWaiting && (
+                          <button
+                            type="button"
+                            onClick={() => handleNotify(entry.id)}
+                            disabled={loading}
+                            className="col-span-2 sm:col-span-1 px-5 h-11 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:brightness-110 active:scale-95 text-white text-sm font-black shadow-lg shadow-blue-500/25 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <span>🔔</span>
+                            <span>Notify Guest</span>
+                          </button>
+                        )}
 
-                      {/* Step 3: CALLED -> Assign Table & Seat (AI recommendation engine with multi-table combine) */}
-                      {isCalled && (
-                        <div className="col-span-2 sm:col-span-1">
-                          <SeatCustomerModal
-                            entryId={entry.id}
-                            customerName={entry.customer_name}
-                            displayNumber={entry.display_number}
-                            partySize={entry.party_size}
-                            userId={userId || ''}
-                            seatableTables={seatableForParty}
-                            allAvailableTables={availableTables}
-                            onSeated={async (tableId, additionalIds) => {
+                        {/* Step 2: NOTIFIED -> Call */}
+                        {isNotified && (
+                          <button
+                            type="button"
+                            onClick={() => handleCall(entry.id)}
+                            disabled={loading}
+                            className="col-span-2 sm:col-span-1 px-5 h-11 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 hover:brightness-110 active:scale-95 text-white text-sm font-black shadow-lg shadow-purple-500/25 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <span>📢</span>
+                            <span>Call — Table Ready</span>
+                          </button>
+                        )}
+
+                        {/* Step 3: CALLED -> Assign Table & Seat (AI recommendation engine with multi-table combine) */}
+                        {isCalled && (
+                          <div className="col-span-2 sm:col-span-1">
+                            <SeatCustomerModal
+                              entryId={entry.id}
+                              customerName={entry.customer_name}
+                              displayNumber={entry.display_number}
+                              partySize={entry.party_size}
+                              userId={userId || ''}
+                              seatableTables={seatableForParty}
+                              allAvailableTables={availableTables}
+                              onSeated={async (tableId, additionalIds) => {
                               chimeEngine.playSeatChime();
                               // Optimistic remove seated guest and mark table(s) occupied
                               setFeed((prev) => prev.filter((e) => e.id !== entry.id));
@@ -574,92 +607,118 @@ export function DashboardClient({
               const isOccupied = t.status === 'OCCUPIED';
               const isAvailable = t.status === 'AVAILABLE';
               const loading = isProcessing === `table-${t.id}`;
-              const tNum = t.tableNumber || t.table_number;
+              const rawNum = (t.tableNumber || t.table_number || '').toString();
+              const tNum = rawNum.startsWith('T') ? rawNum : `T${rawNum}`;
 
-              let borderCls = 'border-white/5';
+              let borderCls = 'border-white/10 bg-[#0A0E17]/80';
+              let shadowCls = '';
               let dotCls = 'bg-slate-500';
-              let pillCls = 'bg-[#1A2333] border-white/5 text-slate-400';
+              let pillCls = 'bg-[#1A2333] border-white/10 text-slate-400';
+              let notchCls = 'bg-[#151D2A] text-slate-200 border border-white/10';
 
               if (isCleaning) {
-                borderCls = 'border-rose-500/30 bg-rose-500/5';
-                dotCls = 'bg-rose-500';
-                pillCls = 'bg-rose-500/20 border-rose-500/30 text-rose-400';
+                borderCls = 'border-rose-500/40 bg-gradient-to-br from-rose-950/40 via-[#180E1A]/90 to-[#0A0E17]';
+                shadowCls = 'shadow-[0_0_20px_rgba(244,63,94,0.18)]';
+                dotCls = 'bg-rose-400 animate-ping';
+                pillCls = 'bg-rose-500/20 border-rose-500/40 text-rose-300';
+                notchCls = 'bg-gradient-to-br from-rose-600 to-pink-700 text-white shadow-md shadow-rose-950/50';
               } else if (isOccupied) {
-                borderCls = 'border-primary/30 bg-primary/5';
-                dotCls = 'bg-primary';
-                pillCls = 'bg-primary/20 border-primary/30 text-primary';
+                borderCls = 'border-amber-500/40 bg-gradient-to-br from-amber-950/40 via-[#171320]/90 to-[#0A0E17]';
+                shadowCls = 'shadow-[0_0_20px_rgba(245,158,11,0.18)]';
+                dotCls = 'bg-amber-400 animate-pulse';
+                pillCls = 'bg-amber-500/20 border-amber-500/40 text-amber-300';
+                notchCls = 'bg-gradient-to-br from-amber-600 to-yellow-700 text-white shadow-md shadow-amber-950/50';
               } else if (isAvailable) {
-                borderCls = 'border-emerald-500/30 bg-emerald-500/5';
-                dotCls = 'bg-emerald-400';
-                pillCls = 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400';
+                borderCls = 'border-emerald-500/40 bg-gradient-to-br from-emerald-950/40 via-[#0B1720]/90 to-[#0A0E17]';
+                shadowCls = 'shadow-[0_0_20px_rgba(16,185,129,0.18)]';
+                dotCls = 'bg-emerald-400 animate-pulse';
+                pillCls = 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300';
+                notchCls = 'bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-md shadow-emerald-950/50';
               }
 
               return (
                 <div
                   key={t.id}
-                  className={`rounded-2xl border p-4 flex flex-col items-center text-center ${borderCls} ${
+                  className={`rounded-2xl border p-3.5 flex flex-col justify-between text-left transition-all duration-200 backdrop-blur-md relative overflow-hidden ${borderCls} ${shadowCls} ${
                     loading ? 'opacity-50 pointer-events-none' : ''
                   }`}
                 >
-                  <div className="w-full flex justify-between items-start mb-2">
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-slate-400">Table</span>
-                    <span className={`w-2 h-2 rounded-full ${dotCls}`}></span>
-                  </div>
-                  <span className="text-3xl font-black text-white font-headline-xl mb-3">{tNum}</span>
-                  <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border mb-2 ${pillCls}`}>
-                    {t.status}
-                  </span>
-                  <span className="text-[10px] text-slate-400 mb-4 font-medium">Cap: {t.capacity} guests</span>
+                  <div>
+                    {/* Header: Table notch & Status pill */}
+                    <div className="w-full flex justify-between items-center mb-2.5">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-mono font-black text-xs ${notchCls}`}>
+                        {tNum}
+                      </div>
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border flex items-center gap-1 shrink-0 ${pillCls}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${dotCls}`} />
+                        {isAvailable ? 'READY' : isCleaning ? 'CLEAN' : t.status}
+                      </span>
+                    </div>
 
+                    <div className="flex items-center justify-between text-[11px] text-slate-300 mb-3">
+                      <span className="font-semibold text-white">👥 {t.capacity} Seats</span>
+                      <span className="text-[10px] text-slate-400">
+                        {isAvailable ? '✨ Open' : isCleaning ? '🧹 Dirty' : 'Dining'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Contextual Action Buttons */}
                   {isCleaning && (
-                    <div className="flex gap-1 w-full mt-2">
+                    <div className="flex gap-1.5 w-full mt-1">
                       <button
+                        type="button"
                         onClick={() => handlePingBusser(t.id)}
                         disabled={loading}
-                        className="flex-1 py-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-rose-500/30 cursor-pointer active:scale-95"
+                        className="flex-1 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-rose-500/30 cursor-pointer active:scale-95"
                       >
                         Ping
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleTableStatus(t.id, 'AVAILABLE', 'CLEANING')}
                         disabled={loading}
-                        className="flex-1 py-1.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-emerald-500/30 cursor-pointer active:scale-95"
+                        className="flex-1 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-emerald-500/40 cursor-pointer active:scale-95"
                       >
-                        Available
+                        Ready
                       </button>
                     </div>
                   )}
+
                   {isOccupied && (
-                    <div className="flex gap-1 w-full mt-2">
+                    <div className="flex gap-1.5 w-full mt-1">
                       <Link
                         href="/dashboard/orders"
-                        className="flex-1 py-1.5 rounded bg-[#1A2333] hover:bg-white/10 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-primary/30"
+                        className="flex-1 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-amber-300 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-amber-500/30"
                       >
-                        Order
+                        Orders
                       </Link>
                       <button
+                        type="button"
                         onClick={() => handleTableStatus(t.id, 'CLEANING', 'OCCUPIED')}
                         disabled={loading}
-                        className="flex-1 py-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-rose-500/30 cursor-pointer active:scale-95"
+                        className="flex-1 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-rose-500/30 cursor-pointer active:scale-95"
                       >
                         Clean
                       </button>
                     </div>
                   )}
+
                   {isAvailable && (
-                    <div className="flex gap-1 w-full mt-2">
+                    <div className="flex gap-1.5 w-full mt-1">
                       <Link
                         href="/dashboard/tables"
-                        className="flex-1 py-1.5 rounded bg-[#1A2333] hover:bg-white/10 text-emerald-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-emerald-500/30"
+                        className="flex-1 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-emerald-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-emerald-500/30"
                       >
-                        View
+                        Map
                       </Link>
                       <button
+                        type="button"
                         onClick={() => handleTableStatus(t.id, 'OCCUPIED', 'AVAILABLE')}
                         disabled={loading}
-                        className="flex-1 py-1.5 rounded bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-primary/30 cursor-pointer active:scale-95"
+                        className="flex-1 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-emerald-500/40 cursor-pointer active:scale-95"
                       >
-                        Occupy
+                        Seat
                       </button>
                     </div>
                   )}

@@ -21,6 +21,7 @@ import { SeatCustomerModal, SeatableTableItem } from '@/components/dashboard/Sea
 import { AddQueueGuestModal } from '@/components/dashboard/AddQueueGuestModal';
 import { ConfirmSubmitButton } from '@/components/dashboard/ConfirmSubmitButton';
 import { CollapsibleQueueSchedule } from '@/components/dashboard/CollapsibleQueueSchedule';
+import { CollapsibleQueueHealth } from '@/components/dashboard/CollapsibleQueueHealth';
 import { logger } from '@/lib/logging/logger';
 import Link from 'next/link';
 
@@ -240,39 +241,12 @@ export default async function QueueManagementPage({
         timezone={(restaurant as unknown as { timezone?: string }).timezone || 'Asia/Kolkata'}
       />
 
-      {/* Queue Health - server-side aggregation */}
-      <div className={`p-4 rounded-2xl border flex flex-col gap-3 ${queueHealth.health === 'HEALTHY' ? 'bg-emerald-500/10 border-emerald-500/20' : queueHealth.health === 'BUSY' ? 'bg-amber-500/10 border-amber-500/20' : queueHealth.health === 'CRITICAL' ? 'bg-rose-500/10 border-rose-500/30' : queueHealth.health === 'EMPTY' ? 'bg-slate-800/50 border-white/5' : queueHealth.health === 'PAUSED' ? 'bg-amber-500/10 border-amber-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${queueHealth.health === 'HEALTHY' ? 'bg-emerald-400' : queueHealth.health === 'BUSY' ? 'bg-amber-400' : queueHealth.health === 'CRITICAL' ? 'bg-rose-500 animate-pulse' : queueHealth.health === 'EMPTY' ? 'bg-slate-400' : queueHealth.health === 'PAUSED' ? 'bg-amber-400' : 'bg-rose-500'}`}></span>
-            Queue Health — {queueHealth.health}
-          </h3>
-          <span className="text-xs font-bold text-slate-300">{queueHealth.healthReason}</span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="bg-black/20 rounded-xl p-3 border border-white/5">
-            <div className="text-[10px] font-bold text-slate-400 uppercase">Active</div>
-            <div className="text-lg font-black text-white">{queueHealth.activeCount} <span className="text-xs font-normal text-slate-400">/ {restaurant.max_queue_capacity}</span></div>
-            <div className="text-[10px] text-slate-500">{queueHealth.waitingCount} WAITING • {queueHealth.notifiedCount} NOTIFIED • {queueHealth.calledCount} CALLED</div>
-          </div>
-          <div className="bg-black/20 rounded-xl p-3 border border-white/5">
-            <div className="text-[10px] font-bold text-slate-400 uppercase">Overdue CALLED</div>
-            <div className={`text-lg font-black ${queueHealth.overdueCount > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>{queueHealth.overdueCount}</div>
-            <div className="text-[10px] text-slate-500">call timeout {restaurant.call_timeout_minutes}m</div>
-          </div>
-          <div className="bg-black/20 rounded-xl p-3 border border-white/5">
-            <div className="text-[10px] font-bold text-slate-400 uppercase">Oldest Waiting</div>
-            <div className="text-lg font-black text-white">{queueHealth.oldestWaitingAgeMins !== null ? `${queueHealth.oldestWaitingAgeMins}m` : '—'}</div>
-            <div className="text-[10px] text-slate-500">avg wait ~{queueHealth.avgWaitMins ?? '—'}m</div>
-          </div>
-          <div className="bg-black/20 rounded-xl p-3 border border-white/5">
-            <div className="text-[10px] font-bold text-slate-400 uppercase">Tables</div>
-            <div className="text-sm font-black text-white">{queueHealth.availableTables} avail <span className="text-xs font-normal text-slate-400">/ {queueHealth.totalTables}</span></div>
-            <div className="text-[10px] text-slate-500">{queueHealth.occupiedTables} occ • {queueHealth.cleaningTables} clean • {queueHealth.reservedTables} res • {queueHealth.outOfServiceTables} ooo</div>
-          </div>
-        </div>
-        <div className="text-[10px] text-slate-500">Operating: <b className="text-slate-300">{queueHealth.operatingState}</b> {queueHealth.queueEnabled ? '' : '(queue disabled)'} • Priority: CLOSED &gt; PAUSED &gt; CRITICAL &gt; BUSY &gt; EMPTY/HEALTHY</div>
-      </div>
+      {/* Queue Health - server-side aggregation (Collapsible & default collapsed) */}
+      <CollapsibleQueueHealth
+        queueHealth={queueHealth}
+        maxQueueCapacity={restaurant.max_queue_capacity || 100}
+        callTimeoutMinutes={restaurant.call_timeout_minutes || 15}
+      />
 
       {/* Needs Attention - operational view */}
       {(() => {
@@ -491,55 +465,157 @@ export default async function QueueManagementPage({
               const isLargeGroup = entry.party_size >= 6;
               const isNext = isWaiting && index === 0;
 
+              const cleanNum = (entry.display_number || entry.queue_number || '').toString().replace(/^#+/, '');
+              const waitMins = Math.max(0, Math.floor((Date.now() - new Date(entry.joined_at || entry.created_at).getTime()) / 60000));
+
+              // High-impact status theme tokens
+              const cardTheme = isSeated
+                ? {
+                    border: 'border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.12)]',
+                    badge: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300',
+                    box: 'bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-emerald-900/40',
+                  }
+                : isCalled
+                ? {
+                    border: 'border-blue-500/50 shadow-[0_0_25px_rgba(59,130,246,0.2)] ring-1 ring-blue-500/30',
+                    badge: 'bg-blue-500/15 border-blue-500/30 text-blue-300',
+                    box: 'bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 text-white shadow-blue-900/40',
+                  }
+                : isNotified
+                ? {
+                    border: 'border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.15)]',
+                    badge: 'bg-purple-500/15 border-purple-500/30 text-purple-300',
+                    box: 'bg-gradient-to-br from-purple-600 to-pink-700 text-white shadow-purple-900/40',
+                  }
+                : isNext
+                ? {
+                    border: 'border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.12)]',
+                    badge: 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300',
+                    box: 'bg-gradient-to-br from-slate-800 to-cyan-950 border border-cyan-500/40 text-cyan-300',
+                  }
+                : {
+                    border: 'border-white/10 hover:border-white/20',
+                    badge: 'bg-white/5 border-white/10 text-slate-400',
+                    box: 'bg-[#151D2A] border border-white/10 text-slate-300',
+                  };
+
               return (
-                <div key={entry.id} className="relative p-space-md rounded-2xl bg-[#111827] border border-white/5 shadow-md flex flex-col gap-3 overflow-hidden">
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
-                    isSeated ? 'bg-emerald-500' : isNotified ? 'bg-purple-500' : isCalled ? 'bg-blue-500' : hasPreOrder ? 'bg-amber-500' : isNext ? 'bg-blue-400' : 'bg-slate-600'
-                  }`}></div>
+                <div
+                  key={entry.id}
+                  className={`relative p-4 sm:p-5 rounded-2xl bg-[#0E1526]/90 backdrop-blur-md border ${cardTheme.border} transition-all duration-200 flex flex-col gap-3.5 overflow-hidden group`}
+                >
+                  {/* Left glowing accent line */}
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                      isSeated
+                        ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]'
+                        : isCalled
+                        ? 'bg-blue-500 shadow-[0_0_10px_#3b82f6]'
+                        : isNotified
+                        ? 'bg-purple-500 shadow-[0_0_10px_#a855f7]'
+                        : isNext
+                        ? 'bg-cyan-400 shadow-[0_0_8px_#22d3ee]'
+                        : 'bg-slate-700'
+                    }`}
+                  />
                   
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      {/* Ticket Monospace Display */}
-                      <div className={`flex flex-col items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex-shrink-0 shadow-sm ${
-                        isSeated ? 'bg-emerald-600 text-white' : isNotified ? 'bg-purple-600 text-white' : isCalled ? 'bg-blue-600 text-white' : isNext ? 'bg-blue-900/30 text-blue-400 border border-blue-500/20' : 'bg-[#1A2333] border border-white/5 text-slate-300'
-                      }`}>
-                        <span className="font-black text-xl sm:text-2xl tracking-tight font-headline-xl leading-none">
-                          {entry.display_number || entry.queue_number}
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                      {/* High-Contrast Ticket Monospace Display */}
+                      <div
+                        className={`flex flex-col items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex-shrink-0 shadow-lg ${cardTheme.box}`}
+                      >
+                        <span className="font-mono font-black text-xl sm:text-2xl tracking-tight leading-none">
+                          {cleanNum}
                         </span>
-                        {isSeated && <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Dining</span>}
-                        {isNotified && <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Arriving</span>}
-                        {isCalled && <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Priority</span>}
-                        {isNext && <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Next</span>}
-                        {isWaiting && !isNext && <span className="text-[8px] uppercase tracking-widest mt-0.5">#{index + 1}</span>}
+                        <span className="text-[8px] uppercase tracking-widest font-black mt-1 px-1 rounded">
+                          {isSeated
+                            ? 'DINING'
+                            : isCalled
+                            ? 'PRIORITY'
+                            : isNotified
+                            ? 'ARRIVING'
+                            : isNext
+                            ? 'UP NEXT'
+                            : `#${index + 1} IN LINE`}
+                        </span>
                       </div>
 
                       {/* Guest Profile & Metadata */}
                       <div className="flex flex-col min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[17px] sm:text-xl font-bold text-white truncate">{entry.customer_name}</span>
+                          <span className="text-base sm:text-lg font-black text-white tracking-tight truncate">
+                            {entry.customer_name}
+                          </span>
                           {isVIP && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold border border-amber-500/30 shrink-0">
-                              <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                              VIP
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-[10px] font-black border border-amber-500/30 shrink-0">
+                              <span>⭐</span> VIP
+                            </span>
+                          )}
+                          {isLargeGroup && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 text-[10px] font-black border border-orange-500/30 shrink-0">
+                              <span>🔥</span> Large Group
                             </span>
                           )}
                         </div>
-                        <span className="text-[13px] sm:text-sm text-slate-400 truncate">{entry.customer_phone || 'No phone'} • {(() => { const a = (entry as unknown as { actual_guests?: number }).actual_guests; return a != null && entry.status === 'SEATED' ? `${a} arrived${a !== entry.party_size ? ` (exp. ${entry.party_size})` : ''}` : `${entry.party_size} guests`; })()} {isLargeGroup ? '• Large group' : ''}</span>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                            <span className="material-symbols-outlined text-[14px]">schedule</span>
-                            {new Date(entry.joined_at || entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+                        {/* Contact & Party details */}
+                        <div className="flex items-center gap-2 mt-0.5 text-xs sm:text-[13px] text-slate-300 flex-wrap">
+                          <span className="font-semibold text-slate-200">
+                            👥 {entry.party_size} {entry.party_size === 1 ? 'guest' : 'guests'}
                           </span>
+                          <span className="text-slate-600">•</span>
+                          {entry.customer_phone ? (
+                            <a
+                              href={`tel:${entry.customer_phone}`}
+                              className="font-mono text-xs text-slate-400 hover:text-blue-400 hover:underline flex items-center gap-1"
+                            >
+                              <span>📞</span> {entry.customer_phone}
+                            </a>
+                          ) : (
+                            <span className="text-slate-500 text-xs">No phone</span>
+                          )}
+                        </div>
+
+                        {/* Time & State Pills */}
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap text-xs">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/[0.04] border border-white/5 text-[11px] text-slate-400 font-medium">
+                            <span>⏳</span> Waited {waitMins}m
+                          </span>
+
                           {isCalled && entry.called_at && (
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${(() => { const age = Date.now() - new Date(entry.called_at).getTime(); const timeoutMs = (restaurant.call_timeout_minutes || 15)*60*1000; const remaining = timeoutMs - age; if (remaining <= 0) return 'bg-rose-500/20 border-rose-500/30 text-rose-400 animate-pulse'; if (remaining <= 2*60*1000) return 'bg-amber-500/20 border-amber-500/30 text-amber-400'; return 'bg-blue-500/10 border-blue-500/20 text-blue-400'; })()}`}>
-                              {(() => { const ageMins = Math.floor((Date.now() - new Date(entry.called_at).getTime())/60000); const timeoutMins = restaurant.call_timeout_minutes || 15; const remaining = timeoutMins - ageMins; if (remaining <= 0) return `Overdue ${Math.abs(remaining)}m`; if (remaining <= 2) return `Timeout in ${remaining}m`; return `Called ${ageMins}m ago`; })()}
+                            <span
+                              className={`text-[11px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${(() => {
+                                const age = Date.now() - new Date(entry.called_at).getTime();
+                                const timeoutMs = (restaurant.call_timeout_minutes || 15) * 60 * 1000;
+                                const remaining = timeoutMs - age;
+                                if (remaining <= 0) return 'bg-rose-500/20 border-rose-500/40 text-rose-300 animate-pulse';
+                                if (remaining <= 2 * 60 * 1000)
+                                  return 'bg-amber-500/20 border-amber-500/40 text-amber-300';
+                                return 'bg-blue-500/20 border-blue-500/40 text-blue-300';
+                              })()}`}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+                              {(() => {
+                                const ageMins = Math.floor((Date.now() - new Date(entry.called_at).getTime()) / 60000);
+                                const remaining = (restaurant.call_timeout_minutes || 15) - ageMins;
+                                if (remaining <= 0) return `Overdue by ${Math.abs(remaining)}m`;
+                                if (remaining <= 2) return `Timeout in ${remaining}m!`;
+                                return `Called ${ageMins}m ago (${remaining}m left)`;
+                              })()}
                             </span>
                           )}
-                          <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-widest font-bold shrink-0 ${isSeated ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-400' : isNotified ? 'bg-purple-900/30 border-purple-500/30 text-purple-400' : isCalled ? 'bg-blue-900/30 border-blue-500/30 text-blue-400' : 'bg-white/5 border-white/10 text-slate-400'}`}>
+
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full border text-[10px] uppercase tracking-widest font-black shrink-0 ${cardTheme.badge}`}
+                          >
                             {entry.status}
                           </span>
-                          {entry.status === 'NO_SHOW' && (entry as unknown as { no_show_reason?: string; no_show_at?: string }).no_show_reason && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300">{(entry as unknown as { no_show_reason: string }).no_show_reason}</span>
+
+                          {entry.status === 'NO_SHOW' && (entry as unknown as { no_show_reason?: string }).no_show_reason && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300">
+                              {(entry as unknown as { no_show_reason: string }).no_show_reason}
+                            </span>
                           )}
                         </div>
 
@@ -549,10 +625,12 @@ export default async function QueueManagementPage({
                             <span className="material-symbols-outlined text-[15px] text-amber-400">schedule</span>
                             <span className="font-bold">Running Late (+{anyEntry.lateInfo.delayMinutes || 10}m)</span>
                             {anyEntry.lateInfo.note && (
-                              <span className="text-[11px] text-amber-200/80 truncate">· &ldquo;{anyEntry.lateInfo.note}&rdquo;</span>
+                              <span className="text-[11px] text-amber-200/90 truncate">
+                                · &ldquo;{anyEntry.lateInfo.note}&rdquo;
+                              </span>
                             )}
                             {anyEntry.lateInfo.tablePassedToNext && (
-                              <span className="ml-auto text-[9px] font-black uppercase px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-500/40">
+                              <span className="ml-auto text-[9px] font-black uppercase px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-500/40 shrink-0">
                                 Table Passed · Spot Held
                               </span>
                             )}
@@ -561,58 +639,82 @@ export default async function QueueManagementPage({
                       </div>
                     </div>
 
-                    {/* Status Indicator Pill / Actions Right */}
-                    <div className="flex items-center md:flex-col md:items-end justify-between">
-                      {isSeated && (
-                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-900/30 border border-emerald-500/30 text-emerald-400 text-[10px] tracking-widest uppercase font-bold">
-                          SEATED
-                        </span>
-                      )}
+                    {/* Status Highlight on Right */}
+                    <div className="flex items-center sm:flex-col sm:items-end justify-between shrink-0">
                       {isNotified && (
-                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-purple-900/30 border border-purple-500/30 text-purple-400 text-[10px] tracking-widest uppercase font-bold">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/40 text-purple-300 text-[10px] tracking-widest uppercase font-black shadow-sm">
+                          <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
                           NOTIFIED
                         </span>
                       )}
                       {isCalled && (
-                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-900/30 border border-blue-500/30 text-blue-400 text-[10px] tracking-widest uppercase font-bold">
-                          CALLED
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/40 text-blue-300 text-[10px] tracking-widest uppercase font-black shadow-sm">
+                          <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+                          CALLED · READY
                         </span>
                       )}
-                      {isWaiting && !isCalled && !isNotified && !isSeated && (
-                         <span className={`inline-flex items-center gap-1 px-4 py-1.5 rounded-full text-[10px] tracking-widest uppercase font-bold border ${isNext ? 'bg-blue-900/30 border-blue-500/30 text-blue-400' : 'bg-transparent border-white/10 text-slate-400'}`}>
-                         WAITING
-                       </span>
+                      {isWaiting && (
+                        <span
+                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] tracking-widest uppercase font-bold border ${
+                            isNext
+                              ? 'bg-cyan-500/20 border-cyan-400/40 text-cyan-300 font-black'
+                              : 'bg-white/5 border-white/10 text-slate-400'
+                          }`}
+                        >
+                          {isNext ? '⚡ NEXT TO CALL' : 'WAITING'}
+                        </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Action Ribbon per entry - thumb-friendly */}
-                  <div className="flex flex-col gap-3 pt-3 border-t border-white/5 -mx-4 -mb-4 px-4 py-3 rounded-b-2xl bg-[#0A0E17]/40">
+                  {/* ACTION RIBBON: High-Visibility, Tactile Staff Action Bar */}
+                  <div className="flex flex-col gap-2.5 pt-3 border-t border-white/10 -mx-4 -mb-4 px-4 py-3 rounded-b-2xl bg-[#080D1A]/60">
                     {(isCalled || hasPreOrder || anyEntry.notes) && (
-                      <div className="flex items-center gap-2 text-xs">
-                        {isCalled && <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Ready to be seated</span>}
-                        {hasPreOrder && <span className="text-slate-400">Dishes ready</span>}
-                        {anyEntry.notes && <span className="text-slate-400 truncate">{anyEntry.notes}</span>}
+                      <div className="flex items-center gap-2 text-xs flex-wrap">
+                        {isCalled && (
+                          <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Ready to be seated
+                          </span>
+                        )}
+                        {hasPreOrder && (
+                          <span className="text-amber-300 font-semibold flex items-center gap-1">
+                            <span>🍽️</span> Dishes Pre-Ordered
+                          </span>
+                        )}
+                        {anyEntry.notes && (
+                          <span className="text-slate-400 truncate">Note: {anyEntry.notes}</span>
+                        )}
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-end gap-2 w-full">
+                    <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-end gap-2 w-full items-center">
+                      {/* Step 1: WAITING -> Notify */}
                       {isWaiting && (
                         <form action={updateQueueStatusAction.bind(null, entry.id, 'NOTIFIED', userId)} className="col-span-2 sm:col-span-1">
-                          <button type="submit" className="w-full sm:w-auto px-5 h-11 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-bold shadow-md transition-all active:scale-95">
-                            Notify — Almost Ready
+                          <button
+                            type="submit"
+                            className="w-full sm:w-auto px-5 h-11 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:brightness-110 active:scale-95 text-white text-sm font-black shadow-lg shadow-blue-500/25 transition-all cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <span>🔔</span>
+                            <span>Notify Guest</span>
                           </button>
                         </form>
                       )}
                       
+                      {/* Step 2: NOTIFIED -> Call */}
                       {isNotified && (
                         <form action={updateQueueStatusAction.bind(null, entry.id, 'CALLED', userId)} className="col-span-2 sm:col-span-1">
-                          <button type="submit" className="w-full sm:w-auto px-5 h-11 rounded-xl bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-sm font-bold shadow-md transition-all active:scale-95">
-                            Call — Table Ready
+                          <button
+                            type="submit"
+                            className="w-full sm:w-auto px-5 h-11 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 hover:brightness-110 active:scale-95 text-white text-sm font-black shadow-lg shadow-purple-500/25 transition-all cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            <span>📢</span>
+                            <span>Call — Table Ready</span>
                           </button>
                         </form>
                       )}
 
+                      {/* Step 3: CALLED -> Seat with AI recommendations & multi-table combine */}
                       {isCalled && (
                         <div className="col-span-2 sm:col-span-1">
                           <SeatCustomerModal
@@ -622,15 +724,21 @@ export default async function QueueManagementPage({
                             partySize={entry.party_size}
                             userId={userId}
                             seatableTables={seatableTables}
+                            allAvailableTables={(tablesRes.tables as Array<{ id: string; table_number: string; capacity: number; status: string }> || []).filter((t) => t.status === 'AVAILABLE')}
                           />
                         </div>
                       )}
 
+                      {/* Step 3: CALLED -> No-Show */}
                       {isCalled && (
-                        <form action={markNoShowAction} className="col-span-2 sm:col-span-1 flex gap-1">
+                        <form action={markNoShowAction} className="col-span-2 sm:col-span-1 flex gap-1 items-center">
                           <input type="hidden" name="entryId" value={entry.id} />
                           <input type="hidden" name="actorUserId" value={userId} />
-                          <select name="reason" defaultValue="STAFF_MARKED_NO_SHOW" className="flex-1 min-w-0 h-11 rounded-xl bg-[#1A2333] border border-white/10 text-slate-200 text-xs font-bold px-2">
+                          <select
+                            name="reason"
+                            defaultValue="STAFF_MARKED_NO_SHOW"
+                            className="flex-1 min-w-0 h-11 rounded-xl bg-[#1A2333] border border-white/10 text-slate-200 text-xs font-bold px-2"
+                          >
                             <option value="STAFF_MARKED_NO_SHOW">Staff marked</option>
                             <option value="CUSTOMER_DID_NOT_RETURN">Did not return</option>
                             <option value="CUSTOMER_DID_NOT_RESPOND">No response</option>
@@ -639,11 +747,12 @@ export default async function QueueManagementPage({
                           <ConfirmSubmitButton
                             idleLabel="No-Show"
                             armedLabel="Sure?"
-                            className="shrink-0 px-3 h-11 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-1 transition-colors hover:bg-rose-500/20 active:scale-95"
+                            className="shrink-0 px-3 h-11 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:bg-rose-500/25 text-xs font-bold flex items-center gap-1 transition-colors active:scale-95"
                           />
                         </form>
                       )}
 
+                      {/* Cancel Entry Button */}
                       {(isWaiting || isNotified || isCalled) && (
                         <form action={updateQueueStatusAction.bind(null, entry.id, 'CANCELLED', userId)} className="shrink-0 flex items-center">
                           <button
