@@ -103,6 +103,9 @@ export interface PublicQueueStatusResponse {
   isAlmostYourTurn: boolean;
   lateInfo?: QueueLateInfo | null;
   chatMessages?: QueueChatMessage[];
+  nowCallingNumber?: string | null;
+  upNextNumber?: string | null;
+  recentlySeatedNumbers?: string[];
 }
 
 export class QueueService {
@@ -167,7 +170,7 @@ export class QueueService {
 
     const { data: entry, error } = await supabase
       .from('queue_entries')
-      .select('*, restaurants!inner(name, avg_service_time_mins, service_capacity_units, eta_buffer_mins, almost_your_turn_threshold)')
+      .select('*, restaurants!inner(name, timezone, avg_service_time_mins, service_capacity_units, eta_buffer_mins, almost_your_turn_threshold)')
       .eq('token_hash', tokenHash)
       .maybeSingle();
 
@@ -175,31 +178,46 @@ export class QueueService {
       return null;
     }
 
+    const restaurantObj = entry.restaurants as unknown as {
+      name: string;
+      timezone?: string;
+      avg_service_time_mins?: number;
+      service_capacity_units?: number;
+      eta_buffer_mins?: number;
+      almost_your_turn_threshold?: number;
+    };
+
+    // Cutoff calculation: only count active tickets from the current operating shift (>= 5 AM)
+    const { data: cutoffData } = await supabase.rpc('get_recent_5am_cutoff', {
+      p_timezone: restaurantObj?.timezone || 'UTC',
+    });
+
     let position: number | null = null;
     let peopleAhead: number | null = null;
 
-    if (['WAITING', 'NOTIFIED', 'CALLED'].includes(entry.status)) {
+    if (entry.status === 'CALLED') {
+      position = 1;
+      peopleAhead = 0;
+    } else if (['WAITING', 'NOTIFIED'].includes(entry.status)) {
       // Position counts all active (WAITING/NOTIFIED/CALLED) ahead deterministically by joined_at + id
-      const { count, error: countError } = await supabase
+      let countQuery = supabase
         .from('queue_entries')
         .select('*', { count: 'exact', head: true })
         .eq('restaurant_id', entry.restaurant_id)
         .in('status', ['WAITING', 'NOTIFIED', 'CALLED'])
         .or(`joined_at.lt.${entry.joined_at},and(joined_at.eq.${entry.joined_at},id.lt.${entry.id})`);
 
+      if (cutoffData) {
+        countQuery = countQuery.gte('joined_at', cutoffData);
+      }
+
+      const { count, error: countError } = await countQuery;
+
       if (!countError && count !== null) {
         position = count + 1;
         peopleAhead = count;
       }
     }
-
-    const restaurantObj = entry.restaurants as unknown as {
-      name: string;
-      avg_service_time_mins?: number;
-      service_capacity_units?: number;
-      eta_buffer_mins?: number;
-      almost_your_turn_threshold?: number;
-    };
 
     const etaConfig: RestaurantETAConfig = {
       avgServiceTimeMins: restaurantObj?.avg_service_time_mins ?? 15,
@@ -280,6 +298,59 @@ export class QueueService {
       // Non-blocking degradation
     }
 
+    let nowCallingNumber: string | null = null;
+    let upNextNumber: string | null = null;
+    const recentlySeatedNumbers: string[] = [];
+
+    try {
+      // 1. Who is now calling?
+      if (entry.status === 'CALLED') {
+        nowCallingNumber = entry.display_number;
+      } else {
+        let calledQuery = supabase
+          .from('queue_entries')
+          .select('display_number')
+          .eq('restaurant_id', entry.restaurant_id)
+          .eq('status', 'CALLED')
+          .order('called_at', { ascending: false })
+          .limit(1);
+        if (cutoffData) calledQuery = calledQuery.gte('joined_at', cutoffData);
+        const { data: calledRow } = await calledQuery.maybeSingle();
+        nowCallingNumber = calledRow?.display_number || null;
+      }
+
+      // 2. Who is up next in line?
+      let nextQuery = supabase
+        .from('queue_entries')
+        .select('display_number')
+        .eq('restaurant_id', entry.restaurant_id)
+        .in('status', ['NOTIFIED', 'WAITING'])
+        .order('joined_at', { ascending: true })
+        .order('id', { ascending: true })
+        .limit(1);
+      if (cutoffData) nextQuery = nextQuery.gte('joined_at', cutoffData);
+      const { data: nextRow } = await nextQuery.maybeSingle();
+      upNextNumber = nextRow?.display_number || null;
+
+      // 3. Who went inside / recently seated?
+      let seatedQuery = supabase
+        .from('queue_entries')
+        .select('display_number')
+        .eq('restaurant_id', entry.restaurant_id)
+        .eq('status', 'SEATED')
+        .order('seated_at', { ascending: false })
+        .limit(3);
+      if (cutoffData) seatedQuery = seatedQuery.gte('joined_at', cutoffData);
+      const { data: seatedRows } = await seatedQuery;
+      if (seatedRows && seatedRows.length > 0) {
+        for (const row of seatedRows) {
+          if (row.display_number) recentlySeatedNumbers.push(row.display_number);
+        }
+      }
+    } catch {
+      // Non-blocking degradation
+    }
+
     return {
       entryId: entry.id,
       restaurantId: entry.restaurant_id,
@@ -299,6 +370,9 @@ export class QueueService {
       isAlmostYourTurn: isCalled || isSeated ? false : etaResult.isAlmostYourTurn,
       lateInfo,
       chatMessages,
+      nowCallingNumber,
+      upNextNumber,
+      recentlySeatedNumbers,
     };
   }
 
@@ -784,7 +858,7 @@ export class QueueService {
           query = query.gte('joined_at', cutoffData);
         }
       } else if (filterStatus === 'TERMINAL') {
-        query = query.in('status', ['CANCELLED', 'NO_SHOW', 'EXPIRED', 'COMPLETED']);
+        query = query.in('status', ['CANCELLED', 'NO_SHOW', 'EXPIRED', 'COMPLETED', 'SEATED']);
       } else {
         query = query.eq('status', filterStatus);
       }

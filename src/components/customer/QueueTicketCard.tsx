@@ -18,6 +18,7 @@ import { CancelQueueDialog } from './CancelQueueDialog';
 import { CustomerLateModal } from './CustomerLateModal';
 import { QueueProgressMessage } from './QueueProgressMessage';
 import { formatWaitLabel } from '@/lib/customer-join-ux';
+import { chimeEngine } from '@/lib/audio-chime';
 import {
   ticketStateMeta,
   formatTicketNumber,
@@ -100,11 +101,18 @@ export function QueueTicketCard({
   const prevStatusRef = useRef(status.status);
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
 
+  const [buzzerTested, setBuzzerTested] = useState(false);
+
   useEffect(() => {
     if (prevStatusRef.current !== status.status) {
       if (status.status === 'CALLED') {
+        chimeEngine.playBuzzerSound();
         setLiveAnnouncement('Your table is being called. Please return to the restaurant now.');
+      } else if (status.status === 'NOTIFIED') {
+        chimeEngine.playBuzzerSound();
+        setLiveAnnouncement('Your table is being prepared. Please start heading to the restaurant.');
       } else if (status.status === 'SEATED') {
+        chimeEngine.playSeatChime();
         setLiveAnnouncement(`You are seated. Enjoy your meal.${tableDisplay ? ` ${tableDisplay}.` : ''}`);
       } else {
         setLiveAnnouncement(`${meta.title}. ${meta.guidance}`);
@@ -155,9 +163,26 @@ export function QueueTicketCard({
             {restaurantName}
           </p>
         )}
-        <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-[12px] font-bold text-slate-300">
-          👤 {status.customerName} · {status.partySize} {status.partySize === 1 ? 'guest' : 'guests'}
-        </p>
+        <div className="mt-1 flex items-center justify-center gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1 text-[12px] font-bold text-slate-300">
+            👤 {status.customerName} · {status.partySize} {status.partySize === 1 ? 'guest' : 'guests'}
+          </span>
+          {!isTerminal && (
+            <button
+              type="button"
+              onClick={() => {
+                chimeEngine.playBuzzerSound();
+                setBuzzerTested(true);
+                setTimeout(() => setBuzzerTested(false), 2500);
+              }}
+              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] hover:bg-white/10 px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:text-white transition-all cursor-pointer"
+              title="Test sound buzzer and vibration"
+            >
+              <span>{buzzerTested ? '⚡' : '🔔'}</span>
+              <span>{buzzerTested ? 'Buzzing...' : 'Test Pager Buzzer'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* CALLED Hero Callout — visually dominant, calm, return-to-restaurant instruction.
@@ -236,6 +261,23 @@ export function QueueTicketCard({
           <p className="mx-auto mt-1 max-w-[300px] text-[12px] leading-relaxed text-slate-400">
             {meta.guidance}
           </p>
+          {status.status === 'WAITING' && (
+            <div className="mt-2.5 mx-auto max-w-[320px] rounded-xl bg-white/[0.03] border border-white/5 p-2 text-center">
+              {status.peopleAhead === 0 ? (
+                <p className="text-[12px] font-black text-emerald-400">
+                  ✨ Front of line: You get the next available table!
+                </p>
+              ) : status.peopleAhead === 1 ? (
+                <p className="text-[12px] font-bold text-amber-300">
+                  🔥 1 party ahead ({status.upNextNumber ? `Q-${status.upNextNumber.replace(/^#+/, '')}` : 'next'}). You are on deck!
+                </p>
+              ) : (
+                <p className="text-[12px] font-semibold text-slate-300">
+                  📍 Position #{status.position} · {status.peopleAhead} parties ahead of you
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -324,6 +366,86 @@ export function QueueTicketCard({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Live Queue Transparency Radar: Who is Calling · Who is Next · Where You Are · Who Went Inside */}
+      {!isTerminal && !isSeated && (
+        <div className="mt-5 rounded-2xl border border-white/10 bg-[#0B101B]/80 p-4 flex flex-col gap-3 shadow-inner">
+          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-cyan-400 flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+              </span>
+              Live Queue Radar
+            </span>
+            <span className="text-[10px] font-bold text-slate-400">
+              {status.peopleAhead === 0 ? (
+                <span className="text-emerald-400 font-black">Front of Line ✨</span>
+              ) : status.peopleAhead === 1 ? (
+                <span className="text-amber-300 font-bold">1 party ahead</span>
+              ) : (
+                <span>{status.peopleAhead} parties ahead</span>
+              )}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-left">
+            {/* Now Calling */}
+            <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <span>📢 Now Calling</span>
+              </span>
+              <span className="font-mono text-base font-black text-amber-300 truncate">
+                {status.nowCallingNumber ? `Q-${status.nowCallingNumber.replace(/^#+/, '')}` : isCalled ? ticketNo : 'Preparing table'}
+              </span>
+              <span className="text-[9px] text-slate-400 leading-tight">
+                {isCalled ? 'Your table is ready!' : 'Calling to host stand'}
+              </span>
+            </div>
+
+            {/* Up Next */}
+            <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 flex flex-col gap-0.5">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <span>⏱️ Up Next</span>
+              </span>
+              <span className="font-mono text-base font-black text-cyan-300 truncate">
+                {status.position === 1 ? 'YOU ARE NEXT' : status.upNextNumber ? `Q-${status.upNextNumber.replace(/^#+/, '')}` : 'Next in line'}
+              </span>
+              <span className="text-[9px] text-slate-400 leading-tight">
+                {status.position === 1 ? 'Keep phone ready!' : 'Next to be called'}
+              </span>
+            </div>
+          </div>
+
+          {/* Where You Are Highlight Bar */}
+          <div className="flex items-center justify-between rounded-xl bg-white/[0.04] px-3 py-2 border border-white/5 text-[11px]">
+            <span className="text-slate-400 font-medium">Your Spot in Line:</span>
+            <span className="font-mono font-black text-white flex items-center gap-1.5">
+              <span className="text-emerald-400">{ticketNo}</span>
+              <span className="text-slate-500">•</span>
+              <span className="text-slate-300 font-sans font-bold">
+                {status.position === 1 ? "Front of Line" : `Position #${status.position}`}
+              </span>
+            </span>
+          </div>
+
+          {/* Recently Inside / Seated */}
+          {status.recentlySeatedNumbers && status.recentlySeatedNumbers.length > 0 && (
+            <div className="flex items-center justify-between text-[10px] pt-1 text-slate-400 border-t border-white/5">
+              <span className="flex items-center gap-1 font-semibold text-slate-400">
+                <span>🪑 Went Inside:</span>
+              </span>
+              <div className="flex items-center gap-1.5 font-mono font-bold text-emerald-400">
+                {status.recentlySeatedNumbers.map((num, i) => (
+                  <span key={i} className="px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[10px]">
+                    Q-{num.replace(/^#+/, '')}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

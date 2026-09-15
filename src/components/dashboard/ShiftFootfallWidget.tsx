@@ -8,6 +8,7 @@ interface ShiftFootfallWidgetProps {
 }
 
 export function ShiftFootfallWidget({ report }: ShiftFootfallWidgetProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<FootfallSlot | null>(
     report.currentSlot || report.peakSlot || report.slots[2] || null
   );
@@ -22,7 +23,7 @@ export function ShiftFootfallWidget({ report }: ShiftFootfallWidgetProps) {
       <div className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
 
       {/* Top Header */}
-      <div className="relative z-10 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
+      <div className={`relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isExpanded ? 'border-b border-white/5 pb-4 mb-6' : ''}`}>
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="flex h-2 w-2 relative">
@@ -42,40 +43,58 @@ export function ShiftFootfallWidget({ report }: ShiftFootfallWidgetProps) {
           </h2>
         </div>
 
-        {/* Quick Shift Summary Cards */}
-        <div className="flex items-center gap-3 overflow-x-auto pb-1 sm:pb-0">
-          <div className="flex flex-col rounded-2xl bg-white/[0.04] border border-white/5 px-3.5 py-2 shrink-0">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Footfall</span>
+        {/* Quick Shift Summary Cards + Collapse Toggle */}
+        <div className="flex items-center gap-2.5 sm:gap-3 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex flex-col rounded-2xl bg-white/[0.04] border border-white/5 px-3 py-1.5 sm:px-3.5 sm:py-2 shrink-0">
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Footfall</span>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-lg font-black text-white font-mono">{report.totalFootfall}</span>
-              <span className="text-[11px] text-slate-400">guests</span>
+              <span className="text-base sm:text-lg font-black text-white font-mono">{report.totalFootfall}</span>
+              <span className="text-[10px] sm:text-[11px] text-slate-400">guests</span>
             </div>
           </div>
 
-          <div className="flex flex-col rounded-2xl bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2 shrink-0">
-            <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Seated</span>
+          <div className="flex flex-col rounded-2xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 sm:px-3.5 sm:py-2 shrink-0">
+            <span className="text-[9px] sm:text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Seated</span>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-lg font-black text-emerald-400 font-mono">{report.totalSeatedFootfall}</span>
-              <span className="text-[10px] font-bold text-emerald-500/80">({report.seatedConversionRate}%)</span>
+              <span className="text-base sm:text-lg font-black text-emerald-400 font-mono">{report.totalSeatedFootfall}</span>
+              <span className="text-[9px] sm:text-[10px] font-bold text-emerald-500/80">({report.seatedConversionRate}%)</span>
             </div>
           </div>
 
           {report.peakSlot && report.peakSlot.totalGuests > 0 && (
-            <div className="flex flex-col rounded-2xl bg-amber-500/10 border border-amber-500/20 px-3.5 py-2 shrink-0">
-              <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1">
-                <span>🔥 Peak Slot</span>
+            <div className="flex flex-col rounded-2xl bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 sm:px-3.5 sm:py-2 shrink-0">
+              <span className="text-[9px] sm:text-[10px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1">
+                <span>🔥 Peak</span>
               </span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-sm font-black text-amber-400 font-mono">{report.peakSlot.slotKey}</span>
-                <span className="text-[10px] text-amber-300">({report.peakSlot.totalGuests}g)</span>
+                <span className="text-xs sm:text-sm font-black text-amber-400 font-mono">{report.peakSlot.slotKey.split(' - ')[0]}</span>
+                <span className="text-[9px] sm:text-[10px] text-amber-300">({report.peakSlot.totalGuests}g)</span>
               </div>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center gap-1 px-3 py-2 rounded-2xl border border-white/10 bg-white/[0.06] hover:bg-white/[0.12] active:bg-white/20 text-xs font-bold text-slate-200 transition-all cursor-pointer shrink-0 shadow-sm"
+            aria-expanded={isExpanded}
+            title={isExpanded ? 'Collapse 24h slots' : 'Expand 24h slots'}
+          >
+            <span>{isExpanded ? 'Collapse' : 'Expand'}</span>
+            <span
+              className="material-symbols-outlined text-[16px] transition-transform duration-200"
+              style={{ transform: isExpanded ? 'rotate(180deg)' : 'none' }}
+            >
+              expand_more
+            </span>
+          </button>
         </div>
       </div>
 
-      {/* 8 Slot Timeline Bars */}
-      <div className="relative z-10 mb-6">
+      {isExpanded && (
+        <div className="animate-in fade-in duration-300">
+          {/* 8 Slot Timeline Bars */}
+          <div className="relative z-10 mb-6">
         <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
           <span>Service Slots Across 24h Operating Shift</span>
           <span className="text-[10px] text-slate-500">Click a slot for details</span>
@@ -198,6 +217,8 @@ export function ShiftFootfallWidget({ report }: ShiftFootfallWidgetProps) {
               </div>
             </div>
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>

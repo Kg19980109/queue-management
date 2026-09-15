@@ -100,6 +100,52 @@ class AudioChimeEngine {
       osc.stop(now + 0.35);
     } catch {}
   }
+
+  /**
+   * Restaurant Pager Buzzer for customer devices.
+   * Plays loud pulsing square waves mimicking physical buzzer pagers
+   * and triggers hardware vibration on phones.
+   */
+  playBuzzerSound() {
+    // 1. Hardware vibration on mobile devices
+    this.triggerPhoneVibration([500, 150, 500, 150, 800]);
+
+    // 2. Audible pager buzzer synth
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      // 3 rapid aggressive buzzer beeps (880Hz / 660Hz)
+      const offsets = [0, 0.22, 0.44];
+      offsets.forEach((offset) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(780, now + offset);
+        osc.frequency.linearRampToValueAtTime(880, now + offset + 0.14);
+
+        gain.gain.setValueAtTime(0.001, now + offset);
+        gain.gain.linearRampToValueAtTime(0.28, now + offset + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.18);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.19);
+      });
+    } catch {}
+  }
+
+  triggerPhoneVibration(pattern: number[] = [400, 150, 400]) {
+    if (typeof window !== 'undefined' && 'navigator' in window && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(pattern);
+      } catch {}
+    }
+  }
 }
 
 export const chimeEngine = new AudioChimeEngine();
