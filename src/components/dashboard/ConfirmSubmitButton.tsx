@@ -14,8 +14,8 @@ export function ConfirmSubmitButton({
   className,
   disarmMs = 4000,
 }: {
-  idleLabel: string;
-  armedLabel: string;
+  idleLabel: React.ReactNode;
+  armedLabel: React.ReactNode;
   className?: string;
   disarmMs?: number;
 }) {

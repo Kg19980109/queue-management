@@ -20,6 +20,7 @@ import {
 import { AddQueueGuestModal } from '@/components/dashboard/AddQueueGuestModal';
 import { LiveQueueFeedClient } from '@/components/dashboard/LiveQueueFeedClient';
 import { QueueOperationsAccordion } from '@/components/dashboard/QueueOperationsAccordion';
+import { ConfirmSubmitButton } from '@/components/dashboard/ConfirmSubmitButton';
 import { logger } from '@/lib/logging/logger';
 import Link from 'next/link';
 
@@ -217,8 +218,9 @@ export default async function QueueManagementPage({
                 <input type="hidden" name="restaurantId" value={restaurant.id} />
                 <input type="hidden" name="newState" value={state} />
                 <input type="hidden" name="actorUserId" value={userId} />
-                <button
-                  type="submit"
+                <ConfirmSubmitButton
+                  idleLabel={state === 'CLOSING_SOON' ? 'CLOSING' : state}
+                  armedLabel="Confirm?"
                   className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-black tracking-wider uppercase transition-all cursor-pointer ${
                     operatingState === state
                       ? state === 'OPEN'
@@ -230,9 +232,7 @@ export default async function QueueManagementPage({
                         : 'bg-rose-500 text-white shadow-md shadow-rose-500/30'
                       : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
-                >
-                  {state === 'CLOSING_SOON' ? 'CLOSING' : state}
-                </button>
+                />
               </form>
             ))}
           </div>
@@ -259,19 +259,19 @@ export default async function QueueManagementPage({
             />
 
             <form action={toggleQueueOpenAction.bind(null, restaurant.id, !queueEnabled, userId)}>
-              <button
-                type="submit"
-                className={`p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+              <ConfirmSubmitButton
+                idleLabel={
+                  <span className="material-symbols-outlined text-[18px]">
+                    {queueEnabled ? 'pause' : 'play_arrow'}
+                  </span>
+                }
+                armedLabel={<span className="font-bold">Sure?</span>}
+                className={`p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
                   queueEnabled
                     ? 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
                     : 'bg-emerald-600 text-white border-emerald-500 shadow-md'
                 }`}
-                title={queueEnabled ? 'Pause Queue' : 'Open Queue'}
-              >
-                <span className="material-symbols-outlined text-[18px]">
-                  {queueEnabled ? 'pause' : 'play_arrow'}
-                </span>
-              </button>
+              />
             </form>
           </div>
         </div>
