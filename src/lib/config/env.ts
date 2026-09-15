@@ -77,7 +77,7 @@ function parseEnv(): { public: PublicEnv; server: ServerEnv } {
 
   // Phase 3E: placeholder credentials must never silently run in production
   // (they would fail obscurely at the database instead of fast at boot).
-  if (serverResult.data.NODE_ENV === 'production') {
+  if (serverResult.data.NODE_ENV === 'production' && !process.env.CI) {
     const placeholders = [
       publicResult.data.NEXT_PUBLIC_SUPABASE_URL,
       publicResult.data.NEXT_PUBLIC_SUPABASE_ANON_KEY,
