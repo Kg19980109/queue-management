@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { updateQueueStatusAction, seatQueueEntryAction, updateTableStatusAction } from '@/app/dashboard/actions';
+import { updateQueueStatusAction, updateTableStatusAction, markNoShowAction } from '@/app/dashboard/actions';
 import { broadcastCustomerQueueUpdate } from '@/lib/realtime/useCustomerQueueRealtime';
+import { SeatCustomerModal, SeatableTableItem } from '@/components/dashboard/SeatCustomerModal';
 import type { TableStatus } from '@/types/database.types';
 
 interface DashboardClientProps {
@@ -13,14 +14,23 @@ interface DashboardClientProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tablesRes: { tables: any[] };
   activeQueueCount: number;
+  userId?: string;
+  callTimeoutMinutes?: number;
 }
 
-export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: DashboardClientProps) {
+export function DashboardClient({
+  feedEntries,
+  tablesRes,
+  activeQueueCount,
+  userId,
+  callTimeoutMinutes = 15,
+}: DashboardClientProps) {
   const router = useRouter();
   const [feed, setFeed] = useState(feedEntries);
   const [tables, setTables] = useState(tablesRes.tables);
-  const [seatingEntryId, setSeatingEntryId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [noShowMenuId, setNoShowMenuId] = useState<string | null>(null);
+  const [noShowReason, setNoShowReason] = useState('STAFF_MARKED_NO_SHOW');
 
   // Sync state when props update from server
   useEffect(() => {
@@ -39,24 +49,36 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
     return () => clearInterval(timer);
   }, [router]);
 
-  // Time difference in minutes
-  const getWaitTimeMins = (joinedAtStr: string) => {
-    if (!joinedAtStr) return 0;
-    const joinedAt = new Date(joinedAtStr);
-    const now = new Date();
-    const diffMs = now.getTime() - joinedAt.getTime();
-    return Math.max(0, Math.floor(diffMs / 60000));
-  };
-
   // Sync triggers for customer realtime notifications:
   // - notified: broadcastCustomerQueueUpdate(entryId)
   // - no-show: broadcastCustomerQueueUpdate(entryId)
-  const handleRecall = async (entryId: string) => {
+  const handleNotify = async (entryId: string) => {
     setIsProcessing(entryId);
 
-    // Optimistic UI update: instantly elevate entry to CALLED
+    // Optimistic UI update: instantly elevate entry to NOTIFIED
+    setFeed((prev) =>
+      prev.map((e) => (e.id === entryId ? { ...e, status: 'NOTIFIED', notified_at: new Date().toISOString() } : e))
+    );
+
+    try {
+      await updateQueueStatusAction(entryId, 'NOTIFIED', userId);
+      await broadcastCustomerQueueUpdate(entryId);
+    } catch (e) {
+      console.error('Failed to notify customer:', e);
+    } finally {
+      setIsProcessing(null);
+      router.refresh();
+    }
+  };
+
+  const handleCall = async (entryId: string) => {
+    setIsProcessing(entryId);
+
+    // Optimistic UI update: instantly elevate entry to CALLED and resort to top priority
     setFeed((prev) => {
-      const next = prev.map((e) => (e.id === entryId ? { ...e, status: 'CALLED', called_at: new Date().toISOString() } : e));
+      const next = prev.map((e) =>
+        e.id === entryId ? { ...e, status: 'CALLED', called_at: new Date().toISOString() } : e
+      );
       const priority: Record<string, number> = { CALLED: 0, NOTIFIED: 1, WAITING: 2 };
       return next.sort((a, b) => {
         const pa = priority[a.status] ?? 9;
@@ -67,10 +89,32 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
     });
 
     try {
-      await updateQueueStatusAction(entryId, 'CALLED');
+      await updateQueueStatusAction(entryId, 'CALLED', userId);
       await broadcastCustomerQueueUpdate(entryId);
     } catch (e) {
-      console.error('Failed to call/recall customer:', e);
+      console.error('Failed to call customer:', e);
+    } finally {
+      setIsProcessing(null);
+      router.refresh();
+    }
+  };
+
+  const handleNoShow = async (entryId: string, reason: string) => {
+    setIsProcessing(entryId);
+    setNoShowMenuId(null);
+
+    // Optimistic UI update: remove from active queue
+    setFeed((prev) => prev.filter((e) => e.id !== entryId));
+
+    try {
+      const formData = new FormData();
+      formData.append('entryId', entryId);
+      formData.append('reason', reason);
+      if (userId) formData.append('actorUserId', userId);
+      await markNoShowAction(formData);
+      await broadcastCustomerQueueUpdate(entryId);
+    } catch (e) {
+      console.error('Failed to mark no-show:', e);
     } finally {
       setIsProcessing(null);
       router.refresh();
@@ -85,35 +129,10 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
     setFeed((prev) => prev.filter((e) => e.id !== entryId));
 
     try {
-      await updateQueueStatusAction(entryId, 'CANCELLED');
+      await updateQueueStatusAction(entryId, 'CANCELLED', userId);
       await broadcastCustomerQueueUpdate(entryId);
     } catch (e) {
       console.error('Failed to cancel queue entry:', e);
-    } finally {
-      setIsProcessing(null);
-      router.refresh();
-    }
-  };
-
-  const handleSeatClick = (entryId: string) => {
-    setSeatingEntryId(entryId);
-  };
-
-  const handleSeatConfirm = async (tableId: string) => {
-    if (!seatingEntryId) return;
-    const entryId = seatingEntryId;
-    setIsProcessing(entryId);
-    setSeatingEntryId(null);
-
-    // Optimistic UI update: instantly remove guest from active feed & mark table occupied
-    setFeed((prev) => prev.filter((e) => e.id !== entryId));
-    setTables((prev) => prev.map((t) => (t.id === tableId ? { ...t, status: 'OCCUPIED' } : t)));
-
-    try {
-      await seatQueueEntryAction(entryId, tableId);
-      await broadcastCustomerQueueUpdate(entryId);
-    } catch (e) {
-      console.error('Failed to seat guest:', e);
     } finally {
       setIsProcessing(null);
       router.refresh();
@@ -139,53 +158,14 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
     await handleTableStatus(tableId, 'AVAILABLE', 'CLEANING');
   };
 
-  const availableTables = tables.filter((t) => t.status === 'AVAILABLE');
+  // Pre-calculate seatable tables for each entry
+  const availableTables = tables.filter((t) => t.status === 'AVAILABLE') as unknown as SeatableTableItem[];
   const tablesTotal = tables.length;
   const tablesOccupied = tables.filter((t) => t.status === 'OCCUPIED').length;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-8 items-start relative z-10">
-      
-      {/* SEATING MODAL */}
-      {seatingEntryId && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="bg-[#0A0E17] border border-white/10 rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 w-full max-w-md shadow-2xl flex flex-col gap-4 relative max-h-[85dvh] overflow-hidden safe-pb">
-             <button 
-                onClick={() => setSeatingEntryId(null)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-white"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-              <h3 className="text-xl font-bold text-white mb-2">Select a Table</h3>
-              
-              {availableTables.length === 0 ? (
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
-                  <p className="text-amber-400 text-sm font-medium">No available tables right now.</p>
-                  <p className="text-slate-400 text-xs mt-1">Please mark a table as available or clear an occupied table first.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto">
-                  {availableTables.map((t) => {
-                    const tNum = t.tableNumber || t.table_number;
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => handleSeatConfirm(t.id)}
-                        className="p-4 rounded-xl border border-white/10 bg-[#111827] hover:border-emerald-500/50 hover:bg-emerald-500/5 text-left transition-colors cursor-pointer"
-                      >
-                        <div className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Table</div>
-                        <div className="text-3xl font-black text-white font-headline-xl">{tNum}</div>
-                        <div className="text-[10px] text-emerald-400 mt-2 font-medium">Cap: {t.capacity} guests</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-          </div>
-        </div>
-      )}
-
-      {/* LEFT COLUMN: Queue Feed */}
+      {/* LEFT COLUMN: Queue Feed matching Live Queue page design */}
       <section className="lg:col-span-8 flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -193,88 +173,312 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             <span className="text-xs text-slate-400 font-mono">Real-time Stream</span>
           </div>
-          <Link href="/dashboard/queue" className="text-sm font-bold text-primary hover:text-blue-400 transition-colors flex items-center gap-1">
+          <Link
+            href="/dashboard/queue"
+            className="text-sm font-bold text-primary hover:text-blue-400 transition-colors flex items-center gap-1"
+          >
             View All {activeQueueCount} <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
           </Link>
         </div>
 
         <div className="flex flex-col gap-4">
           {feed.length === 0 ? (
-            <div className="bg-[#111827] rounded-2xl border border-white/5 p-8 text-center flex flex-col items-center">
+            <div className="bg-[#111827] rounded-2xl border border-white/5 p-10 text-center flex flex-col items-center shadow-sm">
               <span className="material-symbols-outlined text-4xl text-slate-600 mb-2">inbox</span>
               <p className="text-slate-400">The queue is currently empty.</p>
             </div>
           ) : (
             feed.map((entry, index) => {
-              const waitMins = getWaitTimeMins(entry.joined_at || entry.created_at);
+              const isWaiting = entry.status === 'WAITING';
               const isCalled = entry.status === 'CALLED';
               const isNotified = entry.status === 'NOTIFIED';
-              const isNextUp = index === 0 && !isCalled;
+              const isSeated = entry.status === 'SEATED';
+              const isNext = isWaiting && index === 0;
+              const isLargeGroup = (entry.party_size || 0) >= 6;
               const loading = isProcessing === entry.id;
-              
-              const borderColor = isCalled ? 'border-emerald-500/50' : isNotified ? 'border-purple-500/40' : 'border-white/5';
-              const pillColor = isCalled ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : isNotified ? 'bg-purple-500/10 border-purple-500/30 text-purple-400' : 'bg-white/5 border-white/10 text-white';
 
-              const ticketNum = entry.display_number ? entry.display_number.replace('#', '') : (entry.queue_number || index + 1);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const anyEntry = entry as any;
+              const isVIP = anyEntry.is_vip || false;
+              const hasPreOrder = anyEntry.pre_order_amount && anyEntry.pre_order_amount > 0;
+
+              // Filter tables matching party size directly from current tables state
+              const seatableForParty = availableTables.filter((t) => (t.capacity || 0) >= entry.party_size);
 
               return (
-                <div key={entry.id} className={`bg-[#111827] rounded-2xl border ${borderColor} p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden group hover:border-white/20 transition-colors ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
-                  {isCalled && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>}
-                  {isNotified && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-purple-500"></div>}
-                  
-                  <div className="flex items-start sm:items-center gap-4 sm:gap-6 pl-2 min-w-0">
-                    <div className="flex flex-col items-center shrink-0">
-                      <span className={`text-2xl font-black font-headline-xl ${isCalled ? 'text-emerald-400' : isNotified ? 'text-purple-400' : 'text-white'}`}>#{ticketNum}</span>
-                      <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${pillColor} mt-1`}>
-                        {isCalled ? 'CALLED' : isNotified ? 'ARRIVING' : isNextUp ? 'NEXT UP' : 'WAITING'}
-                      </span>
-                    </div>
-                    
-                    <div className="hidden sm:block w-px h-12 bg-white/10 shrink-0"></div>
-                    
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[15px] sm:text-base font-bold text-white truncate">{entry.customer_name}</span>
-                        {index === 0 && <span className="text-[9px] px-2 py-0.5 rounded bg-[#1A2333] border border-white/10 text-slate-300 font-medium shrink-0">VIP Host Guest</span>}
-                        {index === 1 && <span className="text-[9px] px-2 py-0.5 rounded bg-primary/20 border border-primary/30 text-primary font-medium shrink-0">Priority</span>}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-slate-400">
-                        <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">group</span> {entry.party_size} guests</span>
-                        <span className="w-1 h-1 rounded-full bg-slate-600 hidden sm:inline"></span>
-                        <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-amber-500">schedule</span> Waited {waitMins}m</span>
-                        <span className="w-1 h-1 rounded-full bg-slate-600 hidden sm:inline"></span>
-                        <span className={`flex items-center gap-1 ${isCalled ? 'text-emerald-400' : isNotified ? 'text-purple-400' : 'text-slate-400'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${isCalled ? 'bg-emerald-400 animate-pulse' : isNotified ? 'bg-purple-400' : 'bg-slate-500'}`}></span>
-                          {isCalled ? 'SMS Sent / Called' : isNotified ? 'Notified — on the way' : 'Ready for seating'}
+                <div
+                  key={entry.id}
+                  className={`relative p-4 sm:p-5 rounded-2xl bg-[#111827] border border-white/5 shadow-md flex flex-col gap-3 overflow-hidden transition-all group hover:border-white/15 ${
+                    loading ? 'opacity-50 pointer-events-none' : ''
+                  }`}
+                >
+                  {/* Left Status Color Band */}
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                      isSeated
+                        ? 'bg-emerald-500'
+                        : isNotified
+                        ? 'bg-purple-500'
+                        : isCalled
+                        ? 'bg-blue-500'
+                        : hasPreOrder
+                        ? 'bg-amber-500'
+                        : isNext
+                        ? 'bg-blue-400'
+                        : 'bg-slate-600'
+                    }`}
+                  ></div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pl-1">
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                      {/* Monospace Ticket Box */}
+                      <div
+                        className={`flex flex-col items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-xl shrink-0 shadow-sm ${
+                          isSeated
+                            ? 'bg-emerald-600 text-white'
+                            : isNotified
+                            ? 'bg-purple-600 text-white'
+                            : isCalled
+                            ? 'bg-blue-600 text-white'
+                            : isNext
+                            ? 'bg-blue-900/30 text-blue-400 border border-blue-500/20'
+                            : 'bg-[#1A2333] border border-white/5 text-slate-300'
+                        }`}
+                      >
+                        <span className="font-black text-xl sm:text-2xl tracking-tight font-headline-xl leading-none">
+                          {entry.display_number || entry.queue_number}
                         </span>
+                        {isSeated && (
+                          <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Dining</span>
+                        )}
+                        {isNotified && (
+                          <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Arriving</span>
+                        )}
+                        {isCalled && (
+                          <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Priority</span>
+                        )}
+                        {isNext && (
+                          <span className="text-[8px] uppercase tracking-widest font-bold mt-0.5">Next</span>
+                        )}
+                        {isWaiting && !isNext && (
+                          <span className="text-[8px] uppercase tracking-widest mt-0.5">#{index + 1}</span>
+                        )}
                       </div>
+
+                      {/* Guest Details */}
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[16px] sm:text-lg font-bold text-white truncate">
+                            {entry.customer_name}
+                          </span>
+                          {isVIP && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold border border-amber-500/30 shrink-0">
+                              <span
+                                className="material-symbols-outlined text-[12px]"
+                                style={{ fontVariationSettings: "'FILL' 1" }}
+                              >
+                                star
+                              </span>
+                              VIP
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs sm:text-sm text-slate-400 truncate">
+                          {entry.customer_phone || 'No phone'} • {entry.party_size} guests{' '}
+                          {isLargeGroup ? '• Large group' : ''}
+                        </span>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                            <span className="material-symbols-outlined text-[14px]">schedule</span>
+                            {new Date(entry.joined_at || entry.created_at).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                          {isCalled && entry.called_at && (
+                            <span
+                              className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${(() => {
+                                const age = Date.now() - new Date(entry.called_at).getTime();
+                                const timeoutMs = callTimeoutMinutes * 60 * 1000;
+                                const remaining = timeoutMs - age;
+                                if (remaining <= 0) return 'bg-rose-500/20 border-rose-500/30 text-rose-400 animate-pulse';
+                                if (remaining <= 2 * 60 * 1000)
+                                  return 'bg-amber-500/20 border-amber-500/30 text-amber-400';
+                                return 'bg-blue-500/10 border-blue-500/20 text-blue-400';
+                              })()}`}
+                            >
+                              {(() => {
+                                const ageMins = Math.floor((Date.now() - new Date(entry.called_at).getTime()) / 60000);
+                                const remaining = callTimeoutMinutes - ageMins;
+                                if (remaining <= 0) return `Overdue ${Math.abs(remaining)}m`;
+                                if (remaining <= 2) return `Timeout in ${remaining}m`;
+                                return `Called ${ageMins}m ago`;
+                              })()}
+                            </span>
+                          )}
+                          <span
+                            className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-widest font-bold shrink-0 ${
+                              isSeated
+                                ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-400'
+                                : isNotified
+                                ? 'bg-purple-900/30 border-purple-500/30 text-purple-400'
+                                : isCalled
+                                ? 'bg-blue-900/30 border-blue-500/30 text-blue-400'
+                                : 'bg-white/5 border-white/10 text-slate-400'
+                            }`}
+                          >
+                            {entry.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status Pill on the Right */}
+                    <div className="flex items-center sm:flex-col sm:items-end justify-between shrink-0">
+                      {isNotified && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-900/30 border border-purple-500/30 text-purple-400 text-[10px] tracking-widest uppercase font-bold">
+                          NOTIFIED
+                        </span>
+                      )}
+                      {isCalled && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-900/30 border border-blue-500/30 text-blue-400 text-[10px] tracking-widest uppercase font-bold">
+                          CALLED
+                        </span>
+                      )}
+                      {isWaiting && (
+                        <span
+                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] tracking-widest uppercase font-bold border ${
+                            isNext
+                              ? 'bg-blue-900/30 border-blue-500/30 text-blue-400'
+                              : 'bg-transparent border-white/10 text-slate-400'
+                          }`}
+                        >
+                          WAITING
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end sm:self-auto w-full sm:w-auto justify-end border-t border-white/5 sm:border-t-0 pt-3 sm:pt-0 mt-1 sm:mt-0 shrink-0">
-                    <button 
-                      onClick={() => handleSeatClick(entry.id)} 
-                      disabled={loading}
-                      className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold text-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">check</span>
-                      <span>Seat Guest</span>
-                    </button>
-                    <button 
-                      onClick={() => handleRecall(entry.id)} 
-                      disabled={loading}
-                      className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#1A2333] hover:bg-white/10 text-slate-300 border border-white/5 font-bold text-sm transition-colors text-center cursor-pointer active:scale-95 disabled:opacity-50"
-                    >
-                      {isCalled ? 'Recall' : 'Call Again'}
-                    </button>
-                    <button 
-                      onClick={() => handleCancel(entry.id)} 
-                      disabled={loading}
-                      className="w-9 h-9 shrink-0 rounded-full bg-[#1A2333] hover:bg-white/10 border border-white/5 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer active:scale-95 disabled:opacity-50"
-                      title="Cancel entry"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">close</span>
-                    </button>
+                  {/* ACTION RIBBON: Identical to Live Queue page */}
+                  <div className="flex flex-col gap-3 pt-3 border-t border-white/5 -mx-4 -mb-4 px-4 py-3 rounded-b-2xl bg-[#0A0E17]/40">
+                    {(isCalled || hasPreOrder || anyEntry.notes) && (
+                      <div className="flex items-center gap-2 text-xs">
+                        {isCalled && (
+                          <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Ready to be
+                            seated
+                          </span>
+                        )}
+                        {hasPreOrder && <span className="text-slate-400">Dishes ready</span>}
+                        {anyEntry.notes && <span className="text-slate-400 truncate">{anyEntry.notes}</span>}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-end gap-2 w-full">
+                      {/* Step 1: WAITING -> Notify */}
+                      {isWaiting && (
+                        <button
+                          type="button"
+                          onClick={() => handleNotify(entry.id)}
+                          disabled={loading}
+                          className="col-span-2 sm:col-span-1 px-5 h-11 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-bold shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                        >
+                          Notify — Almost Ready
+                        </button>
+                      )}
+
+                      {/* Step 2: NOTIFIED -> Call */}
+                      {isNotified && (
+                        <button
+                          type="button"
+                          onClick={() => handleCall(entry.id)}
+                          disabled={loading}
+                          className="col-span-2 sm:col-span-1 px-5 h-11 rounded-xl bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white text-sm font-bold shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                        >
+                          Call — Table Ready
+                        </button>
+                      )}
+
+                      {/* Step 3: CALLED -> Assign Table & Seat (AI recommendation engine with multi-table combine) */}
+                      {isCalled && (
+                        <div className="col-span-2 sm:col-span-1">
+                          <SeatCustomerModal
+                            entryId={entry.id}
+                            customerName={entry.customer_name}
+                            displayNumber={entry.display_number}
+                            partySize={entry.party_size}
+                            userId={userId || ''}
+                            seatableTables={seatableForParty}
+                            allAvailableTables={availableTables}
+                            onSeated={async (tableId, additionalIds) => {
+                              // Optimistic remove seated guest and mark table(s) occupied
+                              setFeed((prev) => prev.filter((e) => e.id !== entry.id));
+                              const allIds = [tableId, ...(additionalIds || [])];
+                              setTables((prev) =>
+                                prev.map((t) => (allIds.includes(t.id) ? { ...t, status: 'OCCUPIED' } : t))
+                              );
+                              await broadcastCustomerQueueUpdate(entry.id);
+                              router.refresh();
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Step 3: CALLED -> No-Show */}
+                      {isCalled && (
+                        <div className="col-span-2 sm:col-span-1 flex items-center gap-1 relative">
+                          {noShowMenuId === entry.id ? (
+                            <div className="flex items-center gap-1 w-full animate-in fade-in">
+                              <select
+                                value={noShowReason}
+                                onChange={(e) => setNoShowReason(e.target.value)}
+                                className="flex-1 min-w-0 h-11 rounded-xl bg-[#1A2333] border border-white/10 text-slate-200 text-xs font-bold px-2"
+                              >
+                                <option value="STAFF_MARKED_NO_SHOW">Staff marked</option>
+                                <option value="CUSTOMER_DID_NOT_RETURN">Did not return</option>
+                                <option value="CUSTOMER_DID_NOT_RESPOND">No response</option>
+                                <option value="OTHER">Other</option>
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => handleNoShow(entry.id, noShowReason)}
+                                className="px-3 h-11 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shrink-0 transition-colors cursor-pointer"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setNoShowMenuId(null)}
+                                className="px-2 h-11 text-slate-400 hover:text-white text-xs"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setNoShowMenuId(entry.id)}
+                              className="w-full sm:w-auto px-4 h-11 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                            >
+                              No-Show
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Cancel Button */}
+                      {(isWaiting || isNotified || isCalled) && (
+                        <button
+                          type="button"
+                          onClick={() => handleCancel(entry.id)}
+                          disabled={loading}
+                          className="h-11 w-11 rounded-xl bg-white/[0.04] hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
+                          title="Cancel Entry"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">close</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -283,11 +487,9 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
         </div>
       </section>
 
-      {/* RIGHT COLUMN: Real-time Floor Matrix & Efficiency */}
+      {/* RIGHT COLUMN: Real-time Floor Matrix & Table Controls */}
       <section className="lg:col-span-4 flex flex-col gap-6">
-        
-        {/* Floor Status */}
-        <div className="bg-[#111827] rounded-2xl border border-white/5 p-6 flex flex-col gap-5">
+        <div className="bg-[#111827] rounded-2xl border border-white/5 p-6 flex flex-col gap-5 shadow-sm">
           <div className="flex items-center justify-between border-b border-white/5 pb-4">
             <div className="flex flex-col">
               <span className="text-lg font-bold text-white">Floor Status</span>
@@ -309,7 +511,7 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
               let borderCls = 'border-white/5';
               let dotCls = 'bg-slate-500';
               let pillCls = 'bg-[#1A2333] border-white/5 text-slate-400';
-              
+
               if (isCleaning) {
                 borderCls = 'border-rose-500/30 bg-rose-500/5';
                 dotCls = 'bg-rose-500';
@@ -325,7 +527,12 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
               }
 
               return (
-                <div key={t.id} className={`rounded-2xl border p-4 flex flex-col items-center text-center ${borderCls} ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div
+                  key={t.id}
+                  className={`rounded-2xl border p-4 flex flex-col items-center text-center ${borderCls} ${
+                    loading ? 'opacity-50 pointer-events-none' : ''
+                  }`}
+                >
                   <div className="w-full flex justify-between items-start mb-2">
                     <span className="text-[10px] font-bold tracking-widest uppercase text-slate-400">Table</span>
                     <span className={`w-2 h-2 rounded-full ${dotCls}`}></span>
@@ -335,18 +542,18 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                     {t.status}
                   </span>
                   <span className="text-[10px] text-slate-400 mb-4 font-medium">Cap: {t.capacity} guests</span>
-                  
+
                   {isCleaning && (
                     <div className="flex gap-1 w-full mt-2">
-                      <button 
-                        onClick={() => handlePingBusser(t.id)} 
+                      <button
+                        onClick={() => handlePingBusser(t.id)}
                         disabled={loading}
                         className="flex-1 py-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-rose-500/30 cursor-pointer active:scale-95"
                       >
                         Ping
                       </button>
-                      <button 
-                        onClick={() => handleTableStatus(t.id, 'AVAILABLE', 'CLEANING')} 
+                      <button
+                        onClick={() => handleTableStatus(t.id, 'AVAILABLE', 'CLEANING')}
                         disabled={loading}
                         className="flex-1 py-1.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-emerald-500/30 cursor-pointer active:scale-95"
                       >
@@ -356,11 +563,14 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                   )}
                   {isOccupied && (
                     <div className="flex gap-1 w-full mt-2">
-                      <Link href="/dashboard/orders" className="flex-1 py-1.5 rounded bg-[#1A2333] hover:bg-white/10 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-primary/30">
+                      <Link
+                        href="/dashboard/orders"
+                        className="flex-1 py-1.5 rounded bg-[#1A2333] hover:bg-white/10 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-primary/30"
+                      >
                         Order
                       </Link>
-                      <button 
-                        onClick={() => handleTableStatus(t.id, 'CLEANING', 'OCCUPIED')} 
+                      <button
+                        onClick={() => handleTableStatus(t.id, 'CLEANING', 'OCCUPIED')}
                         disabled={loading}
                         className="flex-1 py-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-rose-500/30 cursor-pointer active:scale-95"
                       >
@@ -370,11 +580,14 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
                   )}
                   {isAvailable && (
                     <div className="flex gap-1 w-full mt-2">
-                      <Link href="/dashboard/tables" className="flex-1 py-1.5 rounded bg-[#1A2333] hover:bg-white/10 text-emerald-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-emerald-500/30">
+                      <Link
+                        href="/dashboard/tables"
+                        className="flex-1 py-1.5 rounded bg-[#1A2333] hover:bg-white/10 text-emerald-400 text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-emerald-500/30"
+                      >
                         View
                       </Link>
-                      <button 
-                        onClick={() => handleTableStatus(t.id, 'OCCUPIED', 'AVAILABLE')} 
+                      <button
+                        onClick={() => handleTableStatus(t.id, 'OCCUPIED', 'AVAILABLE')}
                         disabled={loading}
                         className="flex-1 py-1.5 rounded bg-primary/20 hover:bg-primary/30 text-primary text-[10px] font-bold flex items-center justify-center gap-1 transition-colors border border-primary/30 cursor-pointer active:scale-95"
                       >
@@ -387,13 +600,16 @@ export function DashboardClient({ feedEntries, tablesRes, activeQueueCount }: Da
             })}
           </div>
 
-          <Link href="/dashboard/tables" className="w-full mt-2 py-3 rounded-xl bg-[#1A2333] hover:bg-white/5 border border-white/5 text-slate-300 text-sm font-bold flex items-center justify-center gap-2 transition-colors">
+          <Link
+            href="/dashboard/tables"
+            className="w-full mt-2 py-3 rounded-xl bg-[#1A2333] hover:bg-white/5 border border-white/5 text-slate-300 text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+          >
             Manage Tables Map <span className="material-symbols-outlined text-[16px]">chevron_right</span>
           </Link>
         </div>
       </section>
-
     </div>
   );
 }
+
 

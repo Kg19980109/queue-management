@@ -521,9 +521,21 @@ export async function updateQueueSettingsFormAction(formData: FormData): Promise
   revalidatePath('/dashboard/queue');
 }
 
-export async function seatQueueEntryAction(entryId: string, tableId: string, actorUserId?: string, actualGuests?: number): Promise<void> {
+export async function seatQueueEntryAction(
+  entryId: string,
+  tableId: string,
+  actorUserId?: string,
+  actualGuests?: number,
+  additionalTableIds?: string[]
+): Promise<void> {
   try {
-    await QueueService.seatQueueEntry(entryId, tableId, await resolveActionActor(actorUserId), actualGuests);
+    await QueueService.seatQueueEntry(
+      entryId,
+      tableId,
+      await resolveActionActor(actorUserId),
+      actualGuests,
+      additionalTableIds
+    );
   } catch (error: unknown) {
     if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
       throw error;
@@ -644,16 +656,29 @@ export async function updateKitchenStatusAction(
   return updated;
 }
 
-export async function recommendTablesAction(queueEntryId: string): Promise<Array<{ id: string; table_number: string; capacity: number; restaurant_zones?: { name: string } | null }>> {
+export async function recommendTablesAction(queueEntryId: string): Promise<Array<{
+  id: string;
+  table_number: string;
+  capacity: number;
+  restaurant_zones?: { name: string } | null;
+  is_combination?: boolean;
+  table_ids?: string[];
+  combination_labels?: string[];
+  reason?: string;
+}>> {
   // Phase 3E: bind the recommendation read to the caller's session so the
   // service enforces QUEUE_VIEW on the entry's restaurant (previously no
   // actor was passed, skipping the check entirely).
   const actorId = await resolveActionActor(undefined);
   const result = await QueueService.recommendTablesForQueueEntry(queueEntryId, actorId);
-  return (result as unknown as Array<{ table_id: string; table_number: string; capacity: number; zone_name: string | null }>).map(r => ({
+  return result.map(r => ({
     id: r.table_id,
     table_number: r.table_number,
     capacity: r.capacity,
     restaurant_zones: r.zone_name ? { name: r.zone_name } : null,
+    is_combination: r.is_combination ?? false,
+    table_ids: r.table_ids ?? [r.table_id],
+    combination_labels: r.combination_labels ?? [r.table_number],
+    reason: r.reason,
   }));
 }

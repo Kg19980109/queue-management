@@ -349,13 +349,19 @@ export class QueueService {
    * @throws AuthorizationError if caller lacks queue.seat permission
    * @throws Error with descriptive code if FSM state is invalid
    */
-  static async seatQueueEntry(entryId: string, tableId: string, actorUserId?: string, actualGuests?: number) {
+  static async seatQueueEntry(
+    entryId: string,
+    tableId: string,
+    actorUserId?: string,
+    actualGuests?: number,
+    additionalTableIds?: string[]
+  ) {
     const supabase = createAdminClient();
 
     // Step 1: Fetch entry to get restaurant_id for permission check
     const { data: entry, error: fetchErr } = await supabase
       .from('queue_entries')
-      .select('restaurant_id, party_size')
+      .select('restaurant_id, party_size, status')
       .eq('id', entryId)
       .single();
 
@@ -364,20 +370,108 @@ export class QueueService {
     }
 
     // Step 2: Enforce authorization — must have queue.seat permission
-    // This check happens in application code (service layer) AND inside the
-    // DB function (defense in depth). Neither can be bypassed independently.
     const authContext = await AuthorizationService.requirePermission({
       userId: actorUserId,
       restaurantId: entry.restaurant_id,
       permission: PERMISSIONS.QUEUE_SEAT,
     });
 
-    // Step 3: Call atomic DB function (also verifies permission internally).
-    // actualGuests = headcount confirmed at the door (defaults to party_size).
     const seatingCount =
       Number.isInteger(actualGuests) && (actualGuests as number) > 0
         ? (actualGuests as number)
         : (entry as unknown as { party_size?: number }).party_size ?? 1;
+
+    // Multi-table combination handling
+    if (additionalTableIds && additionalTableIds.length > 0) {
+      const allTableIds = [tableId, ...additionalTableIds];
+      const { data: tables, error: tableErr } = await supabase
+        .from('restaurant_tables')
+        .select('id, table_number, capacity, status, is_archived, restaurant_id')
+        .in('id', allTableIds);
+
+      if (tableErr || !tables || tables.length !== allTableIds.length) {
+        throw new Error('TABLE_NOT_FOUND: One or more selected tables not found');
+      }
+
+      for (const t of tables) {
+        if (t.restaurant_id !== entry.restaurant_id) throw new Error('TENANT_MISMATCH');
+        if (t.is_archived) throw new Error('TABLE_ARCHIVED: Cannot seat at an archived table');
+        if (t.status !== 'AVAILABLE') throw new Error('TABLE_NOT_AVAILABLE');
+      }
+
+      const totalCapacity = tables.reduce((acc, t) => acc + (t.capacity || 0), 0);
+      if (totalCapacity < seatingCount) {
+        throw new Error('INSUFFICIENT_TABLE_CAPACITY');
+      }
+
+      const primaryTable = tables.find(t => t.id === tableId) || tables[0];
+      if (!primaryTable) {
+        throw new Error('PRIMARY_TABLE_NOT_FOUND');
+      }
+
+      // Atomically seat the entry with primary table
+      const res = await supabase.rpc('seat_queue_entry_atomic', {
+        p_queue_entry_id: entryId,
+        p_table_id: tableId,
+        p_actor_user_id: authContext.userId,
+        p_actual_guests: Math.min(primaryTable.capacity, seatingCount),
+      });
+
+      if (res.error) {
+        const errorMsg = res.error.message || '';
+        if (errorMsg.includes('QUEUE_ENTRY_ALREADY_SEATED') || errorMsg.includes('SEATED')) {
+          throw new Error('QUEUE_ENTRY_ALREADY_SEATED');
+        }
+        if (errorMsg.includes('QUEUE_ENTRY_NOT_SEATABLE')) {
+          throw new Error('QUEUE_ENTRY_NOT_SEATABLE');
+        }
+        if (errorMsg.includes('TABLE_NOT_AVAILABLE')) {
+          throw new Error('TABLE_NOT_AVAILABLE');
+        }
+        throw new Error(`Seating failed: ${errorMsg}`);
+      }
+
+      // Mark all additional tables as OCCUPIED
+      const nowIso = new Date().toISOString();
+      for (const addId of additionalTableIds) {
+        await supabase
+          .from('restaurant_tables')
+          .update({ status: 'OCCUPIED', updated_at: nowIso })
+          .eq('id', addId);
+      }
+
+      // Record total headcount and combined table metadata
+      await supabase
+        .from('queue_entries')
+        .update({ actual_guests: seatingCount, updated_at: nowIso })
+        .eq('id', entryId);
+
+      const combinedNumbers = tables.map(t => t.table_number).join(' + ');
+
+      await supabase.from('queue_events').insert({
+        restaurant_id: entry.restaurant_id,
+        queue_entry_id: entryId,
+        event_type: 'QUEUE_SEATED',
+        actor_user_id: authContext.userId,
+        metadata: {
+          table_id: tableId,
+          additional_table_ids: additionalTableIds,
+          combined_table_numbers: combinedNumbers,
+          party_size: entry.party_size,
+          actual_guests: seatingCount,
+          total_capacity: totalCapacity,
+        },
+      });
+
+      return {
+        success: true,
+        queueEntryId: entryId,
+        tableId,
+        additionalTableIds,
+        combined_table_numbers: combinedNumbers,
+        actualGuests: seatingCount,
+      };
+    }
     let rpcError: { message: string } | null = null;
     let data: unknown = null;
     {
@@ -783,7 +877,7 @@ export class QueueService {
   }
 
   /**
-   * Recommend tables for a queue entry (deterministic, not reservation)
+   * Recommend tables for a queue entry (supports both single tables and combined table pairs)
    */
   static async recommendTablesForQueueEntry(queueEntryId: string, actorUserId?: string) {
     const supabase = createAdminClient();
@@ -795,9 +889,125 @@ export class QueueService {
     if (actorUserId) {
       await AuthorizationService.requirePermission({ userId: actorUserId, restaurantId: entry.restaurant_id, permission: PERMISSIONS.QUEUE_VIEW });
     }
-    const { data, error } = await supabase.rpc('recommend_tables_for_queue_entry', { p_queue_entry_id: queueEntryId });
-    if (error) throw new Error(`Failed to recommend tables: ${error.message}`);
-    return (data as unknown as Array<{ table_id: string; table_number: string; capacity: number; zone_name: string | null; rank: number; reason: string }>) || [];
+
+    // 1. Single table recommendations from DB RPC
+    let singleRecs: Array<{
+      table_id: string;
+      table_number: string;
+      capacity: number;
+      zone_name: string | null;
+      rank: number;
+      reason: string;
+      is_combination?: boolean;
+      table_ids?: string[];
+      combination_labels?: string[];
+    }> = [];
+
+    interface RpcRec {
+      table_id: string;
+      table_number: string;
+      capacity: number;
+      zone_name: string;
+      rank: number;
+      reason?: string;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('recommend_tables_for_queue_entry', { p_queue_entry_id: queueEntryId });
+      if (!error && Array.isArray(data)) {
+        singleRecs = (data as unknown as RpcRec[]).map((r) => ({
+          ...r,
+          reason: r.reason || `Fits party size of ${entry.party_size}`,
+          is_combination: false,
+          table_ids: [r.table_id],
+          combination_labels: [r.table_number],
+        }));
+      }
+    } catch {
+      // Fallback if RPC encounters error
+    }
+
+    // 2. Fetch available tables to calculate combinations
+    const { data: availTables } = await supabase
+      .from('restaurant_tables')
+      .select('id, table_number, capacity, zone_id, restaurant_zones(name)')
+      .eq('restaurant_id', entry.restaurant_id)
+      .eq('status', 'AVAILABLE')
+      .eq('is_archived', false)
+      .order('capacity', { ascending: true })
+      .order('table_number', { ascending: true });
+
+    const available = availTables || [];
+    const partySize = entry.party_size || 1;
+    const combinations: typeof singleRecs = [];
+
+    const extractZoneName = (rz: unknown): string => {
+      if (!rz) return '';
+      if (Array.isArray(rz) && rz.length > 0) return String((rz[0] as { name?: unknown }).name || '');
+      if (typeof rz === 'object' && rz !== null && 'name' in rz) return String((rz as { name?: unknown }).name || '');
+      return '';
+    };
+
+    if (available.length >= 2) {
+      interface PairCandidate {
+        t1: typeof available[0];
+        t2: typeof available[0];
+        combinedCap: number;
+        waste: number;
+        sameZone: boolean;
+      }
+      const pairs: PairCandidate[] = [];
+
+      for (let i = 0; i < available.length; i++) {
+        for (let j = i + 1; j < available.length; j++) {
+          const t1 = available[i];
+          const t2 = available[j];
+          if (!t1 || !t2) continue;
+          const combinedCap = (t1.capacity || 0) + (t2.capacity || 0);
+          if (combinedCap >= partySize) {
+            const waste = combinedCap - partySize;
+            const sameZone = t1.zone_id && t2.zone_id ? t1.zone_id === t2.zone_id : false;
+            pairs.push({ t1, t2, combinedCap, waste, sameZone });
+          }
+        }
+      }
+
+      // Sort pairs: same zone first, then minimal waste, then lowest combined cap
+      pairs.sort((a, b) => {
+        if (a.sameZone !== b.sameZone) return a.sameZone ? -1 : 1;
+        if (a.waste !== b.waste) return a.waste - b.waste;
+        return a.combinedCap - b.combinedCap;
+      });
+
+      // Include top 3 combination candidates
+      for (let idx = 0; idx < Math.min(3, pairs.length); idx++) {
+        const pair = pairs[idx];
+        if (!pair) continue;
+        const zone1 = extractZoneName(pair.t1.restaurant_zones);
+        const zone2 = extractZoneName(pair.t2.restaurant_zones);
+        const zoneLabel = pair.sameZone ? (zone1 || 'Same Zone') : `${zone1 || 'Area 1'} + ${zone2 || 'Area 2'}`;
+
+        combinations.push({
+          table_id: `${pair.t1.id}+${pair.t2.id}`,
+          table_number: `${pair.t1.table_number} + ${pair.t2.table_number}`,
+          capacity: pair.combinedCap,
+          zone_name: zoneLabel,
+          rank: 20 + idx,
+          reason: `Combine Table ${pair.t1.table_number} (${pair.t1.capacity} seats) + Table ${pair.t2.table_number} (${pair.t2.capacity} seats) = ${pair.combinedCap} seats`,
+          is_combination: true,
+          table_ids: [pair.t1.id, pair.t2.id],
+          combination_labels: [pair.t1.table_number, pair.t2.table_number],
+        });
+      }
+    }
+
+    // If no single table can seat the party (e.g. 7 guests and two 4-person tables),
+    // combinations take precedence at the top!
+    if (singleRecs.length === 0) {
+      return combinations;
+    }
+
+    return [...singleRecs, ...combinations];
   }
 
   /**

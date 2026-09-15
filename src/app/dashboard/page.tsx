@@ -14,8 +14,8 @@ function getWaitTimeMins(joinedAt: string) {
 }
 
 export default async function RestaurantAdminDashboardPage() {
+  const { userId, restaurantId } = await RestaurantAdminService.getAuthorizedRestaurantContext();
   const { restaurant } = await RestaurantAdminService.getRestaurantDashboardStats();
-  const restaurantId = restaurant.id;
 
   // Fetch real data concurrently
   const [activeQueue, tablesRes, activeOrders] = await Promise.all([
@@ -227,6 +227,8 @@ export default async function RestaurantAdminDashboardPage() {
         feedEntries={feedEntries}
         tablesRes={tablesRes}
         activeQueueCount={activeQueueCount}
+        userId={userId}
+        callTimeoutMinutes={restaurant.call_timeout_minutes || 15}
       />
     </div>
   );
