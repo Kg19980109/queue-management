@@ -3,9 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { updateQueueStatusAction, updateTableStatusAction, markNoShowAction } from '@/app/dashboard/actions';
+import { updateQueueStatusAction, updateTableStatusAction, markNoShowAction, passTableToNextAction } from '@/app/dashboard/actions';
 import { broadcastCustomerQueueUpdate } from '@/lib/realtime/useCustomerQueueRealtime';
 import { SeatCustomerModal, SeatableTableItem } from '@/components/dashboard/SeatCustomerModal';
+import { StaffQueueChatModal } from '@/components/dashboard/StaffQueueChatModal';
+import { chimeEngine } from '@/lib/audio-chime';
 import type { TableStatus } from '@/types/database.types';
 
 interface DashboardClientProps {
@@ -31,6 +33,8 @@ export function DashboardClient({
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [noShowMenuId, setNoShowMenuId] = useState<string | null>(null);
   const [noShowReason, setNoShowReason] = useState('STAFF_MARKED_NO_SHOW');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [chatEntry, setChatEntry] = useState<any | null>(null);
 
   // Sync state when props update from server
   useEffect(() => {
@@ -54,6 +58,7 @@ export function DashboardClient({
   // - no-show: broadcastCustomerQueueUpdate(entryId)
   const handleNotify = async (entryId: string) => {
     setIsProcessing(entryId);
+    chimeEngine.playCallChime();
 
     // Optimistic UI update: instantly elevate entry to NOTIFIED
     setFeed((prev) =>
@@ -73,6 +78,7 @@ export function DashboardClient({
 
   const handleCall = async (entryId: string) => {
     setIsProcessing(entryId);
+    chimeEngine.playCallChime();
 
     // Optimistic UI update: instantly elevate entry to CALLED and resort to top priority
     setFeed((prev) => {
@@ -96,6 +102,21 @@ export function DashboardClient({
     } finally {
       setIsProcessing(null);
       router.refresh();
+    }
+  };
+
+  const handlePassToNext = async (entryId: string) => {
+    setIsProcessing(entryId);
+    try {
+      await passTableToNextAction(entryId);
+      await broadcastCustomerQueueUpdate(entryId);
+      chimeEngine.playAlertChime();
+      router.refresh();
+    } catch (e) {
+      console.error('Failed to pass table:', e);
+      alert('Could not pass table to next customer.');
+    } finally {
+      setIsProcessing(null);
     }
   };
 
@@ -330,6 +351,22 @@ export function DashboardClient({
                             {entry.status}
                           </span>
                         </div>
+
+                        {/* Customer Late Alert Banner */}
+                        {entry.lateInfo?.isLate && (
+                          <div className="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs">
+                            <span className="material-symbols-outlined text-[15px] text-amber-400">schedule</span>
+                            <span className="font-bold">Running Late (+{entry.lateInfo.delayMinutes || 10}m)</span>
+                            {entry.lateInfo.note && (
+                              <span className="text-[11px] text-amber-200/80 truncate">· &ldquo;{entry.lateInfo.note}&rdquo;</span>
+                            )}
+                            {entry.lateInfo.tablePassedToNext && (
+                              <span className="ml-auto text-[9px] font-black uppercase px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-500/40">
+                                Table Passed · Spot Held
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -411,6 +448,7 @@ export function DashboardClient({
                             seatableTables={seatableForParty}
                             allAvailableTables={availableTables}
                             onSeated={async (tableId, additionalIds) => {
+                              chimeEngine.playSeatChime();
                               // Optimistic remove seated guest and mark table(s) occupied
                               setFeed((prev) => prev.filter((e) => e.id !== entry.id));
                               const allIds = [tableId, ...(additionalIds || [])];
@@ -465,6 +503,36 @@ export function DashboardClient({
                           )}
                         </div>
                       )}
+
+                      {/* Pass to Next Button for Late Guests */}
+                      {entry.lateInfo?.isLate && !entry.lateInfo.tablePassedToNext && (
+                        <button
+                          type="button"
+                          onClick={() => handlePassToNext(entry.id)}
+                          disabled={loading}
+                          className="h-11 px-3.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all active:scale-95 shadow cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+                          title="Seat next guest and hold this customer's spot"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">fast_forward</span>
+                          <span>Pass to Next</span>
+                        </button>
+                      )}
+
+                      {/* Chat Button */}
+                      <button
+                        type="button"
+                        onClick={() => setChatEntry(entry)}
+                        className="h-11 px-3.5 rounded-xl bg-white/[0.04] hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 border border-white/5 hover:border-cyan-500/30 flex items-center justify-center gap-1.5 text-xs font-bold transition-all active:scale-95 cursor-pointer shrink-0"
+                        title="Chat with customer"
+                      >
+                        <span className="material-symbols-outlined text-[17px] text-cyan-400">chat</span>
+                        <span className="hidden sm:inline">Chat</span>
+                        {entry.chatMessages && entry.chatMessages.length > 0 && (
+                          <span className="h-4 min-w-4 px-1 rounded-full bg-cyan-500 text-slate-950 text-[9px] font-black flex items-center justify-center">
+                            {entry.chatMessages.length}
+                          </span>
+                        )}
+                      </button>
 
                       {/* Cancel Button */}
                       {(isWaiting || isNotified || isCalled) && (
@@ -608,6 +676,26 @@ export function DashboardClient({
           </Link>
         </div>
       </section>
+
+      {/* Staff Guest Communications Modal */}
+      {chatEntry && (
+        <StaffQueueChatModal
+          isOpen={!!chatEntry}
+          onClose={() => setChatEntry(null)}
+          queueEntryId={chatEntry.id}
+          customerName={chatEntry.customer_name}
+          ticketDisplayNumber={
+            chatEntry.display_number
+              ? `Q-${chatEntry.display_number}`
+              : `Q-${String(chatEntry.id || '').slice(0, 4).toUpperCase()}`
+          }
+          lateInfo={chatEntry.lateInfo}
+          initialMessages={chatEntry.chatMessages || []}
+          onActionComplete={() => {
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

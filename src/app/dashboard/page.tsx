@@ -1,10 +1,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { DashboardClient } from '@/components/dashboard/DashboardClient';
+import { ShiftFootfallWidget } from '@/components/dashboard/ShiftFootfallWidget';
 import { RestaurantAdminService } from '@/lib/services/restaurant-admin-service';
 import { QueueService } from '@/lib/services/queue-service';
 import { TableService } from '@/lib/services/table-service';
 import { OrderService } from '@/lib/services/order-service';
+import { AnalyticsService } from '@/lib/services/analytics-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,10 +20,11 @@ export default async function RestaurantAdminDashboardPage() {
   const { restaurant } = await RestaurantAdminService.getRestaurantDashboardStats();
 
   // Fetch real data concurrently
-  const [activeQueue, tablesRes, activeOrders] = await Promise.all([
+  const [activeQueue, tablesRes, activeOrders, shiftFootfallReport] = await Promise.all([
     QueueService.getActiveQueue(restaurantId),
     TableService.listTables({ restaurantId }),
     OrderService.listDashboardOrders(restaurantId, 'ALL'),
+    AnalyticsService.getFootfallIn5to5Slots(restaurantId, restaurant.timezone || 'UTC').catch(() => null),
   ]);
 
   // --- KPI 1: Active Queue ---
@@ -221,6 +224,11 @@ export default async function RestaurantAdminDashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* 5 AM → 5 AM Shift Footfall Telemetry Widget */}
+      {shiftFootfallReport && (
+        <ShiftFootfallWidget report={shiftFootfallReport} />
+      )}
 
       {/* Main Split Content */}
       <DashboardClient 

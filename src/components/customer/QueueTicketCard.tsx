@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { PublicQueueStatusResponse } from '@/lib/services/queue-service';
 import { CancelQueueDialog } from './CancelQueueDialog';
+import { CustomerLateModal } from './CustomerLateModal';
 import { QueueProgressMessage } from './QueueProgressMessage';
 import { formatWaitLabel } from '@/lib/customer-join-ux';
 import {
@@ -331,6 +332,19 @@ export function QueueTicketCard({
         <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-center text-[11px] leading-relaxed text-slate-400">
           {operatingNote}
         </p>
+      )}
+
+      {/* Running Late Option & Live Chat */}
+      {!isTerminal && !isSeated && (
+        <div className="mt-4">
+          <CustomerLateModal
+            token={token}
+            restaurantSlug={restaurantSlug}
+            customerName={status.customerName}
+            lateInfo={status.lateInfo}
+            initialMessages={status.chatMessages || []}
+          />
+        </div>
       )}
 
       {/* Actions / Handoff */}

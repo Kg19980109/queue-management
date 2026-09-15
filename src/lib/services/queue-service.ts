@@ -68,6 +68,22 @@ export const ETASettingsSchema = z.object({
 
 export type ETASettingsInput = z.infer<typeof ETASettingsSchema>;
 
+export interface QueueLateInfo {
+  isLate: boolean;
+  delayMinutes?: number;
+  note?: string;
+  reportedAt?: string;
+  tablePassedToNext?: boolean;
+}
+
+export interface QueueChatMessage {
+  id: string;
+  sender: 'customer' | 'staff';
+  senderName: string;
+  message: string;
+  createdAt: string;
+}
+
 export interface PublicQueueStatusResponse {
   entryId: string;
   restaurantId: string;
@@ -85,6 +101,8 @@ export interface PublicQueueStatusResponse {
   estimatedWaitMins: number | null;
   formattedETA: string;
   isAlmostYourTurn: boolean;
+  lateInfo?: QueueLateInfo | null;
+  chatMessages?: QueueChatMessage[];
 }
 
 export class QueueService {
@@ -208,6 +226,60 @@ export class QueueService {
     const isCalled = entry.status === 'CALLED';
     const isSeated = entry.status === 'SEATED';
 
+    // Fetch any late notices or chat messages for this ticket
+    let lateInfo: QueueLateInfo | null = null;
+    const chatMessages: QueueChatMessage[] = [];
+    try {
+      const { data: events } = await supabase
+        .from('queue_events')
+        .select('id, event_type, metadata, created_at')
+        .eq('queue_entry_id', entry.id)
+        .in('event_type', ['CUSTOMER_LATE', 'CHAT_MESSAGE', 'TABLE_PASSED_TO_NEXT'])
+        .order('created_at', { ascending: true });
+
+      if (events && events.length > 0) {
+        let isLate = false;
+        let delayMinutes = 10;
+        let lateNote = '';
+        let lateReportedAt = '';
+        let tablePassed = false;
+
+        for (const ev of events) {
+          const meta = (ev.metadata || {}) as Record<string, unknown>;
+          if (ev.event_type === 'CUSTOMER_LATE') {
+            isLate = true;
+            delayMinutes = Number(meta.delayMinutes) || 10;
+            lateNote = String(meta.note || '');
+            lateReportedAt = ev.created_at;
+          } else if (ev.event_type === 'TABLE_PASSED_TO_NEXT') {
+            isLate = true;
+            tablePassed = true;
+            if (!lateReportedAt) lateReportedAt = ev.created_at;
+          } else if (ev.event_type === 'CHAT_MESSAGE') {
+            chatMessages.push({
+              id: ev.id,
+              sender: (meta.sender as 'customer' | 'staff') || 'customer',
+              senderName: String(meta.senderName || (meta.sender === 'staff' ? 'Host Stand' : entry.customer_name)),
+              message: String(meta.message || ''),
+              createdAt: ev.created_at,
+            });
+          }
+        }
+
+        if (isLate) {
+          lateInfo = {
+            isLate: true,
+            delayMinutes,
+            note: lateNote,
+            reportedAt: lateReportedAt,
+            tablePassedToNext: tablePassed,
+          };
+        }
+      }
+    } catch {
+      // Non-blocking degradation
+    }
+
     return {
       entryId: entry.id,
       restaurantId: entry.restaurant_id,
@@ -225,6 +297,8 @@ export class QueueService {
       estimatedWaitMins: isCalled || isSeated ? null : etaResult.estimatedWaitMins,
       formattedETA: isCalled ? 'Your turn is here' : isSeated ? 'Seated' : etaResult.formattedETA,
       isAlmostYourTurn: isCalled || isSeated ? false : etaResult.isAlmostYourTurn,
+      lateInfo,
+      chatMessages,
     };
   }
 
@@ -600,6 +674,59 @@ export class QueueService {
       return new Date(a.joined_at || a.created_at).getTime() - new Date(b.joined_at || b.created_at).getTime();
     });
 
+    const entryIds = entries.map((e) => e.id);
+    const lateMap = new Map<string, QueueLateInfo>();
+    const chatMap = new Map<string, QueueChatMessage[]>();
+
+    if (entryIds.length > 0) {
+      try {
+        const { data: events } = await supabase
+          .from('queue_events')
+          .select('id, queue_entry_id, event_type, metadata, created_at')
+          .in('queue_entry_id', entryIds)
+          .in('event_type', ['CUSTOMER_LATE', 'CHAT_MESSAGE', 'TABLE_PASSED_TO_NEXT'])
+          .order('created_at', { ascending: true });
+
+        if (events) {
+          for (const ev of events) {
+            const meta = (ev.metadata || {}) as Record<string, unknown>;
+            if (ev.event_type === 'CUSTOMER_LATE') {
+              lateMap.set(ev.queue_entry_id, {
+                isLate: true,
+                delayMinutes: Number(meta.delayMinutes) || 10,
+                note: String(meta.note || ''),
+                reportedAt: ev.created_at,
+                tablePassedToNext: lateMap.get(ev.queue_entry_id)?.tablePassedToNext || false,
+              });
+            } else if (ev.event_type === 'TABLE_PASSED_TO_NEXT') {
+              const existing = lateMap.get(ev.queue_entry_id);
+              if (existing) {
+                existing.tablePassedToNext = true;
+              } else {
+                lateMap.set(ev.queue_entry_id, {
+                  isLate: true,
+                  tablePassedToNext: true,
+                  reportedAt: ev.created_at,
+                });
+              }
+            } else if (ev.event_type === 'CHAT_MESSAGE') {
+              const list = chatMap.get(ev.queue_entry_id) || [];
+              list.push({
+                id: ev.id,
+                sender: (meta.sender as 'customer' | 'staff') || 'customer',
+                senderName: String(meta.senderName || 'Customer'),
+                message: String(meta.message || ''),
+                createdAt: ev.created_at,
+              });
+              chatMap.set(ev.queue_entry_id, list);
+            }
+          }
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+
     let activeCount = 0;
     const formatted = entries.map((entry) => {
       let position: number | null = null;
@@ -615,6 +742,8 @@ export class QueueService {
         ...entry,
         position,
         peopleAhead,
+        lateInfo: lateMap.get(entry.id) || null,
+        chatMessages: chatMap.get(entry.id) || [],
       };
     });
 
@@ -1286,5 +1415,214 @@ export class QueueService {
         scheduledOpen: true, nextOpening: null,
       };
     }
+  }
+
+  /**
+   * Customer marks that they will be late (e.g. +10 mins).
+   * Records event in queue_events and triggers chat message.
+   */
+  static async recordCustomerLate(rawToken: string, delayMinutes: number, note = '') {
+    if (!rawToken) throw new Error('MISSING_TOKEN');
+    const tokenHash = hashQueueToken(rawToken);
+    const supabase = createAdminClient();
+
+    const { data: entry, error } = await supabase
+      .from('queue_entries')
+      .select('id, restaurant_id, customer_name, status')
+      .eq('token_hash', tokenHash)
+      .maybeSingle();
+
+    if (error || !entry) {
+      throw new Error('QUEUE_ENTRY_NOT_FOUND');
+    }
+
+    if (!['WAITING', 'NOTIFIED', 'CALLED'].includes(entry.status)) {
+      throw new Error(`CANNOT_MARK_LATE: Status is ${entry.status}`);
+    }
+
+    const safeDelay = Math.min(60, Math.max(1, Number(delayMinutes) || 10));
+    const safeNote = String(note || '').slice(0, 300);
+
+    // 1. Insert CUSTOMER_LATE event
+    await supabase.from('queue_events').insert({
+      restaurant_id: entry.restaurant_id,
+      queue_entry_id: entry.id,
+      event_type: 'CUSTOMER_LATE',
+      metadata: {
+        delayMinutes: safeDelay,
+        note: safeNote,
+        reportedAt: new Date().toISOString(),
+      },
+    });
+
+    // 2. Insert chat message announcement
+    const chatMsg = `Customer reported running ~${safeDelay}m late${safeNote ? `: "${safeNote}"` : ''}`;
+    await supabase.from('queue_events').insert({
+      restaurant_id: entry.restaurant_id,
+      queue_entry_id: entry.id,
+      event_type: 'CHAT_MESSAGE',
+      metadata: {
+        sender: 'customer',
+        senderName: entry.customer_name || 'Guest',
+        message: chatMsg,
+        createdAt: new Date().toISOString(),
+      },
+    });
+
+    return {
+      success: true,
+      entryId: entry.id,
+      delayMinutes: safeDelay,
+      note: safeNote,
+    };
+  }
+
+  /**
+   * Send a chat message between customer and restaurant staff.
+   */
+  static async sendQueueChatMessage(params: {
+    rawToken?: string;
+    queueEntryId?: string;
+    restaurantId?: string;
+    sender: 'customer' | 'staff';
+    senderName?: string;
+    message: string;
+    actorUserId?: string;
+  }) {
+    const supabase = createAdminClient();
+    let entryId = params.queueEntryId;
+    let restaurantId = params.restaurantId;
+    let senderName = params.senderName;
+
+    if (params.sender === 'customer') {
+      if (!params.rawToken) throw new Error('MISSING_TOKEN');
+      const tokenHash = hashQueueToken(params.rawToken);
+      const { data: entry } = await supabase
+        .from('queue_entries')
+        .select('id, restaurant_id, customer_name')
+        .eq('token_hash', tokenHash)
+        .maybeSingle();
+
+      if (!entry) throw new Error('QUEUE_ENTRY_NOT_FOUND');
+      entryId = entry.id;
+      restaurantId = entry.restaurant_id;
+      senderName = senderName || entry.customer_name || 'Customer';
+    }
+
+    if (!entryId || !restaurantId) {
+      throw new Error('MISSING_ENTRY_OR_RESTAURANT');
+    }
+
+    const cleanMessage = String(params.message || '').trim().slice(0, 500);
+    if (!cleanMessage) {
+      throw new Error('EMPTY_MESSAGE');
+    }
+
+    const { data: inserted, error } = await supabase
+      .from('queue_events')
+      .insert({
+        restaurant_id: restaurantId,
+        queue_entry_id: entryId,
+        event_type: 'CHAT_MESSAGE',
+        actor_user_id: params.actorUserId || null,
+        metadata: {
+          sender: params.sender,
+          senderName: senderName || (params.sender === 'staff' ? 'Host Stand' : 'Guest'),
+          message: cleanMessage,
+          createdAt: new Date().toISOString(),
+        },
+      })
+      .select('id, created_at')
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to send message: ${error.message}`);
+    }
+
+    return {
+      success: true,
+      id: inserted.id,
+      entryId,
+      sender: params.sender,
+      senderName: senderName || (params.sender === 'staff' ? 'Host Stand' : 'Guest'),
+      message: cleanMessage,
+      createdAt: inserted.created_at,
+    };
+  }
+
+  /**
+   * Fetch chat messages and late notices for a queue entry.
+   */
+  static async getQueueChatHistory(queueEntryId: string) {
+    const supabase = createAdminClient();
+
+    const { data, error } = await supabase
+      .from('queue_events')
+      .select('id, event_type, metadata, created_at')
+      .eq('queue_entry_id', queueEntryId)
+      .in('event_type', ['CHAT_MESSAGE', 'CUSTOMER_LATE', 'TABLE_PASSED_TO_NEXT'])
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to fetch chat history: ${error.message}`);
+    }
+
+    return (data || []).map((ev) => {
+      const meta = (ev.metadata || {}) as Record<string, unknown>;
+      return {
+        id: ev.id,
+        eventType: ev.event_type,
+        sender: (meta.sender as 'customer' | 'staff') || 'system',
+        senderName: String(meta.senderName || (meta.sender === 'customer' ? 'Customer' : 'Host Stand')),
+        message: String(meta.message || ''),
+        createdAt: ev.created_at,
+      };
+    });
+  }
+
+  /**
+   * Restaurant passes the table to the next customer in line because the current customer is late.
+   * Keeps current customer active with held status, and posts notification.
+   */
+  static async passTableToNextCustomer(entryId: string, restaurantId: string, actorUserId?: string) {
+    const supabase = createAdminClient();
+
+    // Verify entry
+    const { data: entry } = await supabase
+      .from('queue_entries')
+      .select('id, customer_name, status, restaurant_id')
+      .eq('id', entryId)
+      .eq('restaurant_id', restaurantId)
+      .maybeSingle();
+
+    if (!entry) throw new Error('QUEUE_ENTRY_NOT_FOUND');
+
+    // Insert TABLE_PASSED_TO_NEXT event
+    await supabase.from('queue_events').insert({
+      restaurant_id: restaurantId,
+      queue_entry_id: entryId,
+      event_type: 'TABLE_PASSED_TO_NEXT',
+      actor_user_id: actorUserId || null,
+      metadata: {
+        reason: 'Customer reported late; host passed table to next waiting guest and held priority',
+        passedAt: new Date().toISOString(),
+      },
+    });
+
+    // Notify customer in chat
+    await supabase.from('queue_events').insert({
+      restaurant_id: restaurantId,
+      queue_entry_id: entryId,
+      event_type: 'CHAT_MESSAGE',
+      actor_user_id: actorUserId || null,
+      metadata: {
+        sender: 'staff',
+        senderName: 'Host Stand',
+        message: "We've seated the next waiting party to keep the floor moving. Your spot is held and you'll be seated as soon as you step in!",
+        createdAt: new Date().toISOString(),
+      },
+    });
+
+    return { success: true, entryId };
   }
 }

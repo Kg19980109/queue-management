@@ -585,6 +585,22 @@ export default async function QueueManagementPage({
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300">{(entry as unknown as { no_show_reason: string }).no_show_reason}</span>
                           )}
                         </div>
+
+                        {/* Customer Late Alert Banner */}
+                        {anyEntry.lateInfo?.isLate && (
+                          <div className="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs">
+                            <span className="material-symbols-outlined text-[15px] text-amber-400">schedule</span>
+                            <span className="font-bold">Running Late (+{anyEntry.lateInfo.delayMinutes || 10}m)</span>
+                            {anyEntry.lateInfo.note && (
+                              <span className="text-[11px] text-amber-200/80 truncate">· &ldquo;{anyEntry.lateInfo.note}&rdquo;</span>
+                            )}
+                            {anyEntry.lateInfo.tablePassedToNext && (
+                              <span className="ml-auto text-[9px] font-black uppercase px-2 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-500/40">
+                                Table Passed · Spot Held
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 

@@ -10,6 +10,8 @@ import { QueueService } from '@/lib/services/queue-service';
 import { OrderService } from '@/lib/services/order-service';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { AuthorizationService } from '@/lib/services/authorization-service';
+import { PERMISSIONS } from '@/lib/auth/permissions';
 import type { TableStatus, ZoneStatus, InventoryUnit, QueueStatus } from '@/types/database.types';
 
 /**
@@ -681,4 +683,56 @@ export async function recommendTablesAction(queueEntryId: string): Promise<Array
     combination_labels: r.combination_labels ?? [r.table_number],
     reason: r.reason,
   }));
+}
+
+export async function recordCustomerLateAction(rawToken: string, delayMinutes: number, note: string) {
+  const result = await QueueService.recordCustomerLate(rawToken, delayMinutes, note);
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/queue');
+  return result;
+}
+
+export async function sendQueueChatMessageAction(params: {
+  rawToken?: string;
+  queueEntryId?: string;
+  message: string;
+}) {
+  let sender: 'customer' | 'staff' = 'customer';
+  let actorUserId: string | undefined;
+  let restaurantId: string | undefined;
+
+  if (params.queueEntryId) {
+    sender = 'staff';
+    actorUserId = await resolveActionActor(undefined);
+    const ctx = await AuthorizationService.requirePermission({ permission: PERMISSIONS.QUEUE_VIEW });
+    restaurantId = ctx.restaurantId;
+  }
+
+  const result = await QueueService.sendQueueChatMessage({
+    rawToken: params.rawToken,
+    queueEntryId: params.queueEntryId,
+    restaurantId,
+    sender,
+    message: params.message,
+    actorUserId,
+  });
+
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/queue');
+  return result;
+}
+
+export async function passTableToNextAction(queueEntryId: string) {
+  const actorUserId = await resolveActionActor(undefined);
+  const ctx = await AuthorizationService.requirePermission({ permission: PERMISSIONS.QUEUE_VIEW });
+  if (!ctx.restaurantId) throw new Error('NO_RESTAURANT_ASSIGNED');
+
+  const result = await QueueService.passTableToNextCustomer(queueEntryId, ctx.restaurantId, actorUserId);
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/queue');
+  return result;
+}
+
+export async function getQueueChatHistoryAction(queueEntryId: string) {
+  return await QueueService.getQueueChatHistory(queueEntryId);
 }
