@@ -171,7 +171,7 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
           <button
             type="submit"
             disabled={isPending}
-            className="relative flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-sm font-black text-white shadow-lg shadow-emerald-500/25 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+            className="relative flex min-h-[48px] h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-sm font-black text-slate-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             {isPending ? (
               <>

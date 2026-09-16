@@ -36,15 +36,15 @@ export function KitchenPreOrderCard({
   return (
     <Link
       href={menuUrl}
-      className="group block rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 transition-all hover:border-orange-400/30 hover:bg-white/[0.05] active:scale-[0.99]"
+      className="group block rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 transition-all hover:border-emerald-500/30 hover:bg-white/[0.05] active:scale-[0.99]"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-400 border border-orange-400/20">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-emerald-400 border border-white/10 shadow-sm">
             <UtensilsCrossed className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-bold text-white group-hover:text-orange-200 transition-colors">
+            <p className="text-xs font-bold text-white group-hover:text-emerald-200 transition-colors">
               Hungry while you wait?
             </p>
             <p className="truncate text-[11px] text-slate-400">
@@ -52,7 +52,7 @@ export function KitchenPreOrderCard({
             </p>
           </div>
         </div>
-        <span className="shrink-0 text-xs font-bold text-orange-300 group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+        <span className="shrink-0 text-xs font-bold text-emerald-400 group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
           Menu <ArrowRight className="h-3.5 w-3.5" />
         </span>
       </div>

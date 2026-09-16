@@ -37,8 +37,8 @@ export default async function CustomerMenuPage({
   const restaurant = await PublicRestaurantService.getPublicRestaurantBySlug(slug);
   if (!restaurant) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
+      <div className="qf-bg min-h-[100dvh] text-slate-100 flex items-center justify-center p-6">
+        <div className="bg-slate-900/90 border border-white/10 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl backdrop-blur-xl">
           <div className="text-4xl">🔍</div>
           <h1 className="text-xl font-bold text-white">Restaurant Not Found</h1>
           <p className="text-xs text-slate-400 leading-relaxed">

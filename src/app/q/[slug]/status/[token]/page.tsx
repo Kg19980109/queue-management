@@ -172,9 +172,9 @@ export default async function CustomerQueueStatusPage({
           {!isTerminal && (
             <Link
               href={menuUrl}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-bold text-slate-200 transition-all hover:bg-white/10 hover:text-white active:scale-95 shrink-0"
+              className="inline-flex min-h-[40px] h-10 items-center gap-1.5 rounded-2xl border border-white/10 bg-white/5 px-3.5 text-xs font-bold text-slate-200 transition-all hover:bg-white/10 hover:text-white active:scale-95 shrink-0"
             >
-              <UtensilsCrossed aria-hidden="true" className="h-3.5 w-3.5 text-orange-400" />
+              <UtensilsCrossed aria-hidden="true" className="h-3.5 w-3.5 text-emerald-400" />
               <span>Menu</span>
             </Link>
           )}

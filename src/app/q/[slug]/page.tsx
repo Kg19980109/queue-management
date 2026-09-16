@@ -255,7 +255,7 @@ export default async function PublicRestaurantQueuePage({
             </p>
             <Link
               href={`/q/${slug}/status/${activeTicketToken}`}
-              className="qf-cta mt-3 flex h-13 min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 text-sm font-black text-white shadow-lg shadow-emerald-500/30 transition-all hover:brightness-110 active:scale-[0.98]"
+              className="qf-cta mt-3 flex h-13 min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-sm font-black text-slate-950 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.99]"
             >
               View My Ticket →
             </Link>
@@ -311,10 +311,10 @@ export default async function PublicRestaurantQueuePage({
           <MenuPreviewSection categories={menuCategories} />
           <Link
             href={`/q/${slug}/menu`}
-            className="qf-card mt-2 flex min-h-[52px] items-center justify-center gap-1.5 rounded-2xl text-[13px] font-black text-orange-300 transition-all hover:border-orange-500/30 hover:text-orange-200 active:scale-[0.99]"
+            className="mt-2 flex min-h-[52px] items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-white/5 text-[13px] font-bold text-slate-200 transition-all hover:bg-white/10 hover:text-white active:scale-[0.99]"
           >
             🍽️ View full menu
-            <ChevronRight aria-hidden="true" className="h-4 w-4" />
+            <ChevronRight aria-hidden="true" className="h-4 w-4 text-emerald-400" />
           </Link>
         </div>
       </div>

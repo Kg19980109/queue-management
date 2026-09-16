@@ -95,7 +95,7 @@ export async function TicketResumeBanner({ slug }: { slug: string }) {
         <div className="flex items-center gap-2 shrink-0">
           <Link
             href={`/q/${slug}/status/${token}`}
-            className="px-4 h-10 rounded-xl bg-white text-slate-900 font-black text-sm flex items-center gap-1.5 hover:bg-slate-100 active:scale-95 transition-all shadow"
+            className="px-4 min-h-[44px] h-11 rounded-xl bg-white text-slate-900 font-black text-sm flex items-center gap-1.5 hover:bg-slate-100 active:scale-95 transition-all shadow"
           >
             <span className="material-symbols-outlined text-[16px]">visibility</span>
             View

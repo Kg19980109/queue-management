@@ -197,8 +197,8 @@ export function CustomerLateModal({
 
       {/* Modal Dialog */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="relative w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-white/10 bg-[#0F1420] p-5 sm:p-6 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-white/10 bg-slate-900/95 backdrop-blur-xl p-5 sm:p-6 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-4">
               <div className="flex items-center gap-2.5">
@@ -323,7 +323,7 @@ export function CustomerLateModal({
                   type="button"
                   onClick={handleReportLate}
                   disabled={isSubmitting}
-                  className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 font-bold text-sm text-slate-950 shadow-lg shadow-amber-500/20 transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-2"
+                  className="w-full min-h-[48px] h-12 rounded-2xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 font-bold text-sm text-slate-950 shadow-lg shadow-amber-500/20 transition-all cursor-pointer active:scale-[0.99] flex items-center justify-center gap-2"
                 >
                   <Check className="h-4 w-4" />
                   <span>{isSubmitting ? 'Notifying Host...' : `Notify Host (+${delayMinutes} mins)`}</span>
@@ -356,7 +356,7 @@ export function CustomerLateModal({
                             className={`max-w-[82%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
                               isCustomer
                                 ? 'bg-amber-500 text-slate-950 font-medium rounded-tr-none'
-                                : 'bg-[#1E293B] border border-white/10 text-white rounded-tl-none'
+                                : 'bg-slate-800 border border-white/10 text-white rounded-tl-none'
                             }`}
                           >
                             {m.message}

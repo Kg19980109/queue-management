@@ -24,10 +24,10 @@ export function CustomerErrorState({
     variant === 'not-found' ? SearchX : variant === 'offline' ? WifiOff : AlertTriangle;
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-950 p-6 text-slate-100">
+    <div className="qf-bg flex min-h-[100dvh] items-center justify-center p-6 text-slate-100">
       <div
         role="alert"
-        className="w-full max-w-sm space-y-4 rounded-3xl border border-slate-800 bg-slate-900 p-8 text-center shadow-2xl"
+        className="w-full max-w-sm space-y-4 rounded-3xl border border-white/10 bg-slate-900/90 p-8 text-center shadow-2xl backdrop-blur-xl"
       >
         <Icon aria-hidden="true" className="mx-auto h-10 w-10 text-slate-500" />
         <h1 className="text-xl font-bold tracking-tight text-white">{title}</h1>
@@ -36,7 +36,7 @@ export function CustomerErrorState({
           <button
             type="button"
             onClick={onAction}
-            className="h-12 w-full rounded-2xl bg-emerald-500 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400 active:scale-[0.98]"
+            className="flex min-h-[48px] h-12 w-full items-center justify-center rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-black shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.99]"
           >
             {actionLabel}
           </button>

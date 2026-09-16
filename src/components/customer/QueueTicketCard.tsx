@@ -288,14 +288,14 @@ export function QueueTicketCard({
           {isCompleted ? (
             <a
               href={`/q/${restaurantSlug}`}
-              className="flex h-12 w-full items-center justify-center rounded-2xl bg-emerald-500 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400 active:scale-[0.98]"
+              className="flex min-h-[48px] h-12 w-full items-center justify-center rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-black shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.99]"
             >
               Join the queue again
             </a>
           ) : (
             <Link
               href={`/q/${restaurantSlug}/menu?qtoken=${token}`}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 text-sm font-black text-white shadow-lg shadow-orange-500/30 transition-all hover:brightness-110 active:scale-[0.98]"
+              className="flex min-h-[48px] h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-black shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.99]"
             >
               <UtensilsCrossed className="h-4 w-4" />
               <span>View Menu &amp; Order</span>
@@ -318,7 +318,7 @@ export function QueueTicketCard({
 
           <a
             href={`/q/${restaurantSlug}`}
-            className="flex h-12 w-full items-center justify-center rounded-2xl bg-emerald-500 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400 active:scale-[0.98]"
+            className="flex min-h-[48px] h-12 w-full items-center justify-center rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-black shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.99]"
           >
             Join the queue again
           </a>

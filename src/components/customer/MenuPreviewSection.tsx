@@ -51,8 +51,8 @@ export function MenuPreviewSection({ categories, currency = 'INR' }: MenuPreview
   return (
     <div className="qf-card space-y-5 rounded-3xl p-5 sm:p-6">
       <div className="space-y-1 text-center">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-400/25 bg-orange-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-orange-300">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400"></span> While you wait
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-300">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400"></span> While you wait
         </span>
         <h3 className="qf-keep-dark text-xl font-black tracking-tight text-white">
           Craving something? 😋
@@ -65,7 +65,7 @@ export function MenuPreviewSection({ categories, currency = 'INR' }: MenuPreview
       <div className="space-y-5">
         {categories.slice(0,3).map((cat) => (
           <div key={cat.id} className="space-y-2.5">
-            <h4 className="flex items-center justify-between border-b border-white/10 pb-1.5 text-[11px] font-black uppercase tracking-widest text-orange-300">
+            <h4 className="flex items-center justify-between border-b border-white/10 pb-1.5 text-[11px] font-black uppercase tracking-widest text-emerald-400">
               <span>{cat.name}</span>
               <span className="rounded-full bg-white/5 px-2 py-0.5 font-mono font-bold text-slate-400">{cat.items.length}</span>
             </h4>
@@ -74,9 +74,9 @@ export function MenuPreviewSection({ categories, currency = 'INR' }: MenuPreview
               {cat.items.slice(0,4).map((item, idx) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-all hover:border-orange-400/30 hover:bg-white/[0.06] active:scale-[0.99]"
+                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-all hover:border-emerald-500/30 hover:bg-white/[0.06] active:scale-[0.99]"
                 >
-                  <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500/25 to-amber-500/10 text-2xl">
+                  <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 border border-white/10 text-2xl shadow-sm">
                     {emojiFor(item.name, idx)}
                   </span>
                   <div className="min-w-0 flex-1">

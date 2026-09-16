@@ -47,16 +47,16 @@ export function CustomerOrdersCard({ orders, restaurantSlug, queueToken }: Custo
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-[15px] font-black tracking-tight text-white">
-          <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow">
-            <ReceiptText aria-hidden="true" className="h-4 w-4 text-white" />
+          <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-800 border border-white/10 text-emerald-400 shadow-sm">
+            <ReceiptText aria-hidden="true" className="h-4 w-4" />
           </span>
           My Orders ({orders.length})
         </h2>
         <Link
           href={menuUrl}
-          className="inline-flex min-h-[40px] items-center gap-1 rounded-full border border-orange-400/25 bg-orange-500/10 px-3 text-xs font-black text-orange-300 transition-colors hover:bg-orange-500/20"
+          className="inline-flex min-h-[40px] items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 text-xs font-bold text-slate-200 transition-colors hover:bg-white/10 hover:text-white"
         >
-          + Add more <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
+          + Add more <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 text-emerald-400" />
         </Link>
       </div>
 

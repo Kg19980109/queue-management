@@ -74,9 +74,9 @@ export function ExitDiningDialog({ token, restaurantSlug }: ExitDiningDialogProp
           role="dialog"
           aria-modal="true"
           aria-labelledby="exit-dining-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
         >
-          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0F172A] p-6 shadow-2xl animate-in fade-in zoom-in-95">
+          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900/95 backdrop-blur-xl p-6 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex flex-col items-center text-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
                 <UtensilsCrossed className="h-6 w-6" />
@@ -103,7 +103,7 @@ export function ExitDiningDialog({ token, restaurantSlug }: ExitDiningDialogProp
                 type="button"
                 disabled={isPending}
                 onClick={() => handleExit(false)}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-sm font-black text-white shadow-lg shadow-emerald-500/20 hover:brightness-110 active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                className="flex min-h-[48px] h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-sm font-black text-slate-950 shadow-lg shadow-emerald-500/20 active:scale-[0.99] cursor-pointer disabled:opacity-50"
               >
                 {isPending ? (
                   <>
@@ -113,7 +113,7 @@ export function ExitDiningDialog({ token, restaurantSlug }: ExitDiningDialogProp
                 ) : (
                   <>
                     <CheckCircle2 className="h-4 w-4" />
-                    <span>Yes, Leave Queue & Finish</span>
+                    <span>Yes, Leave Queue &amp; Finish</span>
                   </>
                 )}
               </button>
@@ -122,17 +122,17 @@ export function ExitDiningDialog({ token, restaurantSlug }: ExitDiningDialogProp
                 type="button"
                 disabled={isPending}
                 onClick={() => handleExit(true)}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-xs font-bold text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                className="flex min-h-[44px] h-11 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 text-xs font-bold text-slate-200 hover:bg-white/10 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
               >
                 <PlusCircle className="h-4 w-4 text-emerald-400" />
-                <span>Leave & Join Again (Next Meal)</span>
+                <span>Leave &amp; Join Again (Next Meal)</span>
               </button>
 
               <button
                 type="button"
                 disabled={isPending}
                 onClick={() => setIsOpen(false)}
-                className="h-9 w-full rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="flex min-h-[44px] h-11 w-full items-center justify-center rounded-2xl text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
               >
                 Still Dining / Stay on Ticket
               </button>
