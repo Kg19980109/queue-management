@@ -60,26 +60,21 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
   return (
     <section
       aria-label="Join the queue"
-      className="qf-card relative space-y-4 overflow-hidden rounded-3xl p-4 sm:space-y-6 sm:p-7 mb-24 sm:mb-0"
+      className="relative space-y-5 rounded-3xl border border-white/10 bg-slate-900/90 p-5 sm:p-7 shadow-2xl backdrop-blur-xl"
     >
-      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-emerald-400" />
-
-      <div className="relative space-y-1.5 text-center">
-        <p className="inline-flex items-center gap-1.5 rounded-full border border-orange-400/25 bg-orange-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-orange-300">
-          🎟️ Free · No app needed
-        </p>
-        <h2 className="text-xl font-black tracking-tight text-white sm:text-2xl">
+      <div className="space-y-1 text-center">
+        <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
           Save your spot in line
         </h2>
-        <p className="mx-auto max-w-[300px] px-2 text-[13px] leading-relaxed text-slate-300">
-          Tell us who&apos;s coming — we&apos;ll buzz you when your table is almost ready.
+        <p className="text-xs text-slate-400">
+          We&apos;ll notify you when your table is almost ready.
         </p>
       </div>
 
       {serverError && (
         <div
           role="alert"
-          className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-center"
+          className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-center"
         >
           <p className="flex items-center justify-center gap-1.5 text-xs font-bold text-rose-200">
             <TriangleAlert aria-hidden="true" className="h-4 w-4 shrink-0" />
@@ -91,11 +86,10 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
         </div>
       )}
 
-      <form action={formAction} onSubmit={handleSubmit} noValidate className="space-y-5">
+      <form action={formAction} onSubmit={handleSubmit} noValidate className="space-y-4">
         <input type="hidden" name="restaurantId" value={restaurant.id} />
         <input type="hidden" name="restaurantSlug" value={restaurant.slug} />
         <input type="hidden" name="partySize" value={partySize} />
-        {/* Phone is normalized trim-only on the client to match server expectations. */}
         <input type="hidden" name="customerPhone" value={normalizePhoneForSubmit(phone)} />
 
         <PartySizeSelector
@@ -110,12 +104,12 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
           }}
         />
 
-        <div className="space-y-1.5">
-          <label htmlFor="customerName" className="block text-xs font-bold uppercase tracking-widest text-white">
+        <div className="space-y-1.5 text-left">
+          <label htmlFor="customerName" className="block text-xs font-bold uppercase tracking-wider text-slate-300">
             Your name <span aria-hidden="true" className="text-emerald-400">*</span>
           </label>
           <div className="relative">
-            <User aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-500" />
+            <User aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               id="customerName"
               type="text"
@@ -133,7 +127,7 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
               }}
               aria-invalid={Boolean(fieldErrors.name)}
               aria-describedby={fieldErrors.name ? 'customerName-error' : undefined}
-              className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3.5 pl-10 pr-4 text-[16px] text-white placeholder-slate-500 transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 md:text-[15px]"
+              className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/80 py-3.5 pl-10 pr-4 text-[15px] text-white placeholder-slate-500 transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
           {fieldErrors.name && (
@@ -143,12 +137,12 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
           )}
         </div>
 
-        <div className="space-y-1.5">
-          <label htmlFor="customerPhoneDisplay" className="block text-xs font-bold uppercase tracking-widest text-white">
-            Mobile <span className="font-semibold normal-case text-slate-500">(for updates)</span>
+        <div className="space-y-1.5 text-left">
+          <label htmlFor="customerPhoneDisplay" className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+            Mobile <span className="font-normal text-slate-500">(optional)</span>
           </label>
           <div className="relative">
-            <Phone aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-500" />
+            <Phone aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
             <input
               id="customerPhoneDisplay"
               type="tel"
@@ -163,12 +157,9 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
               }}
               aria-invalid={Boolean(fieldErrors.phone)}
               aria-describedby={fieldErrors.phone ? 'customerPhone-error customerPhone-hint' : 'customerPhone-hint'}
-              className="w-full rounded-2xl border border-slate-700 bg-slate-950 py-3.5 pl-10 pr-4 text-[16px] text-white placeholder-slate-500 transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 md:text-[15px]"
+              className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/80 py-3.5 pl-10 pr-4 text-[15px] text-white placeholder-slate-500 transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
-          <p id="customerPhone-hint" className="text-[11px] text-slate-500">
-            Optional — 10-digit mobile number for status updates.
-          </p>
           {fieldErrors.phone && (
             <p id="customerPhone-error" role="alert" className="text-xs font-semibold text-rose-300">
               {fieldErrors.phone}
@@ -176,11 +167,11 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
           )}
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-950/80 backdrop-blur-xl border-t border-white/10 z-50 sm:static sm:bg-transparent sm:backdrop-blur-none sm:border-none sm:p-0">
+        <div className="pt-2">
           <button
             type="submit"
             disabled={isPending}
-            className="qf-cta relative flex h-[58px] w-full max-w-md mx-auto items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 text-[15px] font-black text-white shadow-lg shadow-orange-500/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:text-base"
+            className="relative flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-sm font-black text-white shadow-lg shadow-emerald-500/25 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             {isPending ? (
               <>
@@ -189,14 +180,14 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
               </>
             ) : (
               <>
-                <Ticket aria-hidden="true" className="h-5 w-5" />
-                Get my ticket
-                <ArrowRight aria-hidden="true" className="h-[18px] w-[18px]" />
+                <Ticket aria-hidden="true" className="h-4 w-4" />
+                <span>Get my ticket</span>
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </>
             )}
           </button>
-          <p className="text-center text-[11px] font-semibold text-slate-400 mt-2 sm:mt-3">
-            ⚡ Takes ~10 seconds · Keep this page open for live updates
+          <p className="text-center text-[11px] text-slate-400 mt-2.5">
+            Free · No app download needed
           </p>
         </div>
       </form>

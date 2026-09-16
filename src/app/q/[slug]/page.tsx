@@ -169,12 +169,7 @@ export default async function PublicRestaurantQueuePage({
     <main className="qf-bg relative flex min-h-[100dvh] flex-col justify-between overflow-hidden text-slate-100 selection:bg-orange-500/30 selection:text-orange-100">
       <LandingAutoRefresh />
 
-      {/* Warm ambient glows (decorative) */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-[460px] bg-gradient-to-b from-orange-600/15 via-emerald-900/10 to-transparent" />
-      <div aria-hidden="true" className="pointer-events-none absolute -left-[10%] -top-[10%] -z-0 h-[50%] w-[60%] rounded-full bg-orange-500/12 blur-[110px]" />
-      <div aria-hidden="true" className="pointer-events-none absolute -right-[10%] top-[15%] -z-0 h-[40%] w-[45%] rounded-full bg-emerald-500/12 blur-[110px]" />
-
-      <div className="relative z-10 mx-auto w-full max-w-md space-y-5 px-4 py-6 sm:py-8">
+      <div className="relative z-10 mx-auto w-full max-w-md space-y-4 px-4 py-5 sm:py-7">
         {/* Left queue confirmation banner */}
         {leftQueueParam && (
           <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/15 p-4 text-center shadow-lg animate-fadeUp">
@@ -186,29 +181,8 @@ export default async function PublicRestaurantQueuePage({
         {/* Resume banner (server cookie, only for active waiting/called tickets) */}
         {!leftQueueParam && !freshParam && <TicketResumeBanner slug={slug} />}
 
-        <div className="animate-fadeUp">
-          <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
-        </div>
+        <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
 
-        {/* How it works — hidden on mobile to reduce scroll, visible on desktop */}
-        <ol className="animate-fadeUp hidden sm:grid grid-cols-3 gap-2" style={{ animationDelay: '80ms' }} aria-label="How it works">
-          {[
-            { n: '1', icon: '🎟️', label: 'Join queue' },
-            { n: '2', icon: '🍽️', label: 'Pre-order food' },
-            { n: '3', icon: '🔔', label: 'Get seated' },
-          ].map((s) => (
-            <li
-              key={s.n}
-              className="qf-card flex min-w-0 flex-col items-center gap-1 overflow-hidden rounded-2xl px-1 py-3 text-center"
-            >
-              <span aria-hidden="true" className="text-xl leading-none">{s.icon}</span>
-              <span className="w-full truncate text-[10px] font-black tracking-tight text-white">{s.label}</span>
-              <span className="text-[10px] font-bold text-slate-500">Step {s.n}</span>
-            </li>
-          ))}
-        </ol>
-
-        <div className="animate-fadeUp" style={{ animationDelay: '140ms' }}>
         <QueueStatusCard
           state={landingState}
           waitingCount={waitingCount}
@@ -216,7 +190,6 @@ export default async function PublicRestaurantQueuePage({
           nextOpening={nextOpening}
           capacity={{ active: activeQueueCount, max: restaurant.maxQueueCapacity }}
         />
-        </div>
 
         <div className="animate-fadeUp space-y-4" style={{ animationDelay: '200ms' }}>
         {/* Seated guest banner — allows rejoining while keeping previous ticket accessible */}

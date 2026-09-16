@@ -1,7 +1,6 @@
 import React from 'react';
 import { Clock, CirclePause, CircleX, Users, Timer } from 'lucide-react';
 import type { QueueLandingState } from '@/lib/customer-join-ux';
-import { formatWaitLabel } from '@/lib/customer-join-ux';
 
 export interface NextOpeningInfo {
   dayOffset: number;
@@ -34,42 +33,23 @@ export function QueueStatusCard({
       <section
         aria-label="Live queue status"
         aria-live="polite"
-        className="qf-card relative overflow-hidden rounded-3xl p-5 sm:p-6"
+        className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs"
       >
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-500 via-emerald-400 to-teal-400" />
-        <div className="flex items-center gap-4">
-          <div
-            aria-hidden="true"
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg shadow-emerald-500/30"
-          >
-            <span className="relative flex h-3 w-3">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
-              <span className="relative inline-flex h-3 w-3 rounded-full bg-white" />
-            </span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-emerald-300">
-              {state === 'CLOSING_SOON' ? '⚡ Closing soon — join now' : '● Live · Join now'}
-            </p>
-            <p className="mt-1 truncate text-base font-black tracking-tight text-white">
-              {waitingCount === 0
-                ? '✨ No wait — walk right in'
-                : `${waitingCount} ${waitingCount === 1 ? 'party' : 'parties'} waiting`}
-            </p>
-          </div>
-          <div className="shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center">
-            <p className="flex items-center justify-center gap-1 text-2xl font-black tabular-nums tracking-tight text-white">
-              <Clock aria-hidden="true" className="h-5 w-5 text-amber-400" />
-              {waitLabel ?? formatWaitLabel(null)}
-            </p>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">est. wait</p>
-          </div>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          </span>
+          <span className="truncate font-bold text-white">
+            {waitingCount === 0
+              ? 'No wait right now'
+              : `${waitingCount} ${waitingCount === 1 ? 'party' : 'parties'} in line`}
+          </span>
         </div>
-        {state === 'CLOSING_SOON' && (
-          <p className="mt-3 rounded-2xl border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-center text-xs font-semibold text-amber-200">
-            ⏰ The queue is nearing closing. Join now while spots are still available.
-          </p>
-        )}
+        <div className="flex items-center gap-1.5 font-mono font-bold text-amber-300 shrink-0">
+          <Clock aria-hidden="true" className="h-3.5 w-3.5 text-amber-400" />
+          <span>{waitLabel ?? 'No wait'}</span>
+        </div>
       </section>
     );
   }

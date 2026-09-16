@@ -6,7 +6,6 @@ import { QueueService } from '@/lib/services/queue-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { QueueTicketCard } from '@/components/customer/QueueTicketCard';
 import { TicketNotificationBanner, type TicketNotification } from '@/components/customer/TicketNotificationBanner';
-import { PartyPreferencesCard } from '@/components/customer/PartyPreferencesCard';
 import { KitchenPreOrderCard } from '@/components/customer/KitchenPreOrderCard';
 import { CustomerOrdersCard } from '@/components/customer/CustomerOrdersCard';
 import { OrderService } from '@/lib/services/order-service';
@@ -148,18 +147,21 @@ export default async function CustomerQueueStatusPage({
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[380px] bg-gradient-to-b from-orange-600/12 via-emerald-900/10 to-transparent" />
 
       <div className="relative z-10 mx-auto w-full max-w-md flex-1 space-y-4 px-4 py-6 sm:py-8">
-        {/* Slim top bar: restaurant + live context + menu. No app shell. */}
-        <header className="animate-fadeUp flex items-center justify-between gap-3">
+        {/* Streamlined Restaurant Header */}
+        <header className="flex items-center justify-between gap-3 pt-1 pb-1">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <div aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-rose-500 text-base font-black text-white shadow-lg shadow-orange-500/30">
+            <div
+              aria-hidden="true"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-800 border border-white/10 text-sm font-black text-white shadow-sm"
+            >
               {restaurant.name.slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-[15px] font-black tracking-tight text-white">
+              <p className="truncate text-sm font-black text-white leading-tight">
                 {restaurant.name}
               </p>
-              <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-300">
-                <span aria-hidden="true" className="relative flex h-1.5 w-1.5">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400">
+                <span className="relative flex h-1.5 w-1.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
                 </span>
@@ -170,32 +172,13 @@ export default async function CustomerQueueStatusPage({
           {!isTerminal && (
             <Link
               href={menuUrl}
-              className="qf-cta inline-flex min-h-[48px] shrink-0 items-center gap-1.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-5 text-[13px] font-black text-white shadow-lg shadow-orange-500/30 transition-all hover:brightness-110 active:scale-95"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-bold text-slate-200 transition-all hover:bg-white/10 hover:text-white active:scale-95 shrink-0"
             >
-              <UtensilsCrossed aria-hidden="true" className="h-4 w-4" />
-              Menu
+              <UtensilsCrossed aria-hidden="true" className="h-3.5 w-3.5 text-orange-400" />
+              <span>Menu</span>
             </Link>
           )}
         </header>
-
-        {/* Journey steps: Ticket → Order → Seated */}
-        {!isTerminal && (
-          <ol aria-label="Your journey" className="animate-fadeUp flex items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.03] p-3" style={{ animationDelay: '60ms' }}>
-            {[
-              { label: 'Ticket', icon: '🎟️', done: true, now: status.status === 'WAITING' },
-              { label: 'Order', icon: '🍽️', done: myOrders.length > 0, now: false },
-              { label: 'Seated', icon: '🪑', done: false, now: ['NOTIFIED', 'CALLED'].includes(status.status) },
-            ].map((s, i, arr) => (
-              <li key={s.label} className="flex min-w-0 flex-1 items-center gap-0.5">
-                <span className={`flex min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-xl px-1.5 py-2 text-[10px] font-black whitespace-nowrap ${s.done ? 'bg-emerald-500/15 text-emerald-300' : s.now ? 'bg-orange-500/15 text-orange-300' : 'text-slate-500'}`}>
-                  <span aria-hidden="true" className="shrink-0 text-xs">{s.icon}</span>
-                  <span className="truncate">{s.done ? '✓ ' : ''}{s.label}</span>
-                </span>
-                {i < arr.length - 1 && <span aria-hidden="true" className="shrink-0 px-0.5 text-slate-600">›</span>}
-              </li>
-            ))}
-          </ol>
-        )}
 
         {/* Hero ticket */}
         <TicketNotificationBanner notification={ticketNotification} />
@@ -209,15 +192,12 @@ export default async function CustomerQueueStatusPage({
         />
 
         {!isTerminal && (
-          <div className="space-y-4">
+          <div className="space-y-3 pt-1">
             <CustomerOrdersCard
               orders={myOrders}
               restaurantSlug={slug}
               queueToken={token}
             />
-            {/* Phase 4G: the pre-order upsell stays for WAITING/NOTIFIED but
-                steps aside when CALLED — the return-to-restaurant hero owns
-                that moment. The top-bar Menu link remains as neutral nav. */}
             {status.status !== 'CALLED' && (
               <KitchenPreOrderCard
                 queueNumber={status.displayNumber || ''}
@@ -226,11 +206,6 @@ export default async function CustomerQueueStatusPage({
                 categories={menuCategories}
               />
             )}
-            <PartyPreferencesCard
-              customerName={status.customerName}
-              phone={null}
-              partySize={status.partySize}
-            />
           </div>
         )}
       </div>
