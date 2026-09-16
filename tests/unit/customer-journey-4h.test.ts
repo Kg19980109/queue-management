@@ -69,7 +69,7 @@ describe('Phase 4H: journey consistency', () => {
   // Seated consistency.
   it('seated hides waiting metrics and keeps menu/order reachable', () => {
     expect(ticketStateMeta('SEATED').showWaitInfo).toBe(false);
-    expect(read('components/customer/QueueTicketCard.tsx')).toContain('View Restaurant Menu');
+    expect(read('components/customer/QueueTicketCard.tsx')).toContain('View Menu');
   });
 
   // Terminal consistency.

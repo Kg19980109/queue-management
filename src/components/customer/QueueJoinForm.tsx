@@ -60,7 +60,7 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
   return (
     <section
       aria-label="Join the queue"
-      className="qf-card relative space-y-5 overflow-hidden rounded-3xl p-5 sm:space-y-6 sm:p-7"
+      className="qf-card relative space-y-4 overflow-hidden rounded-3xl p-4 sm:space-y-6 sm:p-7 mb-24 sm:mb-0"
     >
       <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-emerald-400" />
 
@@ -176,27 +176,29 @@ export function QueueJoinForm({ restaurant }: QueueJoinFormProps) {
           )}
         </div>
 
-        <button
-          type="submit"
-          disabled={isPending}
-          className="qf-cta relative flex h-[58px] w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 text-[15px] font-black text-white shadow-lg shadow-orange-500/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:text-base"
-        >
-          {isPending ? (
-            <>
-              <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin" />
-              <span role="status">Securing your spot…</span>
-            </>
-          ) : (
-            <>
-              <Ticket aria-hidden="true" className="h-5 w-5" />
-              Get my ticket
-              <ArrowRight aria-hidden="true" className="h-[18px] w-[18px]" />
-            </>
-          )}
-        </button>
-        <p className="text-center text-[11px] font-semibold text-slate-400">
-          ⚡ Takes ~10 seconds · Keep this page open for live updates
-        </p>
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-950/80 backdrop-blur-xl border-t border-white/10 z-50 sm:static sm:bg-transparent sm:backdrop-blur-none sm:border-none sm:p-0">
+          <button
+            type="submit"
+            disabled={isPending}
+            className="qf-cta relative flex h-[58px] w-full max-w-md mx-auto items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 text-[15px] font-black text-white shadow-lg shadow-orange-500/30 transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:text-base"
+          >
+            {isPending ? (
+              <>
+                <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin" />
+                <span role="status">Securing your spot…</span>
+              </>
+            ) : (
+              <>
+                <Ticket aria-hidden="true" className="h-5 w-5" />
+                Get my ticket
+                <ArrowRight aria-hidden="true" className="h-[18px] w-[18px]" />
+              </>
+            )}
+          </button>
+          <p className="text-center text-[11px] font-semibold text-slate-400 mt-2 sm:mt-3">
+            ⚡ Takes ~10 seconds · Keep this page open for live updates
+          </p>
+        </div>
       </form>
     </section>
   );

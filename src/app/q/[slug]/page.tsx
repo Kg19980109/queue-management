@@ -190,8 +190,8 @@ export default async function PublicRestaurantQueuePage({
           <RestaurantHeader restaurant={restaurant} waitingCount={waitingCount} />
         </div>
 
-        {/* How it works — 3 glanceable steps for first-time guests */}
-        <ol className="animate-fadeUp grid grid-cols-3 gap-2" style={{ animationDelay: '80ms' }} aria-label="How it works">
+        {/* How it works — hidden on mobile to reduce scroll, visible on desktop */}
+        <ol className="animate-fadeUp hidden sm:grid grid-cols-3 gap-2" style={{ animationDelay: '80ms' }} aria-label="How it works">
           {[
             { n: '1', icon: '🎟️', label: 'Join queue' },
             { n: '2', icon: '🍽️', label: 'Pre-order food' },

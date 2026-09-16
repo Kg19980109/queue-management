@@ -414,9 +414,27 @@ export function FloorManagerClient({
         </div>
 
         {/* Right Side: Smart Table Inspector */}
-        <div className="w-full lg:w-[380px] xl:w-[420px] bg-[#0D121F] border-t lg:border-t-0 lg:border-l border-white/5 flex flex-col shrink-0 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative z-20 h-auto lg:h-full max-h-[50vh] lg:max-h-full overflow-y-auto">
+        {/* Mobile overlay backdrop */}
+        <div 
+          className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ${selectedTable ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+          onClick={() => setSelectedTableId(null)}
+        />
+        <div className={`
+          fixed lg:static inset-x-0 bottom-0 z-50 lg:z-20
+          w-full lg:w-[380px] xl:w-[420px] 
+          h-[85vh] lg:h-full max-h-[85vh] lg:max-h-full 
+          bg-[#0D121F] lg:border-t-0 lg:border-l border-t border-white/10 rounded-t-3xl lg:rounded-none
+          flex flex-col shrink-0 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] lg:shadow-none
+          transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]
+          ${selectedTable ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'}
+        `}>
+          {/* Mobile Handle */}
+          <div className="lg:hidden flex items-center justify-center pt-4 pb-2 w-full cursor-pointer" onClick={() => setSelectedTableId(null)}>
+            <div className="w-12 h-1.5 rounded-full bg-white/20"></div>
+          </div>
+          
           {selectedTable ? (
-            <div className="flex flex-col p-5 sm:p-6 gap-6 h-full min-h-0">
+            <div className="flex flex-col p-5 sm:p-6 gap-6 h-full min-h-0 overflow-y-auto custom-scrollbar pb-10 lg:pb-5">
               {/* Header */}
               <div className="flex items-start justify-between shrink-0">
                 <div className="flex items-center gap-3">

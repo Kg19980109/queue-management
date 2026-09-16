@@ -184,7 +184,7 @@ export function LiveQueueFeedClient({
   return (
     <div className="flex flex-col gap-4">
       {/* Search & Filter Tabs Bar */}
-      <div className="flex flex-col gap-3 p-4 rounded-2xl bg-[#111827]/90 border border-white/10 shadow-sm backdrop-blur-md">
+      <div className="flex flex-col gap-3 p-3 sm:p-4 rounded-2xl bg-[#111827]/95 border border-white/10 shadow-sm backdrop-blur-xl sticky top-0 z-40 sm:relative sm:top-auto sm:z-auto">
         <div className="relative w-full">
           <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
             search
@@ -356,7 +356,9 @@ export function LiveQueueFeedClient({
             return (
               <div
                 key={entry.id}
-                className={`relative p-4 sm:p-5 rounded-2xl border flex flex-col gap-3.5 overflow-hidden transition-all duration-200 group ${cardTheme.container} ${
+                className={`relative overflow-hidden rounded-2xl p-3 sm:p-4 transition-all duration-300 group ${
+                  cardTheme.container
+                } ${
                   loading ? 'opacity-50 pointer-events-none' : ''
                 }`}
               >

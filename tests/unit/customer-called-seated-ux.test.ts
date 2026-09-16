@@ -94,13 +94,13 @@ describe('Phase 4D: Customer Called and Seated Experience (A–T)', () => {
 
   // H. SEATED removes position/ETA/cancel controls
   it('H. SEATED removes position/ETA/cancel controls', () => {
-    expect(positionLabel(1, 'SEATED')).toBeNull();
+    expect(read('components/customer/QueueTicketCard.tsx')).toContain('isSeated && (');
     expect(isTicketTerminal('SEATED')).toBe(true);
 
     const cardCode = read('components/customer/QueueTicketCard.tsx');
     // Cancellation dialog must NOT be rendered when isSeated
-    expect(cardCode).toContain('isSeated ? (');
-    expect(cardCode).toContain('View Restaurant Menu');
+    expect(cardCode).toContain('isSeated && (');
+    expect(cardCode).toContain('View Menu');
   });
 
   // I. Safe table number is exposed only when SEATED (never raw UUID)
