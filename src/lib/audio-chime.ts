@@ -102,39 +102,43 @@ class AudioChimeEngine {
   }
 
   /**
-   * Soothing Restaurant Notification Chime for customer devices.
-   * Plays a warm, melodic acoustic bell harmonic sequence (C5 -> E5 -> G5 -> C6)
-   * with smooth natural decay, coupled with gentle phone haptic vibration.
+   * Loud, High-Attention Restaurant Pager Buzzer Sound for customer devices.
+   * Plays a distinct, loud 2-burst resonant harmonic bell sequence with rich presence
+   * coupled with strong tactile phone vibration.
    */
   playBuzzerSound() {
-    // 1. Hardware vibration on mobile devices
-    this.triggerPhoneVibration([300, 120, 300, 120, 500]);
+    // 1. Strong hardware vibration on mobile devices
+    this.triggerPhoneVibration([350, 100, 350, 100, 600, 150, 600]);
 
-    // 2. Audible soothing acoustic chime synth
+    // 2. High-audibility resonant chime synth
     try {
       const ctx = this.getContext();
       if (!ctx) return;
       const now = ctx.currentTime;
 
-      // Soothing 4-note ascending bell chime: C5 -> E5 -> G5 -> C6
+      // Burst 1: Alert Ding-Dong (C5 -> G5)
+      // Burst 2: Full resonant confirmation chord (C5 + E5 + G5 + C6)
       const notes = [
-        { freq: 523.25, time: 0, dur: 0.7, vol: 0.2 },
-        { freq: 659.25, time: 0.16, dur: 0.7, vol: 0.22 },
-        { freq: 783.99, time: 0.32, dur: 0.75, vol: 0.25 },
-        { freq: 1046.50, time: 0.48, dur: 1.1, vol: 0.28 },
+        // Burst 1 - Alert chime
+        { freq: 659.25, time: 0, dur: 0.35, vol: 0.45, type: 'sine' as const },
+        { freq: 880.00, time: 0.12, dur: 0.45, vol: 0.55, type: 'triangle' as const },
+        
+        // Burst 2 - Loud Pager Buzzer Chord (0.45s later)
+        { freq: 523.25, time: 0.45, dur: 0.8, vol: 0.4, type: 'triangle' as const },
+        { freq: 659.25, time: 0.45, dur: 0.85, vol: 0.45, type: 'sine' as const },
+        { freq: 783.99, time: 0.45, dur: 0.9, vol: 0.5, type: 'sine' as const },
+        { freq: 1046.50, time: 0.45, dur: 1.2, vol: 0.6, type: 'triangle' as const },
       ];
 
-      notes.forEach(({ freq, time, dur, vol }) => {
+      notes.forEach(({ freq, time, dur, vol, type }) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
-        // Warm pure sine wave with subtle harmonic body
-        osc.type = 'sine';
+        osc.type = type;
         osc.frequency.setValueAtTime(freq, now + time);
 
-        // Gentle acoustic envelope: smooth attack -> resonant exponential decay
         gain.gain.setValueAtTime(0.001, now + time);
-        gain.gain.linearRampToValueAtTime(vol, now + time + 0.03);
+        gain.gain.linearRampToValueAtTime(vol, now + time + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + time + dur);
 
         osc.connect(gain);

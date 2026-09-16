@@ -36,11 +36,11 @@ export function KitchenPreOrderCard({
   return (
     <Link
       href={menuUrl}
-      className="group block rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 transition-all hover:border-emerald-500/30 hover:bg-white/[0.05] active:scale-[0.99]"
+      className="group block rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-slate-900/40 to-slate-900/60 p-3.5 transition-all hover:border-emerald-500/40 hover:from-emerald-500/15 active:scale-[0.99] shadow-sm"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-emerald-400 border border-white/10 shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm">
             <UtensilsCrossed className="h-5 w-5" />
           </div>
           <div className="min-w-0">

@@ -143,8 +143,9 @@ export default async function CustomerQueueStatusPage({
       <TicketCookieSync slug={slug} token={token} isTerminal={Boolean(status.completedAt) || (isTerminal && status.status !== 'SEATED')} />
       <CustomerQueueRealtime entryId={status.entryId} isTerminal={isTerminal} />
 
-      {/* Warm ambient glow (decorative) */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[380px] bg-gradient-to-b from-orange-600/12 via-emerald-900/10 to-transparent" />
+      {/* Warm ambient glows (decorative, vibrant lighting) */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-gradient-to-b from-emerald-600/15 via-orange-600/10 to-transparent" />
+      <div aria-hidden="true" className="pointer-events-none absolute top-6 left-1/2 -translate-x-1/2 h-72 w-72 rounded-full bg-gradient-to-tr from-cyan-500/10 via-emerald-500/10 to-amber-500/10 blur-3xl" />
 
       <div className="relative z-10 mx-auto w-full max-w-md flex-1 space-y-4 px-4 py-6 sm:py-8">
         {/* Streamlined Restaurant Header */}
@@ -152,7 +153,7 @@ export default async function CustomerQueueStatusPage({
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <div
               aria-hidden="true"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-800 border border-white/10 text-sm font-black text-white shadow-sm"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-emerald-500/30 text-emerald-300 text-sm font-black shadow-md shadow-emerald-500/10"
             >
               {restaurant.name.slice(0, 1).toUpperCase()}
             </div>
@@ -172,7 +173,7 @@ export default async function CustomerQueueStatusPage({
           {!isTerminal && (
             <Link
               href={menuUrl}
-              className="inline-flex min-h-[40px] h-10 items-center gap-1.5 rounded-2xl border border-white/10 bg-white/5 px-3.5 text-xs font-bold text-slate-200 transition-all hover:bg-white/10 hover:text-white active:scale-95 shrink-0"
+              className="inline-flex min-h-[40px] h-10 items-center gap-1.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 text-xs font-bold text-emerald-200 transition-all hover:bg-emerald-500/20 active:scale-95 shrink-0 shadow-sm shadow-emerald-500/10"
             >
               <UtensilsCrossed aria-hidden="true" className="h-3.5 w-3.5 text-emerald-400" />
               <span>Menu</span>
