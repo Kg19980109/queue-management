@@ -26,11 +26,11 @@ export async function generateMetadata({
 }
 
 const ORDER_STEPS = [
-  { key: 'PLACED', label: 'Placed', icon: '📝' },
-  { key: 'CONFIRMED', label: 'Confirmed', icon: '✅' },
-  { key: 'PREPARING', label: 'Preparing', icon: '🍳' },
-  { key: 'READY', label: 'Ready', icon: '🔔' },
-  { key: 'SERVED', label: 'Served', icon: '🍽️' },
+  { key: 'PLACED', label: 'Received' },
+  { key: 'CONFIRMED', label: 'Confirmed' },
+  { key: 'PREPARING', label: 'Preparing' },
+  { key: 'READY', label: 'Ready' },
+  { key: 'SERVED', label: 'Served' },
 ];
 
 export default async function CustomerOrderStatusPage({
@@ -60,30 +60,46 @@ export default async function CustomerOrderStatusPage({
 
   if (!restaurant || !orderDetails) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
-          <div className="text-4xl">📦</div>
-          <h1 className="text-xl font-bold text-white">Order Not Found</h1>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            We couldn&apos;t find an active order for this token.
-          </p>
+      <main className="qf-bg flex min-h-[100dvh] items-center justify-center p-6 text-slate-100">
+        <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900/90 p-8 text-center space-y-4 shadow-2xl backdrop-blur-xl">
+          <div className="text-4xl" aria-hidden="true">📦</div>
+          <div className="space-y-1">
+            <h1 className="text-lg font-bold text-white">Order unavailable</h1>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              We couldn&apos;t load this order right now.
+            </p>
+          </div>
+          <a
+            href={`/q/${slug}`}
+            className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-white/10 text-xs font-bold text-white hover:bg-white/15 transition-colors"
+          >
+            Return to restaurant
+          </a>
         </div>
-      </div>
+      </main>
     );
   }
 
   // Tenant Isolation Check
   if (orderDetails.restaurantId !== restaurant.id) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-sm w-full text-center space-y-4 shadow-2xl">
-          <div className="text-4xl">🛡️</div>
-          <h1 className="text-xl font-bold text-rose-400">Access Denied</h1>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            This order token belongs to a different restaurant. Cross-tenant access is denied.
-          </p>
+      <main className="qf-bg flex min-h-[100dvh] items-center justify-center p-6 text-slate-100">
+        <div className="w-full max-w-sm rounded-3xl border border-rose-500/20 bg-slate-900/90 p-8 text-center space-y-4 shadow-2xl backdrop-blur-xl">
+          <div className="text-4xl" aria-hidden="true">🛡️</div>
+          <div className="space-y-1">
+            <h1 className="text-lg font-bold text-rose-300">Access Denied</h1>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              This order belongs to a different restaurant. Cross-restaurant access is restricted.
+            </p>
+          </div>
+          <a
+            href={`/q/${slug}`}
+            className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-white/10 text-xs font-bold text-white hover:bg-white/15 transition-colors"
+          >
+            Return to restaurant
+          </a>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -112,181 +128,224 @@ export default async function CustomerOrderStatusPage({
   };
 
   const currentStep = getStepIndex(orderDetails.status);
+  const isCancelled = orderDetails.status === 'CANCELLED';
+  const isPaid = orderDetails.paymentStatus === 'PAID';
 
   return (
-    <main className="qf-bg flex min-h-screen flex-col justify-between px-4 py-8 text-slate-100 selection:bg-orange-500 selection:text-white">
-      <div className="mx-auto w-full max-w-md space-y-5">
+    <main className="qf-bg flex min-h-[100dvh] flex-col justify-between px-4 py-6 text-slate-100 selection:bg-orange-500 selection:text-white sm:py-8">
+      <div className="mx-auto w-full max-w-md space-y-4 sm:space-y-5">
         <RestaurantHeader restaurant={restaurant} />
 
+        {/* CALLED Turn Priority Banner */}
         {queueCalled && qtoken && (
           <Link
             href={`/q/${slug}/status/${qtoken}`}
-            className="flex items-center gap-3 rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4 shadow-lg transition-all hover:bg-sky-500/15 active:scale-[0.99]"
+            className="flex items-center gap-3 rounded-2xl border border-sky-400/40 bg-sky-500/10 p-3.5 shadow-md transition-all hover:bg-sky-500/15 active:scale-[0.99]"
           >
             <span aria-hidden="true" className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75 motion-safe:animate-ping" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-black text-white">Your turn is here — please return 📢</span>
-              <span className="block text-[11px] font-semibold text-sky-200/90">Your order is safe — tap to open your ticket</span>
+              <span className="block text-sm font-bold text-white">Your turn is here — please return 📢</span>
+              <span className="block text-xs text-sky-200/80">Your order is safe · tap to open your ticket</span>
             </span>
-            <span aria-hidden="true" className="shrink-0 text-sky-300">→</span>
+            <span aria-hidden="true" className="shrink-0 text-sky-300 font-bold">→</span>
           </Link>
         )}
 
-        {/* Order Success Header Banner */}
-        <div className="qf-card animate-fadeUp relative space-y-3 overflow-hidden rounded-3xl p-6 text-center">
-          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-teal-400 to-orange-400" />
-          <div className="animate-checkPop mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-3xl font-black text-white shadow-xl shadow-emerald-500/40">
-            ✓
-          </div>
-          <div>
-            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-300">
-              🎉 Order confirmed
-            </span>
-            <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
+        {/* PRIMARY HERO CARD: ORDER STATUS & CONFIRMATION */}
+        <section
+          aria-label={`Order #${orderDetails.orderNumber} status`}
+          className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-900/90 p-5 sm:p-7 shadow-2xl backdrop-blur-xl text-center space-y-5"
+        >
+          {/* Header & Order Number */}
+          <div className="space-y-1.5">
+            <div>
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                  isCancelled
+                    ? 'bg-rose-500/15 border border-rose-500/25 text-rose-300'
+                    : orderDetails.status === 'READY'
+                    ? 'bg-sky-500/15 border border-sky-500/25 text-sky-300'
+                    : orderDetails.status === 'SERVED'
+                    ? 'bg-emerald-500/15 border border-emerald-500/25 text-emerald-300'
+                    : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-300'
+                }`}
+              >
+                <span>{isCancelled ? '✕' : '✓'}</span>
+                <span>{isCancelled ? 'Order cancelled' : 'Order placed'}</span>
+              </span>
+            </div>
+
+            <h1 className="font-mono text-3xl sm:text-4xl font-black tracking-tight text-white tabular-nums my-1 motion-safe:animate-numberPop">
               Order #{orderDetails.orderNumber}
-            </h2>
+            </h1>
+
+            <p className="text-xs sm:text-sm text-slate-300 max-w-[280px] mx-auto leading-relaxed">
+              {customerOrderStatusCopy(orderDetails.status)}
+            </p>
           </div>
-          <p className="text-[13px] leading-relaxed text-slate-200">
-            {customerOrderStatusCopy(orderDetails.status)}
-          </p>
-        </div>
 
-        {/* FSM Progress Timeline */}
-        {orderDetails.status !== 'CANCELLED' && (
-          <div className="qf-card animate-fadeUp space-y-4 rounded-3xl p-6" style={{ animationDelay: '100ms' }}>
-            <h3 className="text-center text-[11px] font-black uppercase tracking-widest text-slate-300">
-              👨‍🍳 Live kitchen progress
-            </h3>
-            <div className="flex items-center justify-between gap-1">
-              {ORDER_STEPS.map((step, idx) => {
-                const isDone = idx <= currentStep;
-                const isCurrent = idx === currentStep;
+          {/* Simple Linear Progress Track */}
+          {!isCancelled && (
+            <div className="pt-2 border-t border-white/5 space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-bold px-1 text-slate-400">
+                {ORDER_STEPS.map((step, idx) => {
+                  const isDone = idx <= currentStep;
+                  const isCurrent = idx === currentStep;
 
-                return (
-                  <div
-                    key={step.key}
-                    className="flex flex-col items-center flex-1 space-y-1.5 text-center"
-                  >
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold transition-all ${
-                        isCurrent
-                          ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-400'
-                          : isDone
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-slate-950 text-slate-600 border border-slate-800'
-                      }`}
-                    >
-                      {step.icon}
-                    </div>
+                  return (
                     <span
-                      className={`text-[10px] font-bold ${
+                      key={step.key}
+                      className={
                         isCurrent
-                          ? 'text-emerald-400 font-extrabold'
+                          ? 'text-emerald-300 font-extrabold'
                           : isDone
-                          ? 'text-slate-300'
+                          ? 'text-white'
                           : 'text-slate-600'
-                      }`}
+                      }
                     >
                       {step.label}
                     </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Queue Boundary Callout */}
-        <div className="flex items-start gap-3 rounded-3xl border border-amber-400/25 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-200">
-          <span className="text-xl">⏳</span>
-          <div>
-            <strong>Good news:</strong> ordering food doesn&apos;t affect your queue spot — your place in line is still saved! 🎟️
-          </div>
-        </div>
-
-        {/* Order Details & Price Snapshots */}
-        <div className="qf-card animate-fadeUp space-y-4 rounded-3xl p-6" style={{ animationDelay: '160ms' }}>
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Order Items
-            </h3>
-            <span className="text-xs font-mono font-bold text-amber-400">
-              {formatPrice(orderDetails.total)}
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            {orderDetails.items.map((item: { id: string; name: string; quantity: number; totalPrice: number; specialInstructions?: string | null }) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between text-xs py-1 border-b border-slate-800/40 last:border-0"
-              >
-                <div>
-                  <div className="font-bold text-white">
-                    {item.quantity} × {item.name}
-                  </div>
-                  {item.specialInstructions && (
-                    <div className="text-[10px] text-slate-400 italic">
-                      Note: {item.specialInstructions}
-                    </div>
-                  )}
-                </div>
-                <div className="font-mono text-slate-300 font-semibold">
-                  {formatPrice(item.totalPrice)}
-                </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Payment Status Card (Strictly Decoupled Domain) */}
-        <div className="qf-card animate-fadeUp space-y-4 rounded-3xl p-6" style={{ animationDelay: '220ms' }}>
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Payment Status
-            </h3>
-            <span className="text-xs font-mono font-bold text-emerald-400">
-              {formatPrice(Number(orderDetails.total))}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <div className="text-sm font-bold text-white">
-                {orderDetails.paymentStatus === 'PAID' ? '✓ Paid' : 'Pending Payment'}
-              </div>
-              <div className="text-xs text-slate-400">
-                {orderDetails.paymentStatus === 'PAID'
-                  ? 'Payment confirmed by restaurant / gateway.'
-                  : 'Pay online or choose pay at restaurant.'}
+              {/* Smooth progress bar */}
+              <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-emerald-400 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.max(12, ((currentStep + 1) / ORDER_STEPS.length) * 100)}%` }}
+                />
               </div>
             </div>
-            <a
-              href={qtoken ? `/q/${slug}/payment/${token}?qtoken=${encodeURIComponent(qtoken)}` : `/q/${slug}/payment/${token}`}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-md min-h-[44px] inline-flex items-center"
-            >
-              {orderDetails.paymentStatus === 'PAID' ? 'View Receipt' : `Pay ${formatPrice(Number(orderDetails.total))}`}
-            </a>
-          </div>
-        </div>
+          )}
 
-        {/* Action Button: Back to Queue Ticket (never the join form) */}
-        <a
-          href={qtoken ? `/q/${slug}/status/${qtoken}` : `/q/${slug}`}
-          className="block w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-white font-bold text-xs text-center transition-all shadow-lg"
-        >
-          {qtoken ? '← Back to My Ticket' : '← Back to Digital Queue'}
-        </a>
-        {!qtoken && (
-          <p className="text-center text-[11px] text-slate-500">
-            Tip: open this page from your queue ticket to get a direct back link.
+          {/* ORDER RECEIPT & ITEMS */}
+          <div className="pt-4 border-t border-white/10 space-y-3 text-left">
+            <div className="flex items-center justify-between px-0.5">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Order Items
+              </h2>
+              <span className="text-xs font-semibold text-slate-500">
+                {orderDetails.items.length} {orderDetails.items.length === 1 ? 'item' : 'items'}
+              </span>
+            </div>
+
+            <div className="divide-y divide-white/5">
+              {orderDetails.items.map((item: { id: string; name: string; quantity: number; totalPrice: number; specialInstructions?: string | null }) => (
+                <div
+                  key={item.id}
+                  className="flex items-start justify-between py-2.5 text-xs first:pt-0 last:pb-0"
+                >
+                  <div className="space-y-0.5 min-w-0 flex-1 pr-3">
+                    <p className="font-semibold text-white leading-snug">
+                      {item.quantity} × {item.name}
+                    </p>
+                    {item.specialInstructions && (
+                      <p className="text-[11px] text-slate-400 italic">
+                        Note: “{item.specialInstructions}”
+                      </p>
+                    )}
+                  </div>
+                  <span className="font-mono font-semibold text-white shrink-0">
+                    {formatPrice(item.totalPrice)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Bill Summary */}
+            <div className="pt-3 border-t border-white/10 space-y-1.5 text-xs text-slate-400">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span className="font-mono text-slate-200">
+                  {formatPrice(orderDetails.subtotal ?? orderDetails.total)}
+                </span>
+              </div>
+              {typeof orderDetails.tax === 'number' && orderDetails.tax > 0 && (
+                <div className="flex justify-between">
+                  <span>Taxes &amp; Fees</span>
+                  <span className="font-mono text-slate-200">{formatPrice(orderDetails.tax)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-baseline pt-2 border-t border-white/5 text-white font-bold">
+                <span className="text-sm">Total Amount</span>
+                <span className="font-mono text-xl font-black text-emerald-400">
+                  {formatPrice(orderDetails.total)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* PAYMENT STATUS & PRIMARY ACTION */}
+          <div className="pt-3 border-t border-white/10 space-y-3">
+            {isPaid ? (
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-left">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300 text-sm font-bold">
+                    ✓
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold text-emerald-300">Payment completed</p>
+                    <p className="text-[11px] text-emerald-200/70">Payment confirmed by restaurant</p>
+                  </div>
+                </div>
+                <a
+                  href={qtoken ? `/q/${slug}/payment/${token}?qtoken=${encodeURIComponent(qtoken)}` : `/q/${slug}/payment/${token}`}
+                  className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+                >
+                  Receipt →
+                </a>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <a
+                  href={qtoken ? `/q/${slug}/payment/${token}?qtoken=${encodeURIComponent(qtoken)}` : `/q/${slug}/payment/${token}`}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-black transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.99]"
+                >
+                  <span>Pay {formatPrice(Number(orderDetails.total))}</span>
+                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                </a>
+                <p className="text-center text-[11px] text-slate-400">
+                  Pay online now or pay at the restaurant checkout.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Queue Spot Reassurance */}
+        <div className="flex items-center gap-2.5 rounded-2xl border border-white/5 bg-white/[0.02] p-3 text-left">
+          <span className="text-base shrink-0" aria-hidden="true">🎟️</span>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Ordering food does not affect your queue spot — your place in line remains active!
           </p>
-        )}
+        </div>
+
+        {/* Navigation & Secondary Actions */}
+        <div className="space-y-2 pt-1">
+          <a
+            href={qtoken ? `/q/${slug}/status/${qtoken}` : `/q/${slug}`}
+            className="flex h-11 w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xs font-bold text-slate-200 hover:bg-white/10 hover:text-white transition-colors"
+          >
+            {qtoken ? '← Back to My Ticket' : '← Back to Digital Queue'}
+          </a>
+
+          <div className="text-center pt-1">
+            <Link
+              href={`/q/${slug}/menu${qtoken ? `?qtoken=${encodeURIComponent(qtoken)}` : ''}`}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <span>Browse menu again</span>
+              <span>→</span>
+            </Link>
+          </div>
+        </div>
       </div>
 
-      <footer className="w-full max-w-md mx-auto text-center pt-8 pb-4">
+      <footer className="w-full max-w-md mx-auto text-center pt-8 pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
           <span>Powered by</span>
           <span className="text-emerald-400 font-bold tracking-tight">QueueFlow</span>
