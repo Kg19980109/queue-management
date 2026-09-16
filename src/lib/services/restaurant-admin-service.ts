@@ -27,6 +27,7 @@ export const updateRestaurantProfileSchema = z.object({
   country: z.string().optional(),
   timezone: z.string().default('UTC'),
   currency: z.string().default('USD'),
+  seating_mode: z.enum(['SIMPLE', 'STRICT']).default('SIMPLE'),
 });
 
 /**
@@ -224,6 +225,7 @@ export class RestaurantAdminService {
       country: data.country?.trim() || null,
       timezone: data.timezone,
       currency: data.currency,
+      seating_mode: data.seating_mode,
       updated_at: new Date().toISOString(),
     };
 

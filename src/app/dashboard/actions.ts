@@ -57,6 +57,7 @@ export async function updateProfileFormAction(_prevState: unknown, formData: For
       country: (formData.get('country') as string) || undefined,
       timezone: (formData.get('timezone') as string) || 'UTC',
       currency: (formData.get('currency') as string) || 'USD',
+      seating_mode: (formData.get('seating_mode') as 'SIMPLE' | 'STRICT') || 'SIMPLE',
     };
 
     await RestaurantAdminService.updateRestaurantProfile(input);
@@ -152,6 +153,7 @@ export async function createTableFormAction(formData: FormData): Promise<void> {
     const input = {
       tableNumber: formData.get('tableNumber') as string,
       capacity: parseInt((formData.get('capacity') as string) || '2', 10),
+      shape: (formData.get('shape') as 'ROUND' | 'SQUARE' | 'RECTANGLE' | 'BAR') || 'RECTANGLE',
       zoneId: (formData.get('zoneId') as string) || undefined,
     };
 
@@ -173,6 +175,7 @@ export async function bulkCreateTableFormAction(formData: FormData): Promise<voi
       startNumber: parseInt((formData.get('startNumber') as string) || '1', 10),
       count: parseInt((formData.get('count') as string) || '10', 10),
       capacity: parseInt((formData.get('capacity') as string) || '4', 10),
+      shape: (formData.get('shape') as 'ROUND' | 'SQUARE' | 'RECTANGLE' | 'BAR') || 'RECTANGLE',
     };
 
     await TableService.bulkCreateTables(input);
@@ -689,6 +692,7 @@ export async function recommendTablesAction(queueEntryId: string): Promise<Array
   capacity: number;
   restaurant_zones?: { name: string } | null;
   is_combination?: boolean;
+  is_shared?: boolean;
   table_ids?: string[];
   combination_labels?: string[];
   reason?: string;
@@ -704,6 +708,7 @@ export async function recommendTablesAction(queueEntryId: string): Promise<Array
     capacity: r.capacity,
     restaurant_zones: r.zone_name ? { name: r.zone_name } : null,
     is_combination: r.is_combination ?? false,
+    is_shared: r.is_shared ?? false,
     table_ids: r.table_ids ?? [r.table_id],
     combination_labels: r.combination_labels ?? [r.table_number],
     reason: r.reason,

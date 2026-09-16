@@ -11,6 +11,8 @@ export type UserRoleType = 'SUPER_ADMIN' | 'RESTAURANT_ADMIN' | 'STAFF';
 export type MembershipStatus = 'ACTIVE' | 'INACTIVE';
 export type ZoneStatus = 'ACTIVE' | 'INACTIVE';
 export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'CLEANING' | 'OUT_OF_SERVICE';
+export type TableShape = 'ROUND' | 'SQUARE' | 'RECTANGLE' | 'BAR';
+export type SeatingMode = 'SIMPLE' | 'STRICT';
 
 /**
  * Authoritative QueueFlow queue entry FSM states.
@@ -160,11 +162,13 @@ export interface Database {
           created_at: string;
           updated_at: string;
           archived_at: string | null;
+          seating_mode: SeatingMode;
         };
         Insert: Omit<Database['public']['Tables']['restaurants']['Row'], 'id' | 'created_at' | 'updated_at'> & {
           id?: string;
           created_at?: string;
           updated_at?: string;
+          seating_mode?: SeatingMode;
         };
         Update: Partial<Database['public']['Tables']['restaurants']['Insert']>;
       };
@@ -226,6 +230,9 @@ export interface Database {
           table_number: string;
           capacity: number;
           status: TableStatus;
+          shape: TableShape;
+          occupied_seats: number;
+          free_seats: number;
           is_archived: boolean;
           archived_at: string | null;
           created_at: string;
@@ -235,8 +242,29 @@ export interface Database {
           id?: string;
           created_at?: string;
           updated_at?: string;
+          shape?: TableShape;
+          occupied_seats?: number;
+          free_seats?: number;
         };
         Update: Partial<Database['public']['Tables']['restaurant_tables']['Insert']>;
+      };
+      active_seating_assignments: {
+        Row: {
+          id: string;
+          restaurant_id: string;
+          queue_entry_id: string;
+          table_id: string;
+          guests_allocated: number;
+          is_primary: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['active_seating_assignments']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['active_seating_assignments']['Insert']>;
       };
       queue_entries: {
         Row: {

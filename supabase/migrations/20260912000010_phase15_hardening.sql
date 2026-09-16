@@ -61,6 +61,9 @@ CREATE INDEX IF NOT EXISTS idx_payments_restaurant_created
   WHERE status = 'SUCCEEDED';
 
 -- Notifications inbox for staff/customer polling
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS recipient_user_id uuid;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS is_read boolean NOT NULL DEFAULT false;
+
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient_unread
   ON public.notifications (recipient_user_id, created_at DESC)
   WHERE is_read = FALSE;

@@ -345,43 +345,76 @@ export function FloorManagerClient({
                       }
 
                       const capacity = table.capacity || 2;
+                      const occupiedSeats = table.occupiedSeats ?? (isOccupied ? capacity : 0);
+                      const freeSeats = table.freeSeats ?? (isOccupied ? 0 : capacity);
+                      const isShared = isOccupied && freeSeats > 0;
+                      const shape = table.shape || 'RECTANGLE';
                       const cleanTableNum = table.tableNumber.startsWith('T')
                         ? table.tableNumber
                         : `T${table.tableNumber}`;
+
+                      // Shape styles
+                      const shapeBorder = 
+                        shape === 'ROUND' ? 'rounded-full' :
+                        shape === 'SQUARE' ? 'rounded-2xl aspect-square' :
+                        shape === 'BAR' ? 'rounded-xl' : 'rounded-2xl';
 
                       return (
                         <button
                           key={table.id}
                           type="button"
                           onClick={() => setSelectedTableId(table.id)}
-                          className={`text-left rounded-2xl p-4 border transition-all duration-200 cursor-pointer backdrop-blur-md flex flex-col gap-3 min-h-[140px] relative overflow-hidden group ${
-                            theme.bg
+                          className={`text-left p-4 border transition-all duration-200 cursor-pointer backdrop-blur-md flex flex-col gap-3 min-h-[148px] relative overflow-hidden group ${shapeBorder} ${
+                            isShared ? 'bg-amber-950/30 border-amber-500/40 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : theme.bg
                           } ${
                             isSelected
                               ? 'ring-2 ring-white/50 scale-[1.02] shadow-[0_0_30px_rgba(255,255,255,0.1)] z-10'
                               : 'hover:scale-[1.01]'
                           }`}
                         >
-                          {/* Top row: Table ID and Status */}
+                          {/* Top row: Table ID, Shape, and Status */}
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2.5">
-                              <div className={`w-2 h-8 rounded-full ${theme.accent}`} />
+                              <div className={`w-2 h-8 rounded-full ${isShared ? 'bg-amber-400 animate-pulse' : theme.accent}`} />
                               <div className="flex flex-col">
-                                <span className="text-lg font-black text-white font-mono leading-none tracking-tight">
+                                <span className="text-lg font-black text-white font-mono leading-none tracking-tight flex items-center gap-1.5">
                                   {cleanTableNum}
+                                  {shape === 'ROUND' && <span className="text-[10px] text-slate-400 font-normal">●</span>}
+                                  {shape === 'BAR' && <span className="text-[9px] px-1 py-0.2 bg-slate-800 text-slate-300 rounded font-normal">BAR</span>}
                                 </span>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                                  {capacity} Seats
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-1">
+                                  {isOccupied ? `${occupiedSeats}/${capacity} • ${freeSeats} free` : `${capacity} Seats`}
                                 </span>
                               </div>
                             </div>
-                            <span className={`px-2 py-0.5 rounded text-[9px] font-black tracking-widest border ${theme.badge}`}>
-                              {theme.label}
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-black tracking-widest border ${isShared ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : theme.badge}`}>
+                              {isShared ? 'SHARED' : theme.label}
                             </span>
                           </div>
 
+                          {/* Visual Occupancy Dots */}
+                          <div className="flex items-center gap-1.5 py-1">
+                            {Array.from({ length: Math.min(capacity, 12) }).map((_, dotIdx) => {
+                              const isDotOccupied = dotIdx < occupiedSeats;
+                              return (
+                                <span
+                                  key={dotIdx}
+                                  title={isDotOccupied ? 'Occupied Seat' : 'Free Seat'}
+                                  className={`w-2 h-2 rounded-full transition-all ${
+                                    isDotOccupied
+                                      ? 'bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.6)]'
+                                      : 'bg-emerald-400/40 border border-emerald-400/60'
+                                  }`}
+                                />
+                              );
+                            })}
+                            {capacity > 12 && (
+                              <span className="text-[9px] font-bold text-slate-500">+{capacity - 12}</span>
+                            )}
+                          </div>
+
                           {/* Body: Contextual Details */}
-                          <div className="flex-1 flex flex-col justify-end mt-2">
+                          <div className="flex-1 flex flex-col justify-end">
                             {isOccupied && sg ? (
                               <div className="bg-black/30 rounded-lg p-2.5 border border-white/5">
                                 <div className="flex items-center justify-between">
@@ -392,10 +425,9 @@ export function FloorManagerClient({
                                     {formatDiningDuration(sg.seated_at) || 'Just seated'}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-[10px] text-slate-400 font-bold">
-                                    Party of {sg.actual_guests || sg.party_size}
-                                  </span>
+                                <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400 font-bold">
+                                  <span>Party of {sg.actual_guests || sg.party_size}</span>
+                                  {freeSeats > 0 && <span className="text-amber-300 font-bold">+{freeSeats} open seats</span>}
                                 </div>
                               </div>
                             ) : isAvailable ? (

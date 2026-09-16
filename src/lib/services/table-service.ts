@@ -13,7 +13,7 @@ import {
 } from '@/lib/errors';
 import { logger } from '@/lib/logging/logger';
 import { z } from 'zod';
-import type { TableStatus } from '@/types/database.types';
+import type { TableStatus, TableShape } from '@/types/database.types';
 
 export const VALID_TABLE_TRANSITIONS: Record<TableStatus, TableStatus[]> = {
   AVAILABLE: ['OCCUPIED', 'RESERVED', 'OUT_OF_SERVICE'],
@@ -26,6 +26,7 @@ export const VALID_TABLE_TRANSITIONS: Record<TableStatus, TableStatus[]> = {
 export const createTableSchema = z.object({
   tableNumber: z.string().min(1, 'Table number/name is required').max(30, 'Table number is too long'),
   capacity: z.number().int().min(1, 'Capacity must be at least 1').max(50, 'Capacity cannot exceed 50'),
+  shape: z.enum(['ROUND', 'SQUARE', 'RECTANGLE', 'BAR']).optional().default('RECTANGLE'),
   zoneId: z.string().uuid('Invalid zone ID').optional().or(z.literal('')),
 });
 
@@ -35,13 +36,14 @@ export const bulkCreateTableSchema = z.object({
   startNumber: z.number().int().min(1, 'Starting number must be at least 1'),
   count: z.number().int().min(1, 'Count must be at least 1').max(100, 'Bulk batch limit is 100 tables'),
   capacity: z.number().int().min(1, 'Capacity must be at least 1').max(50, 'Capacity cannot exceed 50'),
+  shape: z.enum(['ROUND', 'SQUARE', 'RECTANGLE', 'BAR']).optional().default('RECTANGLE'),
 });
 
 export const updateTableSchema = createTableSchema.partial();
 
-export type CreateTableInput = z.infer<typeof createTableSchema>;
-export type BulkCreateTableInput = z.infer<typeof bulkCreateTableSchema>;
-export type UpdateTableInput = z.infer<typeof updateTableSchema>;
+export type CreateTableInput = z.input<typeof createTableSchema>;
+export type BulkCreateTableInput = z.input<typeof bulkCreateTableSchema>;
+export type UpdateTableInput = z.input<typeof updateTableSchema>;
 
 export class TableService {
   /**
@@ -203,6 +205,9 @@ export class TableService {
         tableNumber: t.table_number,
         capacity: t.capacity,
         status: t.status as TableStatus,
+        shape: (t.shape || 'RECTANGLE') as TableShape,
+        occupiedSeats: t.occupied_seats ?? (t.status === 'OCCUPIED' ? t.capacity : 0),
+        freeSeats: t.free_seats ?? (t.status === 'OCCUPIED' ? 0 : t.capacity),
         isArchived: t.is_archived,
         archivedAt: t.archived_at,
         createdAt: t.created_at,
@@ -238,7 +243,7 @@ export class TableService {
       });
     }
 
-    const { tableNumber, capacity, zoneId } = parseResult.data;
+    const { tableNumber, capacity, shape, zoneId } = parseResult.data;
     const adminClient = createAdminClient();
     const normalizedNumber = tableNumber.trim();
 
@@ -279,6 +284,9 @@ export class TableService {
         zone_id: zoneId || null,
         table_number: normalizedNumber,
         capacity,
+        shape: shape || 'RECTANGLE',
+        occupied_seats: 0,
+        free_seats: capacity,
         status: 'AVAILABLE',
       })
       .select()
@@ -318,7 +326,7 @@ export class TableService {
       });
     }
 
-    const { zoneId, prefix, startNumber, count, capacity } = parseResult.data;
+    const { zoneId, prefix, startNumber, count, capacity, shape } = parseResult.data;
     const adminClient = createAdminClient();
 
     // Verify Zone
@@ -338,7 +346,16 @@ export class TableService {
 
     // Build batch payload
     const prefixStr = prefix ? prefix.trim() : '';
-    const tableBatch: { restaurant_id: string; zone_id: string; table_number: string; capacity: number; status: string }[] = [];
+    const tableBatch: {
+      restaurant_id: string;
+      zone_id: string;
+      table_number: string;
+      capacity: number;
+      shape: string;
+      occupied_seats: number;
+      free_seats: number;
+      status: string;
+    }[] = [];
     const generatedNumbers: string[] = [];
 
     for (let i = 0; i < count; i++) {
@@ -349,6 +366,9 @@ export class TableService {
         zone_id: zoneId,
         table_number: numStr,
         capacity,
+        shape: shape || 'RECTANGLE',
+        occupied_seats: 0,
+        free_seats: capacity,
         status: 'AVAILABLE',
       });
     }
@@ -382,7 +402,7 @@ export class TableService {
       action: 'bulk_tables_created',
       entity_type: 'restaurant_tables',
       entity_id: context.restaurantId,
-      metadata: { zoneId, count: createdTables.length, numbers: generatedNumbers, capacity },
+      metadata: { zoneId, count: createdTables.length, numbers: generatedNumbers, capacity, shape },
     });
 
     return { createdCount: createdTables.length, tables: createdTables };
@@ -428,6 +448,10 @@ export class TableService {
       updated_at: new Date().toISOString(),
     };
 
+    if (data.shape !== undefined) {
+      updatePayload.shape = data.shape;
+    }
+
     if (data.tableNumber !== undefined && data.tableNumber.trim() !== existing.table_number) {
       const normNumber = data.tableNumber.trim();
       const { data: duplicate } = await adminClient
@@ -447,6 +471,11 @@ export class TableService {
 
     if (data.capacity !== undefined) {
       updatePayload.capacity = data.capacity;
+      // Also recalibrate free_seats if table is AVAILABLE
+      if (existing.status === 'AVAILABLE') {
+        updatePayload.free_seats = data.capacity;
+        updatePayload.occupied_seats = 0;
+      }
     }
 
     if (data.zoneId !== undefined) {
@@ -569,7 +598,7 @@ export class TableService {
     // Fetch existing table to validate state transition rules
     const { data: existing } = await adminClient
       .from('restaurant_tables')
-      .select('id, status, is_archived')
+      .select('id, status, capacity, is_archived')
       .eq('id', tableId)
       .eq('restaurant_id', context.restaurantId)
       .maybeSingle();
@@ -636,6 +665,25 @@ export class TableService {
     // When table becomes AVAILABLE or moves to CLEANING after dining, seated guest exits the flow
     if (actualCurrentStatus === 'OCCUPIED' && (targetStatus === 'AVAILABLE' || targetStatus === 'CLEANING')) {
       try {
+        const nowIso = new Date().toISOString();
+
+        // 1. Reset table occupied and free seats if transitioning to AVAILABLE or CLEANING
+        await adminClient
+          .from('restaurant_tables')
+          .update({
+            occupied_seats: 0,
+            free_seats: existing.capacity,
+            updated_at: nowIso,
+          })
+          .eq('id', tableId);
+
+        // 2. Remove any active seating assignments for this table
+        await adminClient
+          .from('active_seating_assignments')
+          .delete()
+          .eq('table_id', tableId);
+
+        // 3. Complete associated seated guests
         const { data: seatedGuests } = await adminClient
           .from('queue_entries')
           .select('id')
@@ -645,7 +693,6 @@ export class TableService {
           .is('completed_at', null);
 
         if (seatedGuests && seatedGuests.length > 0) {
-          const nowIso = new Date().toISOString();
           for (const sg of seatedGuests) {
             await adminClient
               .from('queue_entries')

@@ -146,6 +146,47 @@ export default function RestaurantProfilePage() {
           </div>
         </div>
 
+        <div className="rounded-xl border border-white/10 bg-slate-950/60 p-4 space-y-2">
+          <label className="block text-xs font-bold uppercase tracking-wider text-emerald-400">
+            Seating System Mode
+          </label>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Configure how tables are allocated to parties:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <label className="flex items-start gap-2.5 p-3 rounded-lg border border-white/10 bg-[#111827] cursor-pointer hover:border-emerald-500/40">
+              <input
+                type="radio"
+                name="seating_mode"
+                value="SIMPLE"
+                defaultChecked
+                className="mt-0.5 text-emerald-500 focus:ring-0 cursor-pointer"
+              />
+              <div>
+                <span className="text-xs font-bold text-white block">Simple Seating</span>
+                <span className="text-[11px] text-slate-400 block mt-0.5">
+                  Exclusive tables only. Never shares tables between independent parties.
+                </span>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-2.5 p-3 rounded-lg border border-white/10 bg-[#111827] cursor-pointer hover:border-emerald-500/40">
+              <input
+                type="radio"
+                name="seating_mode"
+                value="STRICT"
+                className="mt-0.5 text-emerald-500 focus:ring-0 cursor-pointer"
+              />
+              <div>
+                <span className="text-xs font-bold text-white block">Strict Seating</span>
+                <span className="text-[11px] text-slate-400 block mt-0.5">
+                  Efficient capacity utilization. Allows sharing free seats on large tables.
+                </span>
+              </div>
+            </label>
+          </div>
+        </div>
+
         <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
           <Link
             href="/dashboard"

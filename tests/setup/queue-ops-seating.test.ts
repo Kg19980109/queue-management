@@ -116,7 +116,7 @@ describe('Phase 10: Queue Operations, Deterministic ETA Engine & Atomic Seating 
 
   beforeEach(async () => {
     // Reset all tables to AVAILABLE before each test
-    await client.query("UPDATE public.restaurant_tables SET status = 'AVAILABLE' WHERE restaurant_id = $1;", [RESTAURANT_ID]);
+    await client.query("UPDATE public.restaurant_tables SET status = 'AVAILABLE', occupied_seats = 0 WHERE restaurant_id = $1;", [RESTAURANT_ID]);
   });
 
   afterAll(async () => {

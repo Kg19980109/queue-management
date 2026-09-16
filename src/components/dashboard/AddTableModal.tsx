@@ -96,10 +96,10 @@ export function AddTableModal({ zones }: { zones: Zone[] }) {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <label className="block text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                        Capacity (Seats)
+                        Capacity
                       </label>
                       <input
                         type="number"
@@ -114,13 +114,29 @@ export function AddTableModal({ zones }: { zones: Zone[] }) {
 
                     <div className="space-y-1">
                       <label className="block text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                        Shape
+                      </label>
+                      <select
+                        name="shape"
+                        defaultValue="RECTANGLE"
+                        className="w-full bg-[#111827] border border-white/10 rounded-xl px-2 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-sm"
+                      >
+                        <option value="RECTANGLE">Rectangle</option>
+                        <option value="ROUND">Round</option>
+                        <option value="SQUARE">Square</option>
+                        <option value="BAR">Bar</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                         Zone
                       </label>
                       <select
                         name="zoneId"
-                        className="w-full bg-[#111827] border border-white/10 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-sm"
+                        className="w-full bg-[#111827] border border-white/10 rounded-xl px-2 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-sm"
                       >
-                        <option value="">Main Floor (Unassigned)</option>
+                        <option value="">Main Floor</option>
                         {zones.map((z) => (
                           <option key={z.id} value={z.id}>
                             {z.name}
@@ -190,22 +206,40 @@ export function AddTableModal({ zones }: { zones: Zone[] }) {
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="block text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-                      Assign to Zone
-                    </label>
-                    <select
-                      name="zoneId"
-                      required
-                      className="w-full bg-[#111827] border border-white/10 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-sm"
-                    >
-                      <option value="">Select Zone...</option>
-                      {zones.map((z) => (
-                        <option key={z.id} value={z.id}>
-                          {z.name}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                        Assign to Zone
+                      </label>
+                      <select
+                        name="zoneId"
+                        required
+                        className="w-full bg-[#111827] border border-white/10 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-sm"
+                      >
+                        <option value="">Select Zone...</option>
+                        {zones.map((z) => (
+                          <option key={z.id} value={z.id}>
+                            {z.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                        Table Shape
+                      </label>
+                      <select
+                        name="shape"
+                        defaultValue="RECTANGLE"
+                        className="w-full bg-[#111827] border border-white/10 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-emerald-500 text-sm"
+                      >
+                        <option value="RECTANGLE">Rectangle</option>
+                        <option value="ROUND">Round</option>
+                        <option value="SQUARE">Square</option>
+                        <option value="BAR">Bar</option>
+                      </select>
+                    </div>
                   </div>
                 </>
               )}

@@ -9,6 +9,7 @@ export interface SeatableTableItem {
   capacity: number;
   restaurant_zones?: { name: string } | null;
   is_combination?: boolean;
+  is_shared?: boolean;
   table_ids?: string[];
   combination_labels?: string[];
   reason?: string;
@@ -279,6 +280,42 @@ export function SeatCustomerModal({
                         );
                       }
 
+                      if (table.is_shared) {
+                        return (
+                          <div
+                            key={table.id}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 border rounded-2xl bg-amber-950/20 border-amber-500/30 hover:border-amber-500/50 transition-all"
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs font-mono bg-amber-500/20 border border-amber-500/40 text-amber-300 shrink-0">
+                                {table.table_number}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
+                                  <span>Table {table.table_number}</span>
+                                  <span className="text-[10px] font-bold text-amber-300">• Total Cap {table.capacity}</span>
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-500/30 border border-amber-500/40 text-amber-200 text-[9px] font-black uppercase">
+                                    Shared Table
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-slate-400 truncate block mt-0.5">
+                                  {table.reason || `Shared seating available`}
+                                </span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSeat(table.id)}
+                              disabled={isPending}
+                              className="w-full sm:w-auto px-4 py-2 font-bold text-xs rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white transition-colors disabled:opacity-50 cursor-pointer shadow active:scale-95 shrink-0"
+                            >
+                              {isPending && selectedTableId === table.id ? 'Assigning...' : 'Seat at Shared Table'}
+                            </button>
+                          </div>
+                        );
+                      }
+
                       return (
                         <div
                           key={table.id}
@@ -295,7 +332,7 @@ export function SeatCustomerModal({
                                 {idx === 0 && <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[9px] font-black uppercase">Recommended</span>}
                               </div>
                               <span className="text-[10px] text-slate-400 truncate block">
-                                {table.restaurant_zones?.name || 'Main Area'} {idx === 0 ? '• Best capacity fit' : `• Rank #${idx + 1}`}
+                                {table.reason || (table.restaurant_zones?.name ? `${table.restaurant_zones.name} • Fits party` : `Main Area • Rank #${idx + 1}`)}
                               </span>
                             </div>
                           </div>

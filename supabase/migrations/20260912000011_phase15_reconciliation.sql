@@ -554,6 +554,9 @@ ALTER TABLE public.orders
 -- but new inserts/updates are restricted.
 -- NOT VALID means existing rows that violate it are not checked.
 ALTER TABLE public.orders
+  DROP CONSTRAINT IF EXISTS orders_status_authoritative_check;
+
+ALTER TABLE public.orders
   ADD CONSTRAINT orders_status_authoritative_check
   CHECK (status IN ('DRAFT', 'PLACED', 'CONFIRMED', 'PREPARING', 'READY', 'SERVED', 'CANCELLED'))
   NOT VALID;
