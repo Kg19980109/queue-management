@@ -7,6 +7,7 @@ import { AddTableModal } from './AddTableModal';
 import { updateTableStatusAction, exitSeatedGuestAction } from '@/app/dashboard/actions';
 import { chimeEngine } from '@/lib/audio-chime';
 import { SeatCustomerModal, SeatableTableItem } from './SeatCustomerModal';
+import { ArchitecturalTable } from './ArchitecturalTable';
 
 function formatDiningDuration(seatedAt: string | null | undefined): string {
   if (!seatedAt) return '';
@@ -47,6 +48,7 @@ export function FloorManagerClient({
   const router = useRouter();
   const [selectedTableId, setSelectedTableId] = useState<string | null>(tables.length > 0 ? tables[0].id : null);
   const [activeZone, setActiveZone] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'OCCUPIED' | 'CLEANING'>('ALL');
   const [isPending, startTransition] = useTransition();
 
   // Periodic polling sync to keep floor manager strictly synchronized with live queue
@@ -94,10 +96,12 @@ export function FloorManagerClient({
   // CRITICAL: Only map entries with status 'SEATED'
   const seatedMap = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const map = new Map<string, any>();
+    const map = new Map<string, any[]>();
     (seatedEntries || []).forEach((entry: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
       if (entry.seated_table_id && entry.status === 'SEATED') {
-        map.set(entry.seated_table_id, entry);
+        const existing = map.get(entry.seated_table_id) || [];
+        existing.push(entry);
+        map.set(entry.seated_table_id, existing);
       }
     });
     return map;
@@ -106,11 +110,12 @@ export function FloorManagerClient({
   const selectedTable = tables.find((t) => t.id === selectedTableId);
   // CRITICAL BUG FIX: Only show seated guest if the table is actually OCCUPIED.
   // Never show a past or orphaned guest on an AVAILABLE or CLEANING table.
-  const selectedSeatedGuest =
-    selectedTable && selectedTable.status === 'OCCUPIED' ? seatedMap.get(selectedTable.id) : null;
+  const selectedSeatedGuests =
+    selectedTable && selectedTable.status === 'OCCUPIED' ? (seatedMap.get(selectedTable.id) || []) : [];
 
-  // Filter tables by zone
-  const filteredTables = activeZone ? tables.filter((t) => t.zoneId === activeZone) : tables;
+  // Filter tables by zone and status filter
+  const zoneFiltered = activeZone ? tables.filter((t) => t.zoneId === activeZone) : tables;
+  const filteredTables = statusFilter === 'ALL' ? zoneFiltered : zoneFiltered.filter((t) => t.status === statusFilter);
 
   // Group by zone for the blueprint view
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -155,7 +160,7 @@ export function FloorManagerClient({
               </h2>
               <div className="hidden sm:flex items-center gap-1.5 bg-[#111827] border border-white/10 rounded-full px-3 py-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="text-xs text-slate-400 font-bold">{restaurantName}</span>
+                <span className="text-xs text-slate-400 font-bold">{restaurantName} • {totalFloorSeats} Seats</span>
               </div>
               <Link
                 href="/dashboard/profile"
@@ -216,10 +221,18 @@ export function FloorManagerClient({
           </div>
         </div>
 
-        {/* KPI Ribbon (Ultra-compact) */}
+        {/* KPI Ribbon (Interactive Quick Filters) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-[#151B2B] rounded-xl border border-white/5 p-3 flex items-center gap-4 group hover:border-emerald-500/30 transition-colors">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'OCCUPIED' ? 'ALL' : 'OCCUPIED')}
+            className={`text-left rounded-xl border p-3 flex items-center gap-4 transition-all cursor-pointer ${
+              statusFilter === 'OCCUPIED'
+                ? 'bg-amber-500/20 border-amber-500 ring-2 ring-amber-500/40'
+                : 'bg-[#151B2B] border-white/5 hover:border-amber-500/30'
+            }`}
+          >
+            <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
               <span className="material-symbols-outlined text-[20px]">restaurant</span>
             </div>
             <div className="flex flex-col">
@@ -229,20 +242,28 @@ export function FloorManagerClient({
                 <span className="text-xs text-slate-400 font-bold">/ {stats.total}</span>
               </div>
             </div>
-          </div>
+          </button>
           
-          <div className="bg-[#151B2B] rounded-xl border border-white/5 p-3 flex items-center gap-4 group hover:border-amber-500/30 transition-colors">
-            <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'CLEANING' ? 'ALL' : 'CLEANING')}
+            className={`text-left rounded-xl border p-3 flex items-center gap-4 transition-all cursor-pointer ${
+              statusFilter === 'CLEANING'
+                ? 'bg-rose-500/20 border-rose-500 ring-2 ring-rose-500/40'
+                : 'bg-[#151B2B] border-white/5 hover:border-rose-500/30'
+            }`}
+          >
+            <div className="w-10 h-10 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
               <span className="material-symbols-outlined text-[20px]">cleaning_services</span>
             </div>
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Needs Clean</span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-black text-amber-400">{cleaningCount}</span>
+                <span className="text-xl font-black text-rose-400">{cleaningCount}</span>
                 <span className="text-xs text-slate-400 font-bold">Tables</span>
               </div>
             </div>
-          </div>
+          </button>
           
           <div className="bg-[#151B2B] rounded-xl border border-white/5 p-3 flex items-center gap-4 group hover:border-blue-500/30 transition-colors">
             <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
@@ -257,18 +278,26 @@ export function FloorManagerClient({
             </div>
           </div>
           
-          <div className="bg-[#151B2B] rounded-xl border border-white/5 p-3 flex items-center gap-4 group hover:border-purple-500/30 transition-colors">
-            <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
-              <span className="material-symbols-outlined text-[20px]">chair</span>
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === 'AVAILABLE' ? 'ALL' : 'AVAILABLE')}
+            className={`text-left rounded-xl border p-3 flex items-center gap-4 transition-all cursor-pointer ${
+              statusFilter === 'AVAILABLE'
+                ? 'bg-emerald-500/20 border-emerald-500 ring-2 ring-emerald-500/40'
+                : 'bg-[#151B2B] border-white/5 hover:border-emerald-500/30'
+            }`}
+          >
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+              <span className="material-symbols-outlined text-[20px]">event_seat</span>
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Capacity</span>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Available</span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-black text-white">{totalFloorSeats}</span>
-                <span className="text-xs text-slate-400 font-bold">Seats</span>
+                <span className="text-xl font-black text-white">{availableTablesList.length}</span>
+                <span className="text-xs text-slate-400 font-bold">Tables</span>
               </div>
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -282,12 +311,94 @@ export function FloorManagerClient({
                backgroundPosition: '-1px -1px'
              }}>
           
-          <div className="max-w-6xl mx-auto flex flex-col gap-8 pb-32">
+          <div className="max-w-6xl mx-auto flex flex-col gap-6 pb-32">
+            {/* Architectural Blueprint Filter & Legend Bar */}
+            <div className="bg-[#0E1422]/90 border border-white/10 p-3 sm:p-4 rounded-2xl backdrop-blur-xl flex flex-wrap items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5 shrink-0 mr-1">
+                  <span className="material-symbols-outlined text-[16px] text-blue-400">tune</span>
+                  Filter:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ALL')}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    statusFilter === 'ALL'
+                      ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.4)]'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                  }`}
+                >
+                  All ({tables.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('AVAILABLE')}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    statusFilter === 'AVAILABLE'
+                      ? 'bg-emerald-600 text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+                      : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  Available ({availableTablesList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('OCCUPIED')}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    statusFilter === 'OCCUPIED'
+                      ? 'bg-amber-600 text-white shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                      : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                  Dining ({stats.occupied})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('CLEANING')}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    statusFilter === 'CLEANING'
+                      ? 'bg-rose-600 text-white shadow-[0_0_12px_rgba(244,63,94,0.4)]'
+                      : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                  Needs Clean ({cleaningCount})
+                </button>
+              </div>
+
+              {/* Map Legend */}
+              <div className="hidden sm:flex items-center gap-4 text-[11px] font-medium text-slate-400 border-t sm:border-t-0 sm:border-l border-white/10 pt-2 sm:pt-0 sm:pl-4">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.6)]"></div>
+                  <span>Diner Seated</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-md border border-emerald-500/50 bg-emerald-500/20"></div>
+                  <span>Empty Chair</span>
+                </div>
+              </div>
+            </div>
+
             {Object.keys(groupedTables).length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32 text-center text-slate-500">
                 <span className="material-symbols-outlined text-6xl mb-4 text-slate-700/50">grid_view</span>
-                <p className="font-bold text-white text-lg">Floor is empty</p>
-                <p className="text-sm text-slate-400 mt-2 max-w-sm">Build your restaurant layout by adding tables. They will appear on this grid.</p>
+                <p className="font-bold text-white text-lg">No tables found</p>
+                <p className="text-sm text-slate-400 mt-2 max-w-sm">
+                  {statusFilter !== 'ALL'
+                    ? `There are currently no tables matching "${statusFilter}". Try resetting your filter.`
+                    : 'Build your restaurant layout by adding tables.'}
+                </p>
+                {statusFilter !== 'ALL' && (
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('ALL')}
+                    className="mt-4 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black cursor-pointer shadow-lg shadow-blue-900/30"
+                  >
+                    Reset Filter
+                  </button>
+                )}
               </div>
             ) : (
               Object.entries(groupedTables).map(([zoneName, tableList]: [string, any[]], zoneIdx) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -303,166 +414,31 @@ export function FloorManagerClient({
                     <span className="text-xs text-slate-500 font-bold">{tableList.length} Tables</span>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
                     {tableList.map((table) => {
-                      const isSelected = selectedTableId === table.id;
                       const isOccupied = table.status === 'OCCUPIED';
-                      const isAvailable = table.status === 'AVAILABLE';
-                      const isCleaning = table.status === 'CLEANING';
-                      const isReserved = table.status === 'RESERVED';
-                      const sg = isOccupied ? seatedMap.get(table.id) : null;
-
-                      let theme = {
-                        bg: 'bg-[#151C2C]/80 border-white/5 hover:border-white/20',
-                        accent: 'bg-slate-700',
-                        text: 'text-slate-400',
-                        badge: 'bg-white/5 text-slate-400',
-                        label: table.status,
-                        icon: 'table_restaurant'
-                      };
-
-                      if (isAvailable) {
-                        theme = {
-                          bg: 'bg-emerald-950/20 border-emerald-500/30 hover:border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.05)] hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]',
-                          accent: 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]',
-                          text: 'text-emerald-400',
-                          badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-                          label: 'OPEN',
-                          icon: 'check'
-                        };
-                      } else if (isOccupied) {
-                        theme = {
-                          bg: 'bg-amber-950/20 border-amber-500/30 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.05)] hover:shadow-[0_0_20px_rgba(245,158,11,0.15)]',
-                          accent: 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]',
-                          text: 'text-amber-400',
-                          badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-                          label: 'OCCUPIED',
-                          icon: 'person'
-                        };
-                      } else if (isCleaning) {
-                        theme = {
-                          bg: 'bg-rose-950/20 border-rose-500/30 hover:border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.05)] hover:shadow-[0_0_20px_rgba(244,63,94,0.15)]',
-                          accent: 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)] animate-pulse',
-                          text: 'text-rose-400',
-                          badge: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-                          label: 'BUS TABLE',
-                          icon: 'sanitizer'
-                        };
-                      } else if (isReserved) {
-                        theme = {
-                          bg: 'bg-blue-950/20 border-blue-500/30 hover:border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.05)] hover:shadow-[0_0_20px_rgba(59,130,246,0.15)]',
-                          accent: 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]',
-                          text: 'text-blue-400',
-                          badge: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-                          label: 'RESERVED',
-                          icon: 'book_online'
-                        };
-                      }
-
-                      const capacity = table.capacity || 2;
-                      const occupiedSeats = table.occupiedSeats ?? (isOccupied ? capacity : 0);
-                      const freeSeats = table.freeSeats ?? (isOccupied ? 0 : capacity);
-                      const isShared = isOccupied && freeSeats > 0;
-                      const shape = table.shape || 'RECTANGLE';
-                      const cleanTableNum = table.tableNumber.startsWith('T')
-                        ? table.tableNumber
-                        : `T${table.tableNumber}`;
-
-                      // Shape styles
-                      const shapeBorder = 
-                        shape === 'ROUND' ? 'rounded-full' :
-                        shape === 'SQUARE' ? 'rounded-2xl aspect-square' :
-                        shape === 'BAR' ? 'rounded-xl' : 'rounded-2xl';
+                      const seatedGuests = isOccupied ? (seatedMap.get(table.id) || []) : [];
+                      const tableMatchingGuest = table.status === 'AVAILABLE'
+                        ? waitingGuests.find((e: { party_size?: number }) => (e.party_size || 1) <= table.capacity) || null
+                        : null;
 
                       return (
-                        <button
+                        <ArchitecturalTable
                           key={table.id}
-                          type="button"
-                          onClick={() => setSelectedTableId(table.id)}
-                          className={`text-left p-4 border transition-all duration-200 cursor-pointer backdrop-blur-md flex flex-col gap-3 min-h-[148px] relative overflow-hidden group ${shapeBorder} ${
-                            isShared ? 'bg-amber-950/30 border-amber-500/40 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : theme.bg
-                          } ${
-                            isSelected
-                              ? 'ring-2 ring-white/50 scale-[1.02] shadow-[0_0_30px_rgba(255,255,255,0.1)] z-10'
-                              : 'hover:scale-[1.01]'
-                          }`}
-                        >
-                          {/* Top row: Table ID, Shape, and Status */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2.5">
-                              <div className={`w-2 h-8 rounded-full ${isShared ? 'bg-amber-400 animate-pulse' : theme.accent}`} />
-                              <div className="flex flex-col">
-                                <span className="text-lg font-black text-white font-mono leading-none tracking-tight flex items-center gap-1.5">
-                                  {cleanTableNum}
-                                  {shape === 'ROUND' && <span className="text-[10px] text-slate-400 font-normal">●</span>}
-                                  {shape === 'BAR' && <span className="text-[9px] px-1 py-0.2 bg-slate-800 text-slate-300 rounded font-normal">BAR</span>}
-                                </span>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-1">
-                                  {isOccupied ? `${occupiedSeats}/${capacity} • ${freeSeats} free` : `${capacity} Seats`}
-                                </span>
-                              </div>
-                            </div>
-                            <span className={`px-2 py-0.5 rounded text-[9px] font-black tracking-widest border ${isShared ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : theme.badge}`}>
-                              {isShared ? 'SHARED' : theme.label}
-                            </span>
-                          </div>
-
-                          {/* Visual Occupancy Dots */}
-                          <div className="flex items-center gap-1.5 py-1">
-                            {Array.from({ length: Math.min(capacity, 12) }).map((_, dotIdx) => {
-                              const isDotOccupied = dotIdx < occupiedSeats;
-                              return (
-                                <span
-                                  key={dotIdx}
-                                  title={isDotOccupied ? 'Occupied Seat' : 'Free Seat'}
-                                  className={`w-2 h-2 rounded-full transition-all ${
-                                    isDotOccupied
-                                      ? 'bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.6)]'
-                                      : 'bg-emerald-400/40 border border-emerald-400/60'
-                                  }`}
-                                />
-                              );
-                            })}
-                            {capacity > 12 && (
-                              <span className="text-[9px] font-bold text-slate-500">+{capacity - 12}</span>
-                            )}
-                          </div>
-
-                          {/* Body: Contextual Details */}
-                          <div className="flex-1 flex flex-col justify-end">
-                            {isOccupied && sg ? (
-                              <div className="bg-black/30 rounded-lg p-2.5 border border-white/5">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-bold text-white text-xs truncate mr-2">
-                                    👤 {sg.customer_name}
-                                  </span>
-                                  <span className="text-amber-400 font-mono text-[10px] font-bold shrink-0">
-                                    {formatDiningDuration(sg.seated_at) || 'Just seated'}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400 font-bold">
-                                  <span>Party of {sg.actual_guests || sg.party_size}</span>
-                                  {freeSeats > 0 && <span className="text-amber-300 font-bold">+{freeSeats} open seats</span>}
-                                </div>
-                              </div>
-                            ) : isAvailable ? (
-                              <div className="text-xs text-emerald-500/70 font-medium flex items-center gap-1.5">
-                                <span className="material-symbols-outlined text-[14px]">event_seat</span>
-                                Ready for next party
-                              </div>
-                            ) : isCleaning ? (
-                              <div className="text-xs text-rose-400/80 font-bold flex items-center gap-1.5 animate-pulse">
-                                <span className="material-symbols-outlined text-[14px]">warning</span>
-                                Needs sanitization
-                              </div>
-                            ) : (
-                              <div className="text-xs text-blue-400/70 font-medium flex items-center gap-1.5">
-                                <span className="material-symbols-outlined text-[14px]">lock</span>
-                                Held for reservation
-                              </div>
-                            )}
-                          </div>
-                        </button>
+                          table={table}
+                          isSelected={selectedTableId === table.id}
+                          seatedGuests={seatedGuests}
+                          onSelect={() => setSelectedTableId(table.id)}
+                          onStatusChange={handleStatusChange}
+                          isPending={isPending}
+                          nextMatchingGuest={tableMatchingGuest}
+                          availableTablesList={availableTablesList}
+                          userId={userId}
+                          onSeated={() => {
+                            chimeEngine.playSeatChime();
+                            router.refresh();
+                          }}
+                        />
                       );
                     })}
                   </div>
@@ -514,38 +490,70 @@ export function FloorManagerClient({
 
               {/* Dynamic Context Card */}
               <div className="flex-1 flex flex-col gap-4 overflow-y-auto hide-scrollbar shrink-0">
-                {selectedTable.status === 'OCCUPIED' && selectedSeatedGuest && (
+                {selectedTable.status === 'OCCUPIED' && selectedSeatedGuests.length > 0 && (
+                  <div className="flex flex-col gap-4">
+                    {selectedSeatedGuests.map((sg: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
+                      <div key={sg.id} className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-5 flex flex-col gap-4">
+                        <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+                          <span className="text-xs font-black uppercase tracking-widest text-amber-400">Current Party</span>
+                          <span className="font-mono text-xs font-black px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            Q-{(sg.display_number || sg.queue_number || '').toString().replace(/^#+/, '')}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xl font-black text-white">{sg.customer_name}</span>
+                          <div className="flex items-center gap-3 text-sm text-amber-200 mt-1">
+                            <span className="font-bold flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">group</span> {sg.actual_guests || sg.party_size} Guests</span>
+                            <span className="opacity-50">•</span>
+                            <span className="font-mono font-bold flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">timer</span> {formatDiningDuration(sg.seated_at) || '0m'}</span>
+                          </div>
+                          {sg.customer_phone && (
+                             <span className="text-xs text-slate-400 mt-2 font-mono flex items-center gap-1.5 bg-black/20 p-2 rounded-lg border border-white/5 w-max">
+                               <span className="material-symbols-outlined text-[14px]">call</span> {sg.customer_phone}
+                             </span>
+                          )}
+                        </div>
+
+                        <div className="pt-3">
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => handleExitCustomer(sg.id, selectedTable.id)}
+                            className="w-full py-3.5 rounded-xl bg-amber-600 hover:bg-amber-500 active:scale-95 text-white text-sm font-black shadow-lg shadow-amber-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined">receipt_long</span>
+                            Complete &amp; Clear Party
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {selectedTable.status === 'OCCUPIED' && selectedSeatedGuests.length === 0 && (
                   <div className="rounded-2xl bg-amber-500/10 border border-amber-500/20 p-5 flex flex-col gap-4">
                     <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
                       <span className="text-xs font-black uppercase tracking-widest text-amber-400">Current Party</span>
                       <span className="font-mono text-xs font-black px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                        Q-{(selectedSeatedGuest.display_number || selectedSeatedGuest.queue_number || '').toString().replace(/^#+/, '')}
+                        Occupied
                       </span>
                     </div>
-
                     <div className="flex flex-col gap-1">
-                      <span className="text-xl font-black text-white">{selectedSeatedGuest.customer_name}</span>
-                      <div className="flex items-center gap-3 text-sm text-amber-200 mt-1">
-                        <span className="font-bold flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">group</span> {selectedSeatedGuest.actual_guests || selectedSeatedGuest.party_size} Guests</span>
-                        <span className="opacity-50">•</span>
-                        <span className="font-mono font-bold flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">timer</span> {formatDiningDuration(selectedSeatedGuest.seated_at) || '0m'}</span>
-                      </div>
-                      {selectedSeatedGuest.customer_phone && (
-                         <span className="text-xs text-slate-400 mt-2 font-mono flex items-center gap-1.5 bg-black/20 p-2 rounded-lg border border-white/5 w-max">
-                           <span className="material-symbols-outlined text-[14px]">call</span> {selectedSeatedGuest.customer_phone}
-                         </span>
-                      )}
+                      <span className="text-base font-bold text-white">Active Dining Table</span>
+                      <p className="text-xs text-slate-400">
+                        This table is currently occupied (assigned as part of an active dining party or multi-table combination).
+                      </p>
                     </div>
-
                     <div className="pt-3">
                       <button
                         type="button"
                         disabled={isPending}
-                        onClick={() => handleExitCustomer(selectedSeatedGuest.id, selectedTable.id)}
-                        className="w-full py-3.5 rounded-xl bg-amber-600 hover:bg-amber-500 active:scale-95 text-white text-sm font-black shadow-lg shadow-amber-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                        onClick={() => handleStatusChange(selectedTable.id, 'CLEANING')}
+                        className="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-sm font-black shadow-lg shadow-rose-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
                       >
-                        <span className="material-symbols-outlined">receipt_long</span>
-                        Complete &amp; Clear Table
+                        <span className="material-symbols-outlined">cleaning_services</span>
+                        Clear Table &amp; Send to Bus
                       </button>
                     </div>
                   </div>

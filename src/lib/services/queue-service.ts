@@ -727,7 +727,33 @@ export class QueueService {
    */
   static async getSeatedQueueEntries(restaurantId: string) {
     const supabase = createAdminClient();
-    const { data: entries, error } = await supabase
+
+    // Query active_seating_assignments joined with queue_entries so multi-table and shared table seatings are accurate
+    const { data: assignments, error: assignError } = await supabase
+      .from('active_seating_assignments')
+      .select(`
+        table_id,
+        guests_allocated,
+        is_primary,
+        queue_entries (
+          id,
+          customer_name,
+          customer_phone,
+          party_size,
+          actual_guests,
+          queue_number,
+          display_number,
+          status,
+          seated_table_id,
+          seated_at,
+          completed_at,
+          joined_at
+        )
+      `)
+      .eq('restaurant_id', restaurantId);
+
+    // Also fetch raw queue_entries for fallback / legacy entries
+    const { data: entries, error: entriesError } = await supabase
       .from('queue_entries')
       .select('id, customer_name, customer_phone, party_size, actual_guests, queue_number, display_number, status, seated_table_id, seated_at, completed_at, joined_at')
       .eq('restaurant_id', restaurantId)
@@ -735,15 +761,60 @@ export class QueueService {
       .is('completed_at', null)
       .order('seated_at', { ascending: false });
 
-    if (error) {
+    if (assignError && entriesError) {
       logger.warn('Failed to fetch seated queue entries', {
         operation: 'getSeatedQueueEntries',
-        metadata: { error: error.message, restaurantId },
+        metadata: { error: assignError?.message || entriesError?.message, restaurantId },
       });
       return [];
     }
 
-    return entries || [];
+    interface SeatedEntryItem {
+      id: string;
+      customer_name: string;
+      customer_phone?: string;
+      party_size: number;
+      actual_guests?: number;
+      queue_number?: number;
+      display_number?: string | number;
+      status: string;
+      seated_table_id: string;
+      seated_at?: string;
+      completed_at?: string | null;
+      joined_at?: string;
+      is_primary_table?: boolean;
+    }
+
+    const results: SeatedEntryItem[] = [];
+    const seenAssignments = new Set<string>();
+
+    if (assignments && assignments.length > 0) {
+      for (const a of assignments) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const qe = a.queue_entries as any;
+        if (!qe || qe.status !== 'SEATED' || qe.completed_at !== null) continue;
+        const key = `${qe.id}_${a.table_id}`;
+        seenAssignments.add(key);
+        results.push({
+          ...qe,
+          seated_table_id: a.table_id,
+          actual_guests: a.guests_allocated || qe.actual_guests || qe.party_size,
+          is_primary_table: a.is_primary,
+        });
+      }
+    }
+
+    if (entries) {
+      for (const e of entries) {
+        if (!e.seated_table_id) continue;
+        const key = `${e.id}_${e.seated_table_id}`;
+        if (!seenAssignments.has(key)) {
+          results.push(e);
+        }
+      }
+    }
+
+    return results;
   }
 
   /**
@@ -1231,8 +1302,13 @@ export class QueueService {
       recommendations.push(...sharedFits);
     }
 
-    // 3. Multi-table combinations (when no single table fits, or as alternative options)
-    if (availableTables.length >= 2) {
+    // 3. Multi-table combinations:
+    // INTELLIGENT RULE:
+    // If ANY single available table or (in STRICT mode) shared table fits the party headcount,
+    // NEVER suggest combining multiple tables! Combining tables takes multiple tables out of
+    // service and wastes floor capacity.
+    const hasAnySingleOrSharedFit = singleFits.length > 0 || recommendations.some((r) => r.is_shared);
+    if (partySize >= 3 && !hasAnySingleOrSharedFit && availableTables.length >= 2) {
       interface PairCandidate {
         t1: typeof availableTables[0];
         t2: typeof availableTables[0];
@@ -1247,6 +1323,10 @@ export class QueueService {
           const t1 = availableTables[i];
           const t2 = availableTables[j];
           if (!t1 || !t2) continue;
+
+          // Neither table alone should be large enough (both must be genuinely needed)
+          if (t1.capacity >= partySize || t2.capacity >= partySize) continue;
+
           const combinedCap = t1.capacity + t2.capacity;
           if (combinedCap >= partySize) {
             const waste = combinedCap - partySize;

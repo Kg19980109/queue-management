@@ -212,18 +212,11 @@ export async function updateTableStatusAction(
 
 export async function exitSeatedGuestAction(
   entryId: string,
-  tableId?: string
+  _tableId?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { restaurantId, userId } = await RestaurantAdminService.getAuthorizedRestaurantContext();
+    const { userId } = await RestaurantAdminService.getAuthorizedRestaurantContext();
     await QueueService.exitSeatedCustomer(entryId, userId);
-    if (tableId) {
-      try {
-        await TableService.updateTableStatus(tableId, 'AVAILABLE', undefined, restaurantId, userId);
-      } catch {
-        // Table may already be updated
-      }
-    }
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/tables');
     revalidatePath('/dashboard/queue');

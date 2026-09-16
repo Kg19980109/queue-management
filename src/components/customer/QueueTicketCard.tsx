@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import type { PublicQueueStatusResponse } from '@/lib/services/queue-service';
 import { CancelQueueDialog } from './CancelQueueDialog';
-import { ExitDiningDialog } from './ExitDiningDialog';
 import { CustomerLateModal } from './CustomerLateModal';
 import { QueueProgressMessage } from './QueueProgressMessage';
 import { formatWaitLabel } from '@/lib/customer-join-ux';
@@ -248,14 +247,6 @@ export function QueueTicketCard({
               </div>
             )}
 
-            {!isCompleted && (
-              <div className="mt-4 pt-3 border-t border-emerald-500/20 text-center">
-                <p className="text-[11px] text-emerald-200/80 mb-2">
-                  Leaving after dining or planning another visit later today?
-                </p>
-                <ExitDiningDialog token={token} restaurantSlug={restaurantSlug} />
-              </div>
-            )}
             
             {isCompleted ? (
               <div className="mt-6 flex flex-col gap-2.5">

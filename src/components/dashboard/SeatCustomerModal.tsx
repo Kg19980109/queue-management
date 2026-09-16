@@ -1,7 +1,14 @@
 'use client';
 
-import React, { useState, useTransition, useEffect } from 'react';
+import React, { useState, useTransition, useEffect, useMemo } from 'react';
 import { seatQueueEntryAction, recommendTablesAction } from '@/app/dashboard/actions';
+
+const cleanTablePrefix = (str: string) => str.replace(/^(tables?\s*)+/gi, '').trim();
+const formatTableHeading = (num: string) => {
+  const clean = cleanTablePrefix(num);
+  return `Table ${clean}`;
+};
+const formatTableBadge = (num: string) => cleanTablePrefix(num);
 
 export interface SeatableTableItem {
   id: string;
@@ -60,7 +67,20 @@ export function SeatCustomerModal({
       .catch(() => setRecommended(seatableTables));
   }, [isOpen, entryId, partySize, seatableTables]);
 
-  const tablesToShow = recommended !== null ? recommended : seatableTables;
+  const tablesToShow = useMemo(() => {
+    const base = recommended !== null ? recommended : seatableTables;
+    // Safety rule: never suggest multi-table combinations for small parties (<= 2 guests),
+    // or when single available tables already accommodate the guest count.
+    const hasSingleFit =
+      base.some((t) => !t.is_combination && (t.capacity || 0) >= actualGuests) ||
+      seatableTables.some((t) => !t.is_combination && (t.capacity || 0) >= actualGuests) ||
+      allAvailableTables.some((t) => !t.is_combination && (t.capacity || 0) >= actualGuests);
+
+    if (actualGuests <= 2 || hasSingleFit) {
+      return base.filter((t) => !t.is_combination);
+    }
+    return base;
+  }, [recommended, seatableTables, allAvailableTables, actualGuests]);
 
   const handleSeat = (tableId: string, additionalIds: string[] = []) => {
     setSelectedTableId(tableId);
@@ -282,11 +302,11 @@ export function SeatCustomerModal({
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               <div className="h-10 px-2.5 rounded-xl flex items-center justify-center font-bold text-xs font-mono bg-purple-500/20 border border-purple-500/40 text-purple-300 shrink-0">
-                                {table.table_number}
+                                {cleanTablePrefix(table.table_number)}
                               </div>
                               <div className="min-w-0">
                                 <div className="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
-                                  <span>Tables {table.table_number}</span>
+                                  <span>Tables {cleanTablePrefix(table.table_number)}</span>
                                   <span className="text-[10px] font-bold text-purple-300">• Cap {table.capacity}</span>
                                   <span className="px-1.5 py-0.5 rounded bg-purple-500/30 border border-purple-500/40 text-purple-200 text-[9px] font-black uppercase">
                                     Combine Suggestion
@@ -318,11 +338,11 @@ export function SeatCustomerModal({
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               <div className="h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs font-mono bg-amber-500/20 border border-amber-500/40 text-amber-300 shrink-0">
-                                {table.table_number}
+                                {formatTableBadge(table.table_number)}
                               </div>
                               <div className="min-w-0">
                                 <div className="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
-                                  <span>Table {table.table_number}</span>
+                                  <span>{formatTableHeading(table.table_number)}</span>
                                   <span className="text-[10px] font-bold text-amber-300">• Total Cap {table.capacity}</span>
                                   <span className="px-1.5 py-0.5 rounded bg-amber-500/30 border border-amber-500/40 text-amber-200 text-[9px] font-black uppercase">
                                     Shared Table
@@ -353,11 +373,11 @@ export function SeatCustomerModal({
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm font-mono shrink-0 ${idx === 0 ? 'bg-emerald-500 text-white' : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'}`}>
-                              {table.table_number}
+                              {formatTableBadge(table.table_number)}
                             </div>
                             <div className="min-w-0">
                               <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                                <span>Table {table.table_number}</span>
+                                <span>{formatTableHeading(table.table_number)}</span>
                                 <span className="text-[10px] font-normal text-slate-400">• Cap {table.capacity}</span>
                                 {idx === 0 && <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[9px] font-black uppercase">Recommended</span>}
                               </div>
