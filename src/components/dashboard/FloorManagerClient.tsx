@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useTransition, useMemo } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AddTableModal } from './AddTableModal';
 import { updateTableStatusAction, exitSeatedGuestAction } from '@/app/dashboard/actions';
@@ -30,6 +31,7 @@ interface FloorManagerClientProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   seatedEntries?: any[];
   userId?: string;
+  seatingMode?: 'SIMPLE' | 'STRICT';
 }
 
 export function FloorManagerClient({
@@ -40,6 +42,7 @@ export function FloorManagerClient({
   queueEntries = [],
   seatedEntries = [],
   userId = '',
+  seatingMode = 'SIMPLE',
 }: FloorManagerClientProps) {
   const router = useRouter();
   const [selectedTableId, setSelectedTableId] = useState<string | null>(tables.length > 0 ? tables[0].id : null);
@@ -154,6 +157,18 @@ export function FloorManagerClient({
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span className="text-xs text-slate-400 font-bold">{restaurantName}</span>
               </div>
+              <Link
+                href="/dashboard/profile"
+                title="Click to change Seating Mode in Venue Settings"
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full border text-[11px] sm:text-xs font-bold transition-all shadow-sm ${
+                  seatingMode === 'STRICT'
+                    ? 'bg-purple-500/15 text-purple-300 border-purple-500/30 hover:bg-purple-500/25'
+                    : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[14px]">tune</span>
+                <span>{seatingMode === 'STRICT' ? 'Strict Mode (Shared)' : 'Simple Mode (Exclusive)'}</span>
+              </Link>
             </div>
             
             {/* Mobile Add Table */}

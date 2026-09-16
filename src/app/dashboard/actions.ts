@@ -12,6 +12,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { AuthorizationService } from '@/lib/services/authorization-service';
 import { PERMISSIONS } from '@/lib/auth/permissions';
+import { createAdminClient } from '@/lib/db/supabase/admin';
 import type { TableStatus, ZoneStatus, InventoryUnit, QueueStatus } from '@/types/database.types';
 
 /**
@@ -576,6 +577,33 @@ export async function seatQueueEntryAction(
   revalidatePath('/dashboard/queue');
   revalidatePath('/dashboard/tables');
   revalidatePath('/dashboard', 'layout');
+}
+
+export async function updateSeatingModeAction(newMode: 'SIMPLE' | 'STRICT'): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { restaurantId } = await RestaurantAdminService.getAuthorizedRestaurantContext();
+    const adminClient = createAdminClient();
+    const { error } = await adminClient
+      .from('restaurants')
+      .update({
+        seating_mode: newMode,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', restaurantId);
+
+    if (error) throw error;
+
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/tables');
+    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard', 'layout');
+    return { success: true };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update seating mode',
+    };
+  }
 }
 
 export async function updateETASettingsFormAction(formData: FormData): Promise<void> {

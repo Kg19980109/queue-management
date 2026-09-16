@@ -37,6 +37,7 @@ export default async function TablesPage() {
       queueEntries={queueEntries}
       seatedEntries={seatedEntries}
       userId={userId}
+      seatingMode={(restaurant.seating_mode || 'SIMPLE') as 'SIMPLE' | 'STRICT'}
     />
   );
 }

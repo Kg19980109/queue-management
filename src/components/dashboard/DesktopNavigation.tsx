@@ -117,6 +117,14 @@ export default function DesktopNavigation({ activeQueueCount, children }: Deskto
                 <span className="font-medium text-sm">QR Codes</span>
               </div>
             </Link>
+
+            <Link href="/dashboard/profile" className={navLinkClass('/dashboard/profile')}>
+              {isActive('/dashboard/profile') && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full"></div>}
+              <div className="flex items-center gap-3">
+                <span className={`material-symbols-outlined text-[18px] ${isActive('/dashboard/profile') ? 'text-primary' : ''}`}>tune</span>
+                <span className="font-medium text-sm">Venue Settings</span>
+              </div>
+            </Link>
           </nav>
         </div>
       </div>

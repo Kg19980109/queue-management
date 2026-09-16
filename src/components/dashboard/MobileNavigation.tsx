@@ -65,6 +65,10 @@ export default function MobileNavigation({ activeQueueCount }: MobileNavigationP
               <span className="material-symbols-outlined text-[24px]">menu_book</span>
               <span className="text-xs font-medium">Menu Configuration</span>
             </Link>
+            <Link onClick={() => setIsDrawerOpen(false)} href="/dashboard/profile" className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white/5 border border-white/5 text-slate-300 hover:bg-white/10 active:bg-white/10 transition-colors">
+              <span className="material-symbols-outlined text-[24px]">tune</span>
+              <span className="text-xs font-medium">Venue Settings</span>
+            </Link>
           </div>
         </div>
       </div>
