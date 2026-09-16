@@ -180,7 +180,16 @@ export function DashboardClient({
   };
 
   // Pre-calculate seatable tables for each entry
-  const availableTables = tables.filter((t) => t.status === 'AVAILABLE') as unknown as SeatableTableItem[];
+  const availableTables = tables
+    .filter((t) => t.status === 'AVAILABLE')
+    .map((t) => ({
+      id: t.id,
+      table_number: t.tableNumber,
+      tableNumber: t.tableNumber,
+      capacity: t.capacity,
+      restaurant_zones: t.zoneName ? { name: t.zoneName } : null,
+      zoneName: t.zoneName,
+    })) as SeatableTableItem[];
   const tablesTotal = tables.length;
   const tablesOccupied = tables.filter((t) => t.status === 'OCCUPIED').length;
 

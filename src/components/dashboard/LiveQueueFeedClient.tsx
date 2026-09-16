@@ -58,7 +58,16 @@ export function LiveQueueFeedClient({
 
   // Filter tables matching party size directly from current tables state
   const availableTables = useMemo(() => {
-    return tables.filter((t) => t.status === 'AVAILABLE') as unknown as SeatableTableItem[];
+    return tables
+      .filter((t) => t.status === 'AVAILABLE')
+      .map((t) => ({
+        id: t.id,
+        table_number: t.tableNumber,
+        tableNumber: t.tableNumber,
+        capacity: t.capacity,
+        restaurant_zones: t.zoneName ? { name: t.zoneName } : null,
+        zoneName: t.zoneName,
+      })) as SeatableTableItem[];
   }, [tables]);
 
   // Filter entries based on active filter tab & search term

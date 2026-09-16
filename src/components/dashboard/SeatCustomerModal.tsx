@@ -3,18 +3,28 @@
 import React, { useState, useTransition, useEffect, useMemo } from 'react';
 import { seatQueueEntryAction, recommendTablesAction } from '@/app/dashboard/actions';
 
-const cleanTablePrefix = (str: string) => str.replace(/^(tables?\s*)+/gi, '').trim();
-const formatTableHeading = (num: string) => {
-  const clean = cleanTablePrefix(num);
-  return `Table ${clean}`;
+const cleanTablePrefix = (str?: string | number | null) => {
+  if (str == null) return '';
+  return String(str).replace(/^(tables?\s*)+/gi, '').trim();
 };
-const formatTableBadge = (num: string) => cleanTablePrefix(num);
+const formatTableHeading = (num?: string | number | null) => {
+  const clean = cleanTablePrefix(num);
+  return clean ? `Table ${clean}` : 'Table';
+};
+const formatTableBadge = (num?: string | number | null) => cleanTablePrefix(num);
+
+const getTableNumber = (t?: { table_number?: string; tableNumber?: string } | null): string => {
+  if (!t) return '';
+  return String(t.table_number || t.tableNumber || '').trim();
+};
 
 export interface SeatableTableItem {
   id: string;
-  table_number: string;
+  table_number?: string;
+  tableNumber?: string;
   capacity: number;
   restaurant_zones?: { name: string } | null;
+  zoneName?: string | null;
   is_combination?: boolean;
   is_shared?: boolean;
   table_ids?: string[];
@@ -248,11 +258,11 @@ export function SeatCustomerModal({
                               className="w-4 h-4 rounded text-primary focus:ring-0 cursor-pointer"
                             />
                             <div>
-                              <span className="text-xs font-bold text-white">Table {t.table_number}</span>
+                              <span className="text-xs font-bold text-white">Table {getTableNumber(t)}</span>
                               <span className="text-[10px] text-slate-400 ml-2">Cap: {t.capacity}</span>
                             </div>
                           </div>
-                          <span className="text-[10px] text-slate-400">{t.restaurant_zones?.name || 'Floor'}</span>
+                          <span className="text-[10px] text-slate-400">{t.restaurant_zones?.name || t.zoneName || 'Floor'}</span>
                         </div>
                       );
                     })}
@@ -302,11 +312,11 @@ export function SeatCustomerModal({
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               <div className="h-10 px-2.5 rounded-xl flex items-center justify-center font-bold text-xs font-mono bg-purple-500/20 border border-purple-500/40 text-purple-300 shrink-0">
-                                {cleanTablePrefix(table.table_number)}
+                                {cleanTablePrefix(getTableNumber(table))}
                               </div>
                               <div className="min-w-0">
                                 <div className="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
-                                  <span>Tables {cleanTablePrefix(table.table_number)}</span>
+                                  <span>Tables {cleanTablePrefix(getTableNumber(table))}</span>
                                   <span className="text-[10px] font-bold text-purple-300">• Cap {table.capacity}</span>
                                   <span className="px-1.5 py-0.5 rounded bg-purple-500/30 border border-purple-500/40 text-purple-200 text-[9px] font-black uppercase">
                                     Combine Suggestion
@@ -338,11 +348,11 @@ export function SeatCustomerModal({
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               <div className="h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs font-mono bg-amber-500/20 border border-amber-500/40 text-amber-300 shrink-0">
-                                {formatTableBadge(table.table_number)}
+                                {formatTableBadge(getTableNumber(table))}
                               </div>
                               <div className="min-w-0">
                                 <div className="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
-                                  <span>{formatTableHeading(table.table_number)}</span>
+                                  <span>{formatTableHeading(getTableNumber(table))}</span>
                                   <span className="text-[10px] font-bold text-amber-300">• Total Cap {table.capacity}</span>
                                   <span className="px-1.5 py-0.5 rounded bg-amber-500/30 border border-amber-500/40 text-amber-200 text-[9px] font-black uppercase">
                                     Shared Table
@@ -373,16 +383,16 @@ export function SeatCustomerModal({
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-sm font-mono shrink-0 ${idx === 0 ? 'bg-emerald-500 text-white' : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'}`}>
-                              {formatTableBadge(table.table_number)}
+                              {formatTableBadge(getTableNumber(table))}
                             </div>
                             <div className="min-w-0">
                               <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                                <span>{formatTableHeading(table.table_number)}</span>
+                                <span>{formatTableHeading(getTableNumber(table))}</span>
                                 <span className="text-[10px] font-normal text-slate-400">• Cap {table.capacity}</span>
                                 {idx === 0 && <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[9px] font-black uppercase">Recommended</span>}
                               </div>
                               <span className="text-[10px] text-slate-400 truncate block">
-                                {table.reason || (table.restaurant_zones?.name ? `${table.restaurant_zones.name} • Fits party` : `Main Area • Rank #${idx + 1}`)}
+                                {table.reason || (table.restaurant_zones?.name ? `${table.restaurant_zones.name} • Fits party` : (table.zoneName ? `${table.zoneName} • Fits party` : `Main Area • Rank #${idx + 1}`))}
                               </span>
                             </div>
                           </div>
