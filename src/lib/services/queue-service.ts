@@ -109,6 +109,10 @@ export interface PublicQueueStatusResponse {
   upNextNumber?: string | null;
   recentlySeatedNumbers?: string[];
   completedAt?: string | null;
+  callResponse?: 'ACCEPTED' | 'DELAY_REQUESTED' | 'DECLINED' | null;
+  callRespondedAt?: string | null;
+  callDelayMinutes?: number | null;
+  callTimeoutMinutes?: number;
 }
 
 export class QueueService {
@@ -173,7 +177,7 @@ export class QueueService {
 
     const { data: entry, error } = await supabase
       .from('queue_entries')
-      .select('*, restaurants!inner(name, timezone, avg_service_time_mins, service_capacity_units, eta_buffer_mins, almost_your_turn_threshold)')
+      .select('*, restaurants!inner(name, timezone, avg_service_time_mins, service_capacity_units, eta_buffer_mins, almost_your_turn_threshold, call_timeout_minutes)')
       .eq('token_hash', tokenHash)
       .maybeSingle();
 
@@ -188,6 +192,7 @@ export class QueueService {
       service_capacity_units?: number;
       eta_buffer_mins?: number;
       almost_your_turn_threshold?: number;
+      call_timeout_minutes?: number;
     };
 
     // Cutoff calculation: only count active tickets from the current operating shift (>= 5 AM)
@@ -377,6 +382,10 @@ export class QueueService {
       upNextNumber,
       recentlySeatedNumbers,
       completedAt: entry.completed_at || null,
+      callResponse: (entry as unknown as { call_response?: 'ACCEPTED' | 'DELAY_REQUESTED' | 'DECLINED' | null }).call_response || null,
+      callRespondedAt: (entry as unknown as { call_responded_at?: string | null }).call_responded_at || null,
+      callDelayMinutes: (entry as unknown as { call_delay_minutes?: number | null }).call_delay_minutes || null,
+      callTimeoutMinutes: restaurantObj?.call_timeout_minutes ?? 15,
     };
   }
 
@@ -1705,6 +1714,61 @@ export class QueueService {
       entryId: entry.id,
       delayMinutes: safeDelay,
       note: safeNote,
+    };
+  }
+
+  /**
+   * Records customer decision to a table call (ACCEPTED, DELAY_REQUESTED, DECLINED).
+   * Server-authoritative atomic RPC execution with token authentication and timeout check.
+   */
+  static async respondToCall(
+    rawToken: string,
+    response: 'ACCEPTED' | 'DELAY_REQUESTED' | 'DECLINED',
+    delayMinutes?: number
+  ) {
+    if (!rawToken) throw new Error('MISSING_TOKEN');
+    const tokenHash = hashQueueToken(rawToken);
+    const supabase = createAdminClient();
+
+    // 1. Fetch entry to verify existence and get entryId
+    const { data: entry, error: fetchErr } = await supabase
+      .from('queue_entries')
+      .select('id, restaurant_id, status, token_hash')
+      .eq('token_hash', tokenHash)
+      .maybeSingle();
+
+    if (fetchErr || !entry) {
+      throw new Error('QUEUE_ENTRY_NOT_FOUND');
+    }
+
+    if (entry.status !== 'CALLED') {
+      throw new Error(`CANNOT_RESPOND: Entry is in status ${entry.status}`);
+    }
+
+    // 2. Call atomic DB function
+    const { data, error: rpcErr } = await supabase.rpc('respond_to_call_atomic', {
+      p_queue_entry_id: entry.id,
+      p_token_hash: tokenHash,
+      p_response: response,
+      p_delay_minutes: delayMinutes || null,
+    });
+
+    if (rpcErr) {
+      const msg = rpcErr.message || '';
+      if (msg.includes('CALL_EXPIRED')) throw new Error('CALL_EXPIRED');
+      if (msg.includes('UNAUTHORIZED')) throw new Error('UNAUTHORIZED');
+      if (msg.includes('QUEUE_ENTRY_NOT_CALLED')) throw new Error('QUEUE_ENTRY_NOT_CALLED');
+      throw new Error(msg || 'Failed to record call response');
+    }
+
+    return data as unknown as {
+      success: boolean;
+      queueEntryId: string;
+      status: string;
+      callResponse: 'ACCEPTED' | 'DELAY_REQUESTED' | 'DECLINED';
+      callRespondedAt: string;
+      callDelayMinutes?: number | null;
+      idempotent?: boolean;
     };
   }
 

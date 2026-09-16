@@ -412,10 +412,44 @@ export function DashboardClient({
                           </span>
                         )}
                         {isCalled && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/40 text-blue-300 text-[10px] tracking-widest uppercase font-black shadow-sm">
-                            <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
-                            CALLED · READY
-                          </span>
+                          (() => {
+                            const response = anyEntry.call_response;
+                            const delayMins = anyEntry.call_delay_minutes || 10;
+                            const age = entry.called_at ? Date.now() - new Date(entry.called_at).getTime() : 0;
+                            const timeoutMs = callTimeoutMinutes * 60 * 1000;
+                            const isOverdue = timeoutMs - age <= 0;
+
+                            if (response === 'ACCEPTED') {
+                              return (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] tracking-widest uppercase font-black shadow-sm">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                  CALLED · ON THE WAY
+                                </span>
+                              );
+                            }
+                            if (response === 'DELAY_REQUESTED') {
+                              return (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] tracking-widest uppercase font-black shadow-sm">
+                                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                  CALLED · DELAY (+{delayMins}m)
+                                </span>
+                              );
+                            }
+                            if (isOverdue) {
+                              return (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-400/40 text-rose-300 text-[10px] tracking-widest uppercase font-black shadow-sm">
+                                  <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping" />
+                                  CALLED · EXPIRED
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/40 text-blue-300 text-[10px] tracking-widest uppercase font-black shadow-sm">
+                                <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+                                CALLED · AWAITING RESPONSE
+                              </span>
+                            );
+                          })()
                         )}
                         {isWaiting && (
                           <span
@@ -436,9 +470,28 @@ export function DashboardClient({
                       {(isCalled || hasPreOrder || anyEntry.notes) && (
                         <div className="flex items-center gap-2 text-xs flex-wrap">
                           {isCalled && (
-                            <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
-                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Ready to be seated
-                            </span>
+                            (() => {
+                              const resp = anyEntry.call_response;
+                              if (resp === 'ACCEPTED') {
+                                return (
+                                  <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Guest confirmed — on their way
+                                  </span>
+                                );
+                              }
+                              if (resp === 'DELAY_REQUESTED') {
+                                return (
+                                  <span className="inline-flex items-center gap-1.5 text-amber-400 font-bold">
+                                    <span className="w-2 h-2 rounded-full bg-amber-400" /> Delay requested (+{anyEntry.call_delay_minutes || 10}m)
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span className="inline-flex items-center gap-1.5 text-blue-400 font-medium">
+                                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" /> Awaiting guest response
+                                </span>
+                              );
+                            })()
                           )}
                           {hasPreOrder && (
                             <span className="text-amber-300 font-semibold flex items-center gap-1">

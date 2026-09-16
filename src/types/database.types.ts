@@ -288,6 +288,9 @@ export interface Database {
           no_show_at: string | null;
           no_show_reason: string | null;
           seated_table_id: string | null;
+          call_response: 'ACCEPTED' | 'DELAY_REQUESTED' | 'DECLINED' | null;
+          call_responded_at: string | null;
+          call_delay_minutes: number | null;
           joined_at: string;
           created_at: string;
           updated_at: string;
@@ -726,6 +729,15 @@ export interface Database {
       };
       expire_overdue_called_queue_entries: {
         Args: { p_limit?: number };
+        Returns: Json;
+      };
+      respond_to_call_atomic: {
+        Args: {
+          p_queue_entry_id: string;
+          p_token_hash: string;
+          p_response: string;
+          p_delay_minutes?: number | null;
+        };
         Returns: Json;
       };
     };
