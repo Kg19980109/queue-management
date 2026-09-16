@@ -241,13 +241,11 @@ export function CustomerMenuBrowser({
 
   if (!categories || categories.length === 0) {
     return (
-      <div className="bg-slate-900/60 border border-white/5 rounded-3xl p-12 text-center space-y-3 backdrop-blur-md">
-        <div className="text-4xl">🍽️</div>
-        <p className="text-sm font-bold text-slate-300">
-          Menu is currently unavailable
-        </p>
-        <p className="text-xs text-slate-500">
-          Please ask your server or check back later.
+      <div className="bg-slate-900/60 border border-white/5 rounded-3xl p-10 text-center space-y-2 backdrop-blur-md">
+        <div className="text-3xl">🍽️</div>
+        <p className="text-sm font-bold text-white">Menu coming soon</p>
+        <p className="text-xs text-slate-400">
+          This restaurant hasn&apos;t added its menu yet.
         </p>
       </div>
     );
@@ -263,67 +261,73 @@ export function CustomerMenuBrowser({
     .filter((cat) => cat.items.length > 0);
 
   return (
-    <div className="space-y-5 pb-32">
+    <div className="space-y-4 pb-28">
       {/* Phase 4H: a CALLED customer browsing the menu gets one dominant,
           honest instruction — return first, browse later. No duplicate
           urgency banners; the ticket hero remains the authority. */}
       {queueStatus === 'CALLED' && queueToken && (
         <a
           href={`/q/${restaurantSlug}/status/${queueToken}`}
-          className="flex items-center gap-3 rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4 shadow-lg transition-all hover:bg-sky-500/15 active:scale-[0.99]"
+          className="flex items-center gap-3 rounded-2xl border border-sky-400/40 bg-sky-500/10 p-3.5 shadow-md transition-all hover:bg-sky-500/15 active:scale-[0.99]"
         >
           <span aria-hidden="true" className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75 motion-safe:animate-ping" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-black text-white">Your turn is here — please return 📢</span>
-            <span className="block text-[11px] font-semibold text-sky-200/90">Tap to open your ticket · ordering can wait</span>
+            <span className="block text-sm font-bold text-white">Your turn is here — please return 📢</span>
+            <span className="block text-xs text-sky-200/80">Tap to open your ticket · ordering can wait</span>
           </span>
-          <span aria-hidden="true" className="shrink-0 text-sky-300">→</span>
+          <span aria-hidden="true" className="shrink-0 text-sky-300 font-bold">→</span>
         </a>
       )}
+
       {/* Search + Category Tabs */}
       <div className="space-y-3">
         <div className="relative group">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-orange-400 transition-colors text-[20px]">search</span>
+          <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors text-[18px]">search</span>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="🔍 Search biryani, pizza, desserts…"
+            placeholder="Search dishes…"
             aria-label="Search dishes"
-            className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.05] pl-10 pr-4 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-orange-400/50 focus:ring-2 focus:ring-orange-500/20 transition-all"
+            className="h-11 w-full rounded-xl border border-white/10 bg-slate-900/60 pl-10 pr-10 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/20 transition-all"
           />
           {q && (
             <button
               type="button"
               onClick={() => setSearch('')}
               aria-label="Clear search"
-              className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center"
+              className="absolute right-0 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
             >
-              <span className="w-7 h-7 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors">
-                <span className="material-symbols-outlined text-[16px]">close</span>
+              <span className="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20">
+                <span className="material-symbols-outlined text-[14px]">close</span>
               </span>
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 hide-scrollbar">
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
           <button
             type="button"
             onClick={() => setActiveCategory('')}
-            className={`h-10 px-4 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-wider shrink-0 border ${!activeCategory ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-transparent shadow-lg shadow-orange-500/25' : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'}`}
+            className={`h-9 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 border cursor-pointer ${
+              !activeCategory
+                ? 'bg-white text-slate-950 border-white shadow-sm'
+                : 'bg-white/[0.04] text-slate-400 border-white/5 hover:text-slate-200 hover:bg-white/[0.08]'
+            }`}
           >
-            ✨ All
+            All
           </button>
           {categories.map((cat) => (
             <button
               key={cat.id}
               type="button"
               onClick={() => setActiveCategory(cat.id)}
-              className={`h-10 px-4 rounded-full text-xs font-black whitespace-nowrap transition-all uppercase tracking-wider shrink-0 border ${
+              className={`h-9 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 border cursor-pointer ${
                 activeCategory === cat.id
-                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white border-transparent shadow-lg shadow-orange-500/25'
-                  : 'bg-white/5 text-slate-300 border-white/10 hover:border-white/20 hover:bg-white/10'
+                  ? 'bg-white text-slate-950 border-white shadow-sm'
+                  : 'bg-white/[0.04] text-slate-400 border-white/5 hover:text-slate-200 hover:bg-white/[0.08]'
               }`}
             >
               {cat.name}
@@ -332,104 +336,110 @@ export function CustomerMenuBrowser({
         </div>
       </div>
 
-      {/* Category Items List - polished cards with image */}
+      {/* Category Items List */}
       {filteredCategories.length === 0 ? (
-        <div className="bg-slate-900/60 border border-white/5 rounded-2xl p-10 text-center">
-          <span className="material-symbols-outlined text-[32px] text-slate-500">search_off</span>
-          <p className="text-sm font-bold text-white mt-2">No dishes found</p>
-          <p className="text-xs text-slate-500 mt-1">Try another keyword or category</p>
-          {q && <button onClick={()=>{setSearch(''); setActiveCategory('');}} className="mt-3 text-xs font-bold text-emerald-400 hover:text-emerald-300">Clear filters</button>}
+        <div className="bg-slate-900/60 border border-white/5 rounded-2xl p-8 text-center space-y-1">
+          <p className="text-sm font-bold text-white">No dishes found</p>
+          <p className="text-xs text-slate-400">Try searching for something else or clear filters</p>
+          {q && (
+            <button
+              onClick={() => { setSearch(''); setActiveCategory(''); }}
+              className="mt-2 text-xs font-semibold text-emerald-400 hover:underline cursor-pointer"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
-      ) : filteredCategories.map((cat) => (
-          <div key={cat.id} className="space-y-3">
-            <div className="flex items-center gap-2 border-b border-white/10 pb-2">
-              <h3 className="text-xs font-black text-orange-300 uppercase tracking-widest">
+      ) : (
+        filteredCategories.map((cat) => (
+          <div key={cat.id} className="space-y-2.5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-2 pt-1 px-1">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 {cat.name}
-              </h3>
-              <span className="rounded-full bg-orange-500/15 border border-orange-400/20 px-2 py-0.5 text-[10px] text-orange-200 font-black">{cat.items.length}</span>
+              </h2>
+              <span className="text-[11px] font-medium text-slate-500">
+                {cat.items.length} {cat.items.length === 1 ? 'item' : 'items'}
+              </span>
             </div>
 
-            <div className="space-y-3">
-              {cat.items.map((item, idx) => {
+            <div className="space-y-2.5">
+              {cat.items.map((item) => {
                 const inCart = cart.find((i) => i.menuItemId === item.id);
 
                 return (
-                    <div
-                      key={item.id}
-                      className={`qf-card rounded-3xl p-3 flex gap-3 transition-all animate-staggerIn hover:scale-[1.01] ${
-                        item.available
-                          ? 'hover:border-orange-400/30'
-                          : 'opacity-75'
-                      }`}
-                      style={{animationDelay:`${idx*40}ms`}}
+                  <div
+                    key={item.id}
+                    className={`rounded-2xl border border-white/5 bg-slate-900/60 p-3.5 flex items-center justify-between gap-3 transition-all ${
+                      item.available ? 'hover:border-white/15' : 'opacity-60'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => openDetail(item)}
+                      aria-label={`View details for ${item.name}, ${formatPrice(item.price)}${item.available ? '' : ', currently unavailable'}`}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left group cursor-pointer"
                     >
-                      <button
-                        type="button"
-                        onClick={() => openDetail(item)}
-                        aria-label={`View details for ${item.name}, ${formatPrice(item.price)}${item.available ? '' : ', currently unavailable'}`}
-                        className="flex min-w-0 flex-1 items-center gap-3 text-left active:scale-[0.99]"
-                      >
-                      <div className="flex h-18 min-h-[72px] w-18 min-w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500/25 via-amber-500/10 to-emerald-500/10 text-3xl">
-                        {item.imageUrl ? (<img src={item.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />) : (<span aria-hidden="true">🍽️</span>)}
+                      <div className="flex h-18 min-h-[72px] w-18 min-w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/[0.03] border border-white/5 text-2xl">
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+                        ) : (
+                          <span aria-hidden="true" className="opacity-50">🍽️</span>
+                        )}
                       </div>
                       <div className="space-y-1 flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-black text-white text-[14px] leading-tight line-clamp-1 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-white text-sm leading-snug line-clamp-1 group-hover:text-emerald-300 transition-colors">
                             {item.name}
-                          </h4>
+                          </h3>
                           {!item.available && (
-                            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-500/15 border border-slate-400/30 text-slate-300 uppercase tracking-wider">
+                            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/5 text-slate-400">
                               Unavailable
                             </span>
                           )}
                         </div>
                         {item.description && (
-                          <p className="text-[11px] text-slate-300 line-clamp-2 leading-relaxed">
+                          <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
                             {item.description}
                           </p>
                         )}
                         <div className="flex items-center gap-2 pt-0.5">
-                          <span className="text-[15px] font-black text-emerald-300">
+                          <span className="text-sm font-mono font-bold text-white">
                             {formatPrice(item.price)}
                           </span>
                           {typeof item.preparationTimeMinutes === 'number' && item.preparationTimeMinutes > 0 && (
-                            <span className="text-[10px] font-bold text-slate-400">⏱ ~{item.preparationTimeMinutes} min</span>
+                            <span className="text-[11px] text-slate-500">· ~{item.preparationTimeMinutes} min</span>
                           )}
                         </div>
                       </div>
-                      </button>
+                    </button>
 
-                    <div>
+                    <div className="shrink-0 pl-1">
                       {!item.available ? (
                         <button
                           type="button"
                           onClick={() => openDetail(item)}
-                          className="px-4 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold uppercase tracking-wider border border-white/5"
+                          className="px-3 py-1.5 rounded-xl bg-white/5 text-slate-500 text-xs font-semibold border border-white/5 cursor-pointer"
                         >
                           Unavailable
                         </button>
                       ) : inCart ? (
-                        <div className="flex items-center gap-3 bg-black/40 border border-white/10 rounded-xl p-1 shadow-inner">
+                        <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl p-1">
                           <button
                             type="button"
                             aria-label={`Remove one ${item.name} from cart`}
-                            onClick={() =>
-                              handleUpdateQuantity(item.id, -1)
-                            }
-                            className="relative w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center transition-colors before:absolute before:-inset-2 before:content-['']"
+                            onClick={() => handleUpdateQuantity(item.id, -1)}
+                            className="relative w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-white font-bold text-sm flex items-center justify-center transition-colors cursor-pointer before:absolute before:-inset-2 before:content-['']"
                           >
                             -
                           </button>
-                          <span className="text-sm font-mono font-bold text-white px-1" aria-live="polite">
+                          <span className="text-sm font-mono font-bold text-white px-1 min-w-[20px] text-center" aria-live="polite">
                             {inCart.quantity}
                           </span>
                           <button
                             type="button"
                             aria-label={`Add one more ${item.name} to cart`}
-                            onClick={() =>
-                              handleUpdateQuantity(item.id, 1)
-                            }
-                            className="relative w-8 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center transition-colors shadow-[0_0_10px_rgba(16,185,129,0.3)] before:absolute before:-inset-2 before:content-['']"
+                            onClick={() => handleUpdateQuantity(item.id, 1)}
+                            className="relative w-8 h-8 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center transition-colors cursor-pointer before:absolute before:-inset-2 before:content-['']"
                           >
                             +
                           </button>
@@ -439,7 +449,7 @@ export function CustomerMenuBrowser({
                           type="button"
                           aria-label={`Add ${item.name} to cart`}
                           onClick={() => handleAddToCart(item)}
-                          className="qf-cta px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:brightness-110 text-white text-xs font-black shadow-lg shadow-orange-500/25 transition-all uppercase tracking-wider active:scale-95"
+                          className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold border border-white/10 hover:border-white/20 transition-all active:scale-95 cursor-pointer"
                         >
                           + Add
                         </button>
@@ -450,90 +460,92 @@ export function CustomerMenuBrowser({
               })}
             </div>
           </div>
-        ))}
+        ))
+      )}
 
-      {/* Floating Cart Sticky Bottom Bar (rises above the ticket float) */}
+      {/* Floating Cart Sticky Bottom Bar */}
       {totalItemsCount > 0 && (
-        <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-50">
-          <div className="rounded-3xl bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 p-[1.5px] shadow-[0_10px_40px_rgba(249,115,22,0.35)] animate-in slide-in-from-bottom-4">
-          <div className="flex items-center justify-between gap-4 rounded-3xl bg-[#141b2e]/95 p-4 backdrop-blur">
-            <div>
-              <div className="text-[10px] font-black uppercase tracking-widest text-orange-300">
-                🛒 {totalItemsCount} {totalItemsCount === 1 ? 'Item' : 'Items'} selected
+        <div className="fixed bottom-4 inset-x-4 max-w-md mx-auto z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-900/95 border border-white/15 px-4 py-3 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                <span className="material-symbols-outlined text-[18px]">shopping_bag</span>
               </div>
-              <div className="font-mono text-2xl font-black text-white">
-                {formatPrice(cartSubtotal)}
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">
+                  {totalItemsCount} {totalItemsCount === 1 ? 'item' : 'items'} · <span className="font-mono text-emerald-400">{formatPrice(cartSubtotal)}</span>
+                </p>
+                <p className="text-[11px] text-slate-400 truncate">
+                  Pre-ordering while waiting
+                </p>
               </div>
             </div>
 
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="qf-cta px-6 py-3.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:brightness-110 text-white text-xs font-black shadow-lg transition-all flex items-center gap-2 active:scale-95"
+              className="shrink-0 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-md shadow-emerald-500/20 cursor-pointer"
             >
-              <span>View Cart & Order</span>
-              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              <span>View cart</span>
+              <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
             </button>
-          </div>
           </div>
         </div>
       )}
 
       {/* Cart Drawer Slide-over Modal */}
       {isCartOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex justify-end animate-in fade-in">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex justify-end animate-in fade-in">
           <div
             role="dialog"
             aria-modal="true"
             aria-label={`Your order, ${totalItemsCount} items, total ${formatPrice(cartSubtotal)}`}
             className="bg-slate-900 border-l border-white/10 w-full max-w-md h-full flex flex-col justify-between p-6 space-y-6 shadow-2xl overflow-y-auto animate-in slide-in-from-right"
           >
-            <div className="space-y-6">
+            <div className="space-y-5">
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                    <span className="material-symbols-outlined text-[20px]">shopping_cart</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/25">
+                    <span className="material-symbols-outlined text-[18px]">shopping_cart</span>
                   </div>
-                  <h3 className="text-xl font-bold text-white tracking-tight">Your Order</h3>
+                  <h3 className="text-lg font-bold text-white tracking-tight">Your Order</h3>
                 </div>
                 <button
                   type="button"
                   aria-label="Close cart"
                   onClick={() => setIsCartOpen(false)}
-                  className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center font-bold text-sm transition-colors border border-white/5"
+                  className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center font-bold text-sm transition-colors border border-white/5 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[20px]">close</span>
+                  <span className="material-symbols-outlined text-[18px]">close</span>
                 </button>
               </div>
 
-              {/* Queue context: ordering never strands the ticket. Solid pill
-                  reads in both color schemes (translucent emerald washes out
-                  on light cards). */}
+              {/* Queue context: ordering never strands the ticket. */}
               {queueStatus === 'CALLED' && queueToken ? (
                 <a
                   href={`/q/${restaurantSlug}/status/${queueToken}`}
-                  className="flex items-center gap-2 rounded-2xl border border-sky-400/30 bg-sky-500/15 px-4 py-3 shadow-lg"
+                  className="flex items-center gap-2.5 rounded-2xl border border-sky-400/40 bg-sky-500/15 px-4 py-3 shadow-sm"
                 >
                   <span aria-hidden="true" className="relative flex h-2.5 w-2.5 shrink-0">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
                     <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-400" />
                   </span>
-                  <span className="text-xs font-black text-white">
+                  <span className="text-xs font-bold text-white">
                     Your turn is here — return first 📢
                   </span>
-                  <span className="ml-auto shrink-0 text-xs font-black text-sky-300">
+                  <span className="ml-auto shrink-0 text-xs font-bold text-sky-300">
                     My ticket →
                   </span>
                 </a>
               ) : queueToken ? (
                 <a
                   href={`/q/${restaurantSlug}/status/${queueToken}`}
-                  className="flex items-center justify-between gap-2 rounded-2xl bg-emerald-600 px-4 py-3 shadow-lg transition-all hover:bg-emerald-500 active:scale-[0.99]"
+                  className="flex items-center justify-between gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 shadow-sm transition-all hover:bg-emerald-500/20 active:scale-[0.99]"
                 >
-                  <span className="text-xs font-bold text-white">
+                  <span className="text-xs font-medium text-emerald-200">
                     🎟️ Ordering while you wait — spot saved
                   </span>
-                  <span className="shrink-0 text-xs font-black text-white">
+                  <span className="shrink-0 text-xs font-bold text-emerald-300">
                     My ticket →
                   </span>
                 </a>
@@ -544,54 +556,50 @@ export function CustomerMenuBrowser({
               )}
 
               {errorMessage && (
-                <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold p-4 rounded-2xl flex items-center gap-3">
+                <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-medium p-3.5 rounded-2xl flex items-center gap-2.5">
                   <span className="material-symbols-outlined text-[18px]">error</span>
                   <span>{errorMessage}</span>
                 </div>
               )}
 
               {/* Items List */}
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {cart.map((item) => (
                   <div
                     key={item.menuItemId}
-                    className="bg-black/20 border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-inner"
+                    className="bg-white/[0.02] border border-white/5 rounded-2xl p-3.5 flex items-center justify-between gap-3"
                   >
-                    <div className="space-y-1.5 flex-1 min-w-0">
-                      <h4 className="font-bold text-white text-sm">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <h4 className="font-bold text-white text-sm leading-snug">
                         {item.name}
                       </h4>
                       {item.notes && (
                         <p className="text-[11px] italic text-slate-400 line-clamp-2">“{item.notes}”</p>
                       )}
-                      <div className="text-xs font-mono text-emerald-400 font-bold">
+                      <div className="text-xs font-mono text-slate-300">
                         {formatPrice(item.price)} × {item.quantity} ={' '}
-                        {formatPrice(item.price * item.quantity)}
+                        <span className="text-emerald-400 font-bold">{formatPrice(item.price * item.quantity)}</span>
                       </div>
                       <p className="text-[10px] text-slate-500">Final price confirmed by the restaurant at checkout.</p>
                     </div>
 
-                    <div className="flex items-center gap-3 bg-black/40 border border-white/10 rounded-xl p-1">
+                    <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-xl p-1 shrink-0">
                       <button
                         type="button"
                         aria-label={`Remove one ${item.name} from cart`}
-                        onClick={() =>
-                          handleUpdateQuantity(item.menuItemId, -1)
-                        }
-                        className="relative w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm flex items-center justify-center transition-colors before:absolute before:-inset-2 before:content-['']"
+                        onClick={() => handleUpdateQuantity(item.menuItemId, -1)}
+                        className="relative w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-white font-bold text-sm flex items-center justify-center transition-colors cursor-pointer before:absolute before:-inset-2 before:content-['']"
                       >
                         -
                       </button>
-                      <span className="text-sm font-mono font-bold text-white px-1" aria-live="polite">
+                      <span className="text-sm font-mono font-bold text-white px-1 min-w-[20px] text-center" aria-live="polite">
                         {item.quantity}
                       </span>
                       <button
                         type="button"
                         aria-label={`Add one more ${item.name} to cart`}
-                        onClick={() =>
-                          handleUpdateQuantity(item.menuItemId, 1)
-                        }
-                        className="relative w-8 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center transition-colors shadow-[0_0_10px_rgba(16,185,129,0.3)] before:absolute before:-inset-2 before:content-['']"
+                        onClick={() => handleUpdateQuantity(item.menuItemId, 1)}
+                        className="relative w-8 h-8 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm flex items-center justify-center transition-colors cursor-pointer before:absolute before:-inset-2 before:content-['']"
                       >
                         +
                       </button>
@@ -602,38 +610,35 @@ export function CustomerMenuBrowser({
             </div>
 
             {/* Cart Footer */}
-            <div className="border-t border-white/5 pt-6 space-y-6 mt-auto">
+            <div className="border-t border-white/5 pt-5 space-y-5 mt-auto">
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-slate-400 text-xs">
                   <span>Subtotal</span>
-                  <span className="font-mono text-white">
+                  <span className="font-mono text-white font-semibold">
                     {formatPrice(cartSubtotal)}
                   </span>
                 </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>Taxes & Fees</span>
-                  <span className="font-mono text-white">{formatPrice(0)}</span>
+                <div className="flex justify-between text-slate-400 text-xs">
+                  <span>Taxes &amp; Fees</span>
+                  <span className="font-mono text-white font-semibold">{formatPrice(0)}</span>
                 </div>
-                <div className="flex justify-between font-black text-white pt-3 border-t border-white/5">
-                  <span>Total Amount</span>
-                  <span className="font-mono text-emerald-400 text-xl">
+                <div className="flex justify-between font-bold text-white pt-2.5 border-t border-white/5">
+                  <span className="text-sm">Total Amount</span>
+                  <span className="font-mono text-emerald-400 text-lg">
                     {formatPrice(cartSubtotal)}
                   </span>
                 </div>
               </div>
 
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex gap-3">
-                <span className="material-symbols-outlined text-[20px] text-amber-400 shrink-0">info</span>
-                <span className="text-[11px] text-amber-300/80 leading-relaxed font-medium">
-                  <strong>Optional Order</strong>: Placing an order will send your food request to the kitchen. You remain in your current queue position!
-                </span>
+              <div className="rounded-xl border border-white/5 bg-white/[0.03] p-3 text-[11px] text-slate-400 leading-relaxed">
+                Placing an order sends your food request to the kitchen. You remain in your current queue position.
               </div>
 
               <button
                 type="button"
                 onClick={handlePlaceOrder}
                 disabled={isPending || cart.length === 0}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 disabled:opacity-50 text-slate-950 font-black text-sm shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-all flex items-center justify-center gap-2 uppercase tracking-wider"
+                className="w-full h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isPending ? (
                   <span className="flex items-center gap-2">
@@ -642,7 +647,7 @@ export function CustomerMenuBrowser({
                   </span>
                 ) : (
                   <>
-                    <span>Confirm & Place Order</span>
+                    <span>Confirm &amp; Place Order</span>
                     <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                   </>
                 )}
@@ -655,7 +660,8 @@ export function CustomerMenuBrowser({
       {/* Item detail sheet: bigger look, prep estimate, quantity + notes.
           Presentation only — price/availability revalidated server-side. */}
       {detailItem && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center animate-in fade-in sm:p-4"
+        <div
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center animate-in fade-in sm:p-4"
           onClick={() => { if (!isPending) setDetailItem(null); }}
         >
           <div
@@ -663,24 +669,24 @@ export function CustomerMenuBrowser({
             aria-modal="true"
             aria-label={`Details for ${detailItem.name}`}
             onClick={(e) => e.stopPropagation()}
-            className="bg-slate-900 border border-white/10 w-full max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom max-h-[92dvh] overflow-y-auto"
+            className="bg-slate-900 border border-white/10 w-full max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom max-h-[90dvh] overflow-y-auto"
           >
-            <div className="relative h-52 bg-gradient-to-br from-orange-500/25 via-amber-500/10 to-emerald-500/10 flex items-center justify-center">
+            <div className="relative h-48 bg-white/[0.03] border-b border-white/5 flex items-center justify-center">
               {detailItem.imageUrl ? (
                 <img src={detailItem.imageUrl} alt={detailItem.name} className="w-full h-full object-cover" loading="lazy" />
               ) : (
-                <span aria-hidden="true" className="text-7xl">🍽️</span>
+                <span aria-hidden="true" className="text-6xl opacity-60">🍽️</span>
               )}
               <button
                 type="button"
                 aria-label="Close item details"
                 onClick={() => setDetailItem(null)}
-                className="absolute top-3 right-3 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center border border-white/10"
+                className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 transition-colors cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[20px]">close</span>
+                <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
               {!detailItem.available && (
-                <span className="absolute bottom-3 left-4 px-3 py-1 rounded-full text-[11px] font-black bg-slate-900/80 border border-slate-400/30 text-slate-200 uppercase tracking-wider">
+                <span className="absolute bottom-3 left-3 px-3 py-1 rounded-full text-[11px] font-semibold bg-slate-900/90 border border-white/10 text-slate-300">
                   Currently unavailable
                 </span>
               )}
@@ -688,21 +694,21 @@ export function CustomerMenuBrowser({
 
             <div className="p-5 space-y-4">
               <div>
-                <h3 className="text-xl font-black text-white tracking-tight">{detailItem.name}</h3>
+                <h3 className="text-lg font-bold text-white tracking-tight">{detailItem.name}</h3>
                 {detailItem.description && (
-                  <p className="mt-1 text-[13px] leading-relaxed text-slate-300">{detailItem.description}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-400">{detailItem.description}</p>
                 )}
                 <div className="mt-2 flex items-center gap-3">
-                  <span className="text-xl font-black text-emerald-400">{formatPrice(detailItem.price)}</span>
+                  <span className="text-lg font-mono font-bold text-white">{formatPrice(detailItem.price)}</span>
                   {typeof detailItem.preparationTimeMinutes === 'number' && detailItem.preparationTimeMinutes > 0 && (
-                    <span className="text-[11px] font-bold text-slate-400">⏱ Ready in ~{detailItem.preparationTimeMinutes} min</span>
+                    <span className="text-xs text-slate-500">⏱ Ready in ~{detailItem.preparationTimeMinutes} min</span>
                   )}
                 </div>
                 <p className="mt-1 text-[10px] text-slate-500">Price confirmed by the restaurant when you order.</p>
               </div>
 
               <div>
-                <label htmlFor="detail-qty" className="block text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                <label htmlFor="detail-qty" className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
                   Quantity
                 </label>
                 <div className="flex items-center gap-3">
@@ -710,18 +716,18 @@ export function CustomerMenuBrowser({
                     type="button"
                     aria-label={`Decrease quantity of ${detailItem.name}`}
                     onClick={() => setDetailQty((q) => Math.max(1, q - 1))}
-                    className="w-11 h-11 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-black text-lg flex items-center justify-center transition-colors"
+                    className="w-11 h-11 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-lg flex items-center justify-center transition-colors border border-white/10 cursor-pointer"
                   >
                     −
                   </button>
-                  <span id="detail-qty" aria-live="polite" className="w-10 text-center font-mono text-xl font-black text-white">
+                  <span id="detail-qty" aria-live="polite" className="w-10 text-center font-mono text-lg font-bold text-white">
                     {detailQty}
                   </span>
                   <button
                     type="button"
                     aria-label={`Increase quantity of ${detailItem.name}`}
                     onClick={() => setDetailQty((q) => Math.min(99, q + 1))}
-                    className="w-11 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-lg flex items-center justify-center transition-colors"
+                    className="w-11 h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-lg flex items-center justify-center transition-colors cursor-pointer"
                   >
                     +
                   </button>
@@ -729,8 +735,8 @@ export function CustomerMenuBrowser({
               </div>
 
               <div>
-                <label htmlFor="detail-notes" className="block text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">
-                  Special instructions <span className="font-semibold normal-case text-slate-500">(optional)</span>
+                <label htmlFor="detail-notes" className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  Special instructions <span className="font-normal text-slate-500">(optional)</span>
                 </label>
                 <textarea
                   id="detail-notes"
@@ -739,7 +745,7 @@ export function CustomerMenuBrowser({
                   maxLength={200}
                   rows={2}
                   placeholder="e.g. less spicy, no onion…"
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-orange-400/50 focus:ring-2 focus:ring-orange-500/20"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/20"
                 />
               </div>
 
@@ -747,14 +753,14 @@ export function CustomerMenuBrowser({
                 type="button"
                 onClick={confirmDetailAdd}
                 disabled={!detailItem.available}
-                className="qf-cta w-full py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:brightness-110 disabled:opacity-40 disabled:saturate-50 text-white font-black text-sm shadow-lg transition-all uppercase tracking-wider active:scale-[0.99]"
+                className="w-full h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all uppercase tracking-wider active:scale-[0.99] cursor-pointer"
               >
                 {detailItem.available
                   ? `Add ${detailQty} to cart · ${formatPrice(detailItem.price * detailQty)}`
                   : 'Unavailable right now'}
               </button>
               {!detailItem.available && (
-                <p className="text-center text-[11px] text-slate-400">
+                <p className="text-center text-[11px] text-slate-500">
                   The kitchen will mark it available again soon — the restaurant confirms availability when you order.
                 </p>
               )}

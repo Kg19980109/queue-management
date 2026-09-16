@@ -15,9 +15,9 @@ export function CustomerTicketFloat({ slug, qtoken }: { slug: string; qtoken?: s
   return (
     <Link
       href={`/q/${slug}/status/${token}`}
-      className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 px-4 h-12 rounded-full bg-emerald-500 text-white font-black text-sm shadow-xl shadow-emerald-500/25 hover:bg-emerald-600 active:scale-95 transition-all"
+      className="fixed bottom-5 right-4 z-40 inline-flex items-center gap-1.5 px-4 h-11 rounded-full bg-slate-900/95 text-slate-200 border border-white/15 text-xs font-bold shadow-2xl backdrop-blur-md hover:bg-slate-800 hover:text-white active:scale-95 transition-all"
     >
-      <span className="material-symbols-outlined text-[18px]">confirmation_number</span>
+      <span className="material-symbols-outlined text-[16px] text-emerald-400">confirmation_number</span>
       My Ticket
     </Link>
   );

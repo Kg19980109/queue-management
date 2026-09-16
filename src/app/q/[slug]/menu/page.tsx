@@ -74,24 +74,23 @@ export default async function CustomerMenuPage({
       <div className="mx-auto w-full max-w-md space-y-5 sm:space-y-6">
         <RestaurantHeader restaurant={restaurant} />
 
-        <div className="qf-card animate-fadeUp relative flex items-center justify-between gap-2 overflow-hidden rounded-3xl p-4">
-          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-emerald-400" />
-          <div className="relative flex items-center gap-2.5">
-            <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-xl shadow">🍽️</span>
-            <span className="text-sm font-black uppercase tracking-widest text-white">
-              Food Menu
+        <div className="flex items-center justify-between gap-3 px-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-bold text-white tracking-tight">Food Menu</h1>
+            <span className="text-xs font-semibold text-slate-400">
+              · {menuCategories.flatMap((c) => c.items).length} items • Live
             </span>
-            <span className="rounded-full bg-gradient-to-r from-orange-500 to-amber-500 px-2.5 py-1 text-[10px] font-black text-white shadow">{menuCategories.flatMap(c=>c.items).length} items • Live</span>
           </div>
           {qtoken ? (
             <a
               href={`/q/${slug}/status/${qtoken}`}
-              className="relative inline-flex min-h-[44px] items-center gap-1 rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-3 py-1.5 text-xs font-black text-emerald-200 transition-colors hover:bg-emerald-500/25"
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-bold text-slate-200 transition-colors hover:bg-white/10 hover:text-white"
             >
-              <span className="material-symbols-outlined text-[16px]">confirmation_number</span> My Ticket
+              <span className="material-symbols-outlined text-[16px] text-emerald-400">confirmation_number</span>
+              My Ticket
             </a>
           ) : (
-            <span className="text-[11px] font-bold text-slate-400">Browse & order 👇</span>
+            <span className="text-xs font-medium text-slate-500">Browse &amp; order</span>
           )}
         </div>
 
