@@ -163,12 +163,14 @@ export interface Database {
           updated_at: string;
           archived_at: string | null;
           seating_mode: SeatingMode;
+          auto_expire_called: boolean;
         };
         Insert: Omit<Database['public']['Tables']['restaurants']['Row'], 'id' | 'created_at' | 'updated_at'> & {
           id?: string;
           created_at?: string;
           updated_at?: string;
           seating_mode?: SeatingMode;
+          auto_expire_called?: boolean;
         };
         Update: Partial<Database['public']['Tables']['restaurants']['Insert']>;
       };

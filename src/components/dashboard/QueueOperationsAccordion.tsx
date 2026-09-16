@@ -159,6 +159,24 @@ export function QueueOperationsAccordion({
                     </div>
                   </div>
 
+                  <div className="flex flex-col gap-1.5 pt-1 border-t border-white/5">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="autoExpireCalled"
+                        value="true"
+                        defaultChecked={restaurant.auto_expire_called === true}
+                        className="h-4 w-4 rounded border-white/20 bg-[#111827] text-blue-500 focus:ring-blue-500/30"
+                      />
+                      <span className="text-[11px] font-bold text-slate-300">
+                        Auto-remove from queue on timeout
+                      </span>
+                    </label>
+                    <p className="text-[10px] text-slate-500 leading-relaxed">
+                      Kept OFF (recommended): Guests who reach timeout stay in the active queue marked as &ldquo;Overdue&rdquo; so staff can seat them or manually mark no-show.
+                    </p>
+                  </div>
+
                   <button
                     type="submit"
                     className="self-end px-3 py-1.5 bg-white/10 hover:bg-white/15 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"

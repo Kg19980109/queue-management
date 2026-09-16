@@ -540,6 +540,7 @@ export async function updateQueueSettingsFormAction(formData: FormData): Promise
       minPartySize: parseInt((formData.get('minPartySize') as string) || '1', 10),
       maxPartySize: parseInt((formData.get('maxPartySize') as string) || '20', 10),
       callTimeoutMinutes: parseInt((formData.get('callTimeoutMinutes') as string) || '15', 10),
+      autoExpireCalled: formData.get('autoExpireCalled') === 'true' || formData.get('autoExpireCalled') === 'on',
     };
 
     await QueueService.updateQueueSettings(restaurantId, settings, await requireActionActor(actorUserId));

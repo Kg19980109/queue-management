@@ -57,12 +57,12 @@ describe('Phase 3E: final concurrency + load smoke (live)', () => {
     admin = createAdminClient();
 
     await client.query(
-      `INSERT INTO public.restaurants (id, name, slug, queue_enabled, max_queue_capacity, min_party_size, max_party_size, status)
+      `INSERT INTO public.restaurants (id, name, slug, queue_enabled, max_queue_capacity, min_party_size, max_party_size, status, auto_expire_called)
        VALUES
-         ($1, 'Race Capacity', 'race-cap-9e', true, 3, 1, 20, 'ACTIVE'),
-         ($2, 'Race Seating', 'race-seat-9e', true, 100, 1, 20, 'ACTIVE'),
-         ($3, 'Race Orders', 'race-ord-9e', true, 100, 1, 20, 'ACTIVE')
-       ON CONFLICT (id) DO UPDATE SET queue_enabled = true, max_queue_capacity = CASE WHEN public.restaurants.id = $1 THEN 3 ELSE 100 END, status = 'ACTIVE'`,
+         ($1, 'Race Capacity', 'race-cap-9e', true, 3, 1, 20, 'ACTIVE', false),
+         ($2, 'Race Seating', 'race-seat-9e', true, 100, 1, 20, 'ACTIVE', true),
+         ($3, 'Race Orders', 'race-ord-9e', true, 100, 1, 20, 'ACTIVE', false)
+       ON CONFLICT (id) DO UPDATE SET queue_enabled = true, max_queue_capacity = CASE WHEN public.restaurants.id = $1 THEN 3 ELSE 100 END, status = 'ACTIVE', auto_expire_called = CASE WHEN public.restaurants.id = $2 THEN true ELSE false END`,
       [RACE_Q, RACE_S, RACE_O]
     );
     await client.query(`DELETE FROM public.queue_entries WHERE restaurant_id IN ($1, $2, $3)`, [

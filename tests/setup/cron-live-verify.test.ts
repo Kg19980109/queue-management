@@ -20,9 +20,9 @@ describe('Phase 3A: Live cron handler verification', () => {
     client = new Client({ connectionString });
     await client.connect();
     await client.query(
-      `INSERT INTO public.restaurants (id, name, slug, queue_enabled, max_queue_capacity, min_party_size, max_party_size, status, call_timeout_minutes)
-       VALUES ('d0000000-0000-4000-d000-00000000003a', 'Phase 3A Cron Verify', 'phase3a-cron-verify', true, 100, 1, 20, 'ACTIVE', 15)
-       ON CONFLICT (id) DO UPDATE SET queue_enabled = true, status = 'ACTIVE', call_timeout_minutes = 15`
+      `INSERT INTO public.restaurants (id, name, slug, queue_enabled, max_queue_capacity, min_party_size, max_party_size, status, call_timeout_minutes, auto_expire_called)
+       VALUES ('d0000000-0000-4000-d000-00000000003a', 'Phase 3A Cron Verify', 'phase3a-cron-verify', true, 100, 1, 20, 'ACTIVE', 15, true)
+       ON CONFLICT (id) DO UPDATE SET queue_enabled = true, status = 'ACTIVE', call_timeout_minutes = 15, auto_expire_called = true`
     );
   });
 

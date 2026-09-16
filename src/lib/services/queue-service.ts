@@ -56,6 +56,7 @@ export const QueueSettingsSchema = z.object({
   minPartySize: z.number().int().min(1).max(20).optional(),
   maxPartySize: z.number().int().min(1).max(50).optional(),
   callTimeoutMinutes: z.number().int().min(1).max(120).optional(),
+  autoExpireCalled: z.boolean().optional(),
 });
 
 export type QueueSettingsInput = z.infer<typeof QueueSettingsSchema>;
@@ -1000,12 +1001,13 @@ export class QueueService {
     if (validated.minPartySize !== undefined) payload.min_party_size = validated.minPartySize;
     if (validated.maxPartySize !== undefined) payload.max_party_size = validated.maxPartySize;
     if (validated.callTimeoutMinutes !== undefined) payload.call_timeout_minutes = validated.callTimeoutMinutes;
+    if (validated.autoExpireCalled !== undefined) payload.auto_expire_called = validated.autoExpireCalled;
 
     const { data: updated, error } = await supabase
       .from('restaurants')
       .update(payload)
       .eq('id', restaurantId)
-      .select('id, queue_enabled, max_queue_capacity, min_party_size, max_party_size, call_timeout_minutes')
+      .select('id, queue_enabled, max_queue_capacity, min_party_size, max_party_size, call_timeout_minutes, auto_expire_called')
       .single();
 
     if (error) {
