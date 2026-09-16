@@ -153,4 +153,40 @@ describe('Customer Table-Call Response Flow (End-to-End)', () => {
       expect(feedCode).toContain('Guest confirmed — on their way');
     });
   });
+
+  describe('6. Seating Gating, Delay Demotion, and Removal Flow', () => {
+    const dashboardCode = read('components/dashboard/DashboardClient.tsx');
+    const feedCode = read('components/dashboard/LiveQueueFeedClient.tsx');
+    const cardCode = read('components/customer/QueueTicketCard.tsx');
+    const queueServiceCode = read('lib/services/queue-service.ts');
+
+    it('gates table assignment so only ACCEPTED customers can be assigned a table', () => {
+      // In DashboardClient
+      expect(dashboardCode).toContain("anyEntry.call_response === 'ACCEPTED'");
+      expect(dashboardCode).toContain('Awaiting Guest Acceptance');
+      // In LiveQueueFeedClient
+      expect(feedCode).toContain("anyEntry.call_response === 'ACCEPTED'");
+      expect(feedCode).toContain('Awaiting Guest Acceptance');
+    });
+
+    it('places delayed guests below waiting guests in the queue sort order (priority 4)', () => {
+      // In queue service
+      expect(queueServiceCode).toContain("call_response === 'DELAY_REQUESTED'");
+      expect(queueServiceCode).toContain("isDelayedA ? 4 :");
+      // In DashboardClient
+      expect(dashboardCode).toContain("anyA.call_response === 'DELAY_REQUESTED'");
+      expect(dashboardCode).toContain("isDelayedA ? 4 :");
+      // In LiveQueueFeedClient
+      expect(feedCode).toContain("anyA.call_response === 'DELAY_REQUESTED'");
+      expect(feedCode).toContain("isDelayedA ? 4 :");
+    });
+
+    it('allows immediate removal of declined or no-show guests from the queue', () => {
+      expect(dashboardCode).toContain("Customer Can&apos;t Come / Declined");
+      expect(dashboardCode).toContain("Remove / No-Show");
+      expect(feedCode).toContain("Remove / No-Show");
+      expect(cardCode).toContain("You have left the queue");
+    });
+  });
 });
+

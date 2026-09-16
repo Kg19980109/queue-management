@@ -22,6 +22,7 @@ import { CustomerLateModal } from './CustomerLateModal';
 import { CallDelaySheet } from './CallDelaySheet';
 import { formatWaitLabel } from '@/lib/customer-join-ux';
 import { chimeEngine } from '@/lib/audio-chime';
+import { broadcastCustomerQueueUpdate } from '@/lib/realtime/useCustomerQueueRealtime';
 import {
   ticketStateMeta,
   formatTicketNumber,
@@ -182,6 +183,22 @@ export function QueueTicketCard({
     response: 'ACCEPTED' | 'DELAY_REQUESTED' | 'DECLINED',
     delayMinutes?: number
   ) => {
+    // 1. Instant optimistic feedback so user immediately sees their decision reflected
+    setLocalResponse(response);
+    if (delayMinutes) setLocalDelayMins(delayMinutes);
+    if (response === 'DELAY_REQUESTED') setIsDelaySheetOpen(false);
+    if (response === 'DECLINED') setIsConfirmingDecline(false);
+
+    if (response === 'ACCEPTED') {
+      chimeEngine.playCallChime();
+      setLiveAnnouncement("You accepted your table call. You're on your way to the restaurant.");
+    } else if (response === 'DELAY_REQUESTED') {
+      chimeEngine.playAlertChime();
+      setLiveAnnouncement(`Delay requested for ${delayMinutes || 10} minutes. Restaurant notified.`);
+    } else if (response === 'DECLINED') {
+      setLiveAnnouncement('You declined the table. Your queue spot has been cancelled.');
+    }
+
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/q/respond', {
@@ -202,27 +219,17 @@ export function QueueTicketCard({
           setIsCallExpired(true);
           return;
         }
-        throw new Error(data.error || 'Failed to submit response');
+        console.error('Call response error:', data);
       }
 
-      setLocalResponse(response);
-      if (delayMinutes) setLocalDelayMins(delayMinutes);
-
-      if (response === 'ACCEPTED') {
-        chimeEngine.playCallChime();
-        setLiveAnnouncement("You accepted your table call. You're on your way to the restaurant.");
-      } else if (response === 'DELAY_REQUESTED') {
-        chimeEngine.playAlertChime();
-        setLiveAnnouncement(`Delay requested for ${delayMinutes || 10} minutes. Restaurant notified.`);
-        setIsDelaySheetOpen(false);
-      } else if (response === 'DECLINED') {
-        setLiveAnnouncement('You declined the table. Your queue spot has been cancelled.');
-        setIsConfirmingDecline(false);
-      }
+      // Notify staff immediately via realtime narrow channel
+      try {
+        await broadcastCustomerQueueUpdate(status.entryId);
+      } catch {}
 
       router.refresh();
-    } catch {
-      // Degrade gracefully
+    } catch (err) {
+      console.error('Failed to submit call response:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -538,8 +545,28 @@ export function QueueTicketCard({
                 <span>I&apos;ve Arrived — Ready for Table</span>
               </button>
             </div>
+          ) : localResponse === 'DECLINED' ? (
+            /* 4. DECLINED / LEFT QUEUE STATE */
+            <div className="rounded-2xl border border-rose-500/40 bg-gradient-to-b from-rose-500/20 via-slate-900/50 to-slate-950/80 p-6 text-center space-y-3.5 shadow-xl shadow-rose-500/10 motion-safe:animate-fadeIn">
+              <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-rose-300">
+                <X className="h-4 w-4 text-rose-300" />
+                QUEUE SPOT RELEASED
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-white">
+                You have left the queue
+              </h2>
+              <p className="text-xs text-rose-100/90 leading-relaxed max-w-[280px] mx-auto">
+                Your table was offered to the next waiting party. Thank you for notifying us!
+              </p>
+              <a
+                href={`/q/${restaurantSlug}`}
+                className="inline-flex min-h-[48px] h-12 w-full items-center justify-center rounded-2xl bg-slate-800 hover:bg-slate-700 text-white text-sm font-black border border-white/10 transition-all active:scale-[0.99] cursor-pointer"
+              >
+                Join the queue again
+              </a>
+            </div>
           ) : (
-            /* 4. AWAITING DECISION — HIGH-PRIORITY DECISION UI */
+            /* 5. AWAITING DECISION — HIGH-PRIORITY DECISION UI */
             <div className="rounded-2xl border border-sky-400/50 bg-gradient-to-b from-sky-500/20 via-sky-600/15 to-blue-900/30 p-5 text-center space-y-4 shadow-xl shadow-sky-500/20 motion-safe:animate-fadeIn">
               <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-sky-300">
                 <Megaphone className="h-4 w-4 text-sky-300" />

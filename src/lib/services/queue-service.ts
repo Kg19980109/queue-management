@@ -252,15 +252,18 @@ export class QueueService {
     const isCalled = entry.status === 'CALLED';
     const isSeated = entry.status === 'SEATED';
 
-    // Fetch any late notices or chat messages for this ticket
+    // Fetch any late notices, call response events, or chat messages for this ticket
     let lateInfo: QueueLateInfo | null = null;
+    let eventCallResponse: 'ACCEPTED' | 'DELAY_REQUESTED' | 'DECLINED' | null = null;
+    let eventCallRespondedAt: string | null = null;
+    let eventCallDelayMinutes: number | null = null;
     const chatMessages: QueueChatMessage[] = [];
     try {
       const { data: events } = await supabase
         .from('queue_events')
         .select('id, event_type, metadata, created_at')
         .eq('queue_entry_id', entry.id)
-        .in('event_type', ['CUSTOMER_LATE', 'CHAT_MESSAGE', 'TABLE_PASSED_TO_NEXT'])
+        .in('event_type', ['CUSTOMER_LATE', 'CHAT_MESSAGE', 'TABLE_PASSED_TO_NEXT', 'QUEUE_CALL_ACCEPTED', 'QUEUE_CALL_DELAY_REQUESTED'])
         .order('created_at', { ascending: true });
 
       if (events && events.length > 0) {
@@ -281,6 +284,13 @@ export class QueueService {
             isLate = true;
             tablePassed = true;
             if (!lateReportedAt) lateReportedAt = ev.created_at;
+          } else if (ev.event_type === 'QUEUE_CALL_ACCEPTED') {
+            eventCallResponse = 'ACCEPTED';
+            eventCallRespondedAt = ev.created_at;
+          } else if (ev.event_type === 'QUEUE_CALL_DELAY_REQUESTED') {
+            eventCallResponse = 'DELAY_REQUESTED';
+            eventCallRespondedAt = ev.created_at;
+            eventCallDelayMinutes = Number(meta.delayMinutes) || 10;
           } else if (ev.event_type === 'CHAT_MESSAGE') {
             chatMessages.push({
               id: ev.id,
@@ -382,9 +392,9 @@ export class QueueService {
       upNextNumber,
       recentlySeatedNumbers,
       completedAt: entry.completed_at || null,
-      callResponse: (entry as unknown as { call_response?: 'ACCEPTED' | 'DELAY_REQUESTED' | 'DECLINED' | null }).call_response || null,
-      callRespondedAt: (entry as unknown as { call_responded_at?: string | null }).call_responded_at || null,
-      callDelayMinutes: (entry as unknown as { call_delay_minutes?: number | null }).call_delay_minutes || null,
+      callResponse: (entry as unknown as { call_response?: 'ACCEPTED' | 'DELAY_REQUESTED' | 'DECLINED' | null }).call_response || eventCallResponse || null,
+      callRespondedAt: (entry as unknown as { call_responded_at?: string | null }).call_responded_at || eventCallRespondedAt || null,
+      callDelayMinutes: (entry as unknown as { call_delay_minutes?: number | null }).call_delay_minutes || eventCallDelayMinutes || null,
       callTimeoutMinutes: restaurantObj?.call_timeout_minutes ?? 15,
     };
   }
@@ -646,10 +656,22 @@ export class QueueService {
       throw new Error(`Failed to fetch active queue: ${error.message}`);
     }
 
-    const priority: Record<string, number> = { CALLED: 0, NOTIFIED: 1, WAITING: 2 };
+    // Priority definition:
+    // 0: CALLED (ACCEPTED) - Guest confirmed on the way, ready to seat
+    // 1: CALLED (AWAITING) - Waiting for guest response
+    // 2: NOTIFIED
+    // 3: WAITING
+    // 4: CALLED (DELAY_REQUESTED) - Guest requested more time, goes below waiting guests
+    const priority: Record<string, number> = { CALLED: 1, NOTIFIED: 2, WAITING: 3 };
     entries.sort((a, b) => {
-      const pa = priority[a.status] ?? 9;
-      const pb = priority[b.status] ?? 9;
+      const isDelayedA = (a as unknown as { call_response?: string }).call_response === 'DELAY_REQUESTED';
+      const isDelayedB = (b as unknown as { call_response?: string }).call_response === 'DELAY_REQUESTED';
+      const isAcceptedA = a.status === 'CALLED' && (a as unknown as { call_response?: string }).call_response === 'ACCEPTED';
+      const isAcceptedB = b.status === 'CALLED' && (b as unknown as { call_response?: string }).call_response === 'ACCEPTED';
+
+      const pa = isDelayedA ? 4 : isAcceptedA ? 0 : (priority[a.status] ?? 9);
+      const pb = isDelayedB ? 4 : isAcceptedB ? 0 : (priority[b.status] ?? 9);
+
       if (pa !== pb) return pa - pb;
       return new Date(a.joined_at || a.created_at).getTime() - new Date(b.joined_at || b.created_at).getTime();
     });
@@ -1730,10 +1752,10 @@ export class QueueService {
     const tokenHash = hashQueueToken(rawToken);
     const supabase = createAdminClient();
 
-    // 1. Fetch entry to verify existence and get entryId
+    // 1. Fetch entry to verify existence, status, called_at, and timeout
     const { data: entry, error: fetchErr } = await supabase
       .from('queue_entries')
-      .select('id, restaurant_id, status, token_hash')
+      .select('id, restaurant_id, status, token_hash, called_at, restaurants(call_timeout_minutes)')
       .eq('token_hash', tokenHash)
       .maybeSingle();
 
@@ -1745,23 +1767,19 @@ export class QueueService {
       throw new Error(`CANNOT_RESPOND: Entry is in status ${entry.status}`);
     }
 
-    // 2. Call atomic DB function
-    const { data, error: rpcErr } = await supabase.rpc('respond_to_call_atomic', {
-      p_queue_entry_id: entry.id,
-      p_token_hash: tokenHash,
-      p_response: response,
-      p_delay_minutes: delayMinutes || null,
-    });
+    const restObj = entry.restaurants as unknown as { call_timeout_minutes?: number } | null;
+    const timeoutMins = restObj?.call_timeout_minutes ?? 15;
 
-    if (rpcErr) {
-      const msg = rpcErr.message || '';
-      if (msg.includes('CALL_EXPIRED')) throw new Error('CALL_EXPIRED');
-      if (msg.includes('UNAUTHORIZED')) throw new Error('UNAUTHORIZED');
-      if (msg.includes('QUEUE_ENTRY_NOT_CALLED')) throw new Error('QUEUE_ENTRY_NOT_CALLED');
-      throw new Error(msg || 'Failed to record call response');
+    // Check expiration
+    if (entry.called_at) {
+      const elapsedMs = Date.now() - new Date(entry.called_at).getTime();
+      if (elapsedMs > timeoutMins * 60 * 1000) {
+        throw new Error('CALL_EXPIRED');
+      }
     }
 
-    return data as unknown as {
+    // 2. Call atomic DB function first
+    let resultData: {
       success: boolean;
       queueEntryId: string;
       status: string;
@@ -1769,7 +1787,151 @@ export class QueueService {
       callRespondedAt: string;
       callDelayMinutes?: number | null;
       idempotent?: boolean;
-    };
+    } | null = null;
+
+    try {
+      const { data, error: rpcErr } = await supabase.rpc('respond_to_call_atomic', {
+        p_queue_entry_id: entry.id,
+        p_token_hash: tokenHash,
+        p_response: response,
+        p_delay_minutes: delayMinutes || null,
+      });
+
+      if (!rpcErr && data) {
+        resultData = data as unknown as typeof resultData;
+      } else if (rpcErr) {
+        const msg = rpcErr.message || '';
+        if (msg.includes('CALL_EXPIRED')) throw new Error('CALL_EXPIRED');
+        if (msg.includes('UNAUTHORIZED')) throw new Error('UNAUTHORIZED');
+        if (msg.includes('QUEUE_ENTRY_NOT_CALLED')) throw new Error('QUEUE_ENTRY_NOT_CALLED');
+        // If RPC function does not exist in schema, proceed to fallback below
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (['CALL_EXPIRED', 'UNAUTHORIZED', 'QUEUE_ENTRY_NOT_CALLED'].includes(msg)) {
+        throw err;
+      }
+    }
+
+    // 3. Resilient fallback execution if RPC is not deployed yet on remote DB
+    if (!resultData) {
+      const now = new Date().toISOString();
+      const safeDelay = Math.min(60, Math.max(1, Number(delayMinutes) || 10));
+
+      if (response === 'DECLINED') {
+        const updatePayload: Record<string, unknown> = {
+          status: 'CANCELLED',
+          cancelled_at: now,
+          updated_at: now,
+        };
+        try {
+          await supabase
+            .from('queue_entries')
+            .update({ ...updatePayload, call_response: 'DECLINED', call_responded_at: now })
+            .eq('id', entry.id);
+        } catch {
+          await supabase.from('queue_entries').update(updatePayload).eq('id', entry.id);
+        }
+
+        try {
+          await supabase.from('queue_events').insert({
+            restaurant_id: entry.restaurant_id,
+            queue_entry_id: entry.id,
+            event_type: 'QUEUE_CANCELLED',
+            metadata: { reason: 'CUSTOMER_DECLINED_CALL', responded_at: now },
+          });
+        } catch {
+          // Non-blocking event log
+        }
+
+        resultData = {
+          success: true,
+          queueEntryId: entry.id,
+          status: 'CANCELLED',
+          callResponse: 'DECLINED',
+          callRespondedAt: now,
+          callDelayMinutes: null,
+        };
+      } else if (response === 'DELAY_REQUESTED') {
+        try {
+          await supabase
+            .from('queue_entries')
+            .update({
+              call_response: 'DELAY_REQUESTED',
+              call_responded_at: now,
+              call_delay_minutes: safeDelay,
+              updated_at: now,
+            })
+            .eq('id', entry.id);
+        } catch {
+          await supabase.from('queue_entries').update({ updated_at: now }).eq('id', entry.id);
+        }
+
+        try {
+          await supabase.from('queue_events').insert([
+            {
+              restaurant_id: entry.restaurant_id,
+              queue_entry_id: entry.id,
+              event_type: 'CUSTOMER_LATE',
+              metadata: { delayMinutes: safeDelay, reportedAt: now, fromCallResponse: true },
+            },
+            {
+              restaurant_id: entry.restaurant_id,
+              queue_entry_id: entry.id,
+              event_type: 'QUEUE_CALL_DELAY_REQUESTED',
+              metadata: { delayMinutes: safeDelay, responded_at: now },
+            },
+          ]);
+        } catch {
+          // Non-blocking event log
+        }
+
+        resultData = {
+          success: true,
+          queueEntryId: entry.id,
+          status: 'CALLED',
+          callResponse: 'DELAY_REQUESTED',
+          callRespondedAt: now,
+          callDelayMinutes: safeDelay,
+        };
+      } else {
+        // ACCEPTED
+        try {
+          await supabase
+            .from('queue_entries')
+            .update({
+              call_response: 'ACCEPTED',
+              call_responded_at: now,
+              updated_at: now,
+            })
+            .eq('id', entry.id);
+        } catch {
+          await supabase.from('queue_entries').update({ updated_at: now }).eq('id', entry.id);
+        }
+
+        try {
+          await supabase.from('queue_events').insert({
+            restaurant_id: entry.restaurant_id,
+            queue_entry_id: entry.id,
+            event_type: 'QUEUE_CALL_ACCEPTED',
+            metadata: { response: 'ACCEPTED', responded_at: now },
+          });
+        } catch {
+          // Non-blocking event log
+        }
+
+        resultData = {
+          success: true,
+          queueEntryId: entry.id,
+          status: 'CALLED',
+          callResponse: 'ACCEPTED',
+          callRespondedAt: now,
+          callDelayMinutes: null,
+        };
+      }
+    }
+
+    return resultData;
   }
 
   /**

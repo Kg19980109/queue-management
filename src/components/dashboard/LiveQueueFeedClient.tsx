@@ -127,10 +127,19 @@ export function LiveQueueFeedClient({
       const next = prev.map((e) =>
         e.id === entryId ? { ...e, status: 'CALLED', called_at: new Date().toISOString() } : e
       );
-      const priority: Record<string, number> = { CALLED: 0, NOTIFIED: 1, WAITING: 2 };
+      const priority: Record<string, number> = { CALLED: 1, NOTIFIED: 2, WAITING: 3 };
       return next.sort((a, b) => {
-        const pa = priority[a.status] ?? 9;
-        const pb = priority[b.status] ?? 9;
+        type EntryWithCallMeta = { call_response?: string; lateInfo?: { isLate?: boolean } };
+        const anyA = a as unknown as EntryWithCallMeta;
+        const anyB = b as unknown as EntryWithCallMeta;
+        const isDelayedA = anyA.call_response === 'DELAY_REQUESTED' || anyA.lateInfo?.isLate;
+        const isDelayedB = anyB.call_response === 'DELAY_REQUESTED' || anyB.lateInfo?.isLate;
+        const isAcceptedA = a.status === 'CALLED' && anyA.call_response === 'ACCEPTED';
+        const isAcceptedB = b.status === 'CALLED' && anyB.call_response === 'ACCEPTED';
+
+        const pa = isDelayedA ? 4 : isAcceptedA ? 0 : (priority[a.status] ?? 9);
+        const pb = isDelayedB ? 4 : isAcceptedB ? 0 : (priority[b.status] ?? 9);
+
         if (pa !== pb) return pa - pb;
         return new Date(a.joined_at || a.created_at).getTime() - new Date(b.joined_at || b.created_at).getTime();
       });
@@ -616,32 +625,56 @@ export function LiveQueueFeedClient({
                       </button>
                     )}
 
-                    {/* Step 3: CALLED -> Assign Table & Seat */}
+                    {/* Step 3: CALLED -> Assign Table & Seat (Gated on guest acceptance) */}
                     {isCalled && (
                       <div className="col-span-2 sm:col-span-1">
-                        <SeatCustomerModal
-                          entryId={entry.id}
-                          customerName={entry.customer_name}
-                          displayNumber={entry.display_number}
-                          partySize={entry.party_size}
-                          userId={userId || ''}
-                          seatableTables={seatableForParty}
-                          allAvailableTables={availableTables}
-                          onSeated={async (tableId, additionalIds) => {
-                            chimeEngine.playSeatChime();
-                            setEntries((prev) => prev.filter((e) => e.id !== entry.id));
-                            const allIds = [tableId, ...(additionalIds || [])];
-                            setTables((prev) =>
-                              prev.map((t) => (allIds.includes(t.id) ? { ...t, status: 'OCCUPIED' } : t))
-                            );
-                            await broadcastCustomerQueueUpdate(entry.id);
-                            router.refresh();
-                          }}
-                        />
+                        {anyEntry.call_response === 'ACCEPTED' ? (
+                          <SeatCustomerModal
+                            entryId={entry.id}
+                            customerName={entry.customer_name}
+                            displayNumber={entry.display_number}
+                            partySize={entry.party_size}
+                            userId={userId || ''}
+                            seatableTables={seatableForParty}
+                            allAvailableTables={availableTables}
+                            onSeated={async (tableId, additionalIds) => {
+                              chimeEngine.playSeatChime();
+                              setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+                              const allIds = [tableId, ...(additionalIds || [])];
+                              setTables((prev) =>
+                                prev.map((t) => (allIds.includes(t.id) ? { ...t, status: 'OCCUPIED' } : t))
+                              );
+                              await broadcastCustomerQueueUpdate(entry.id);
+                              router.refresh();
+                            }}
+                          />
+                        ) : (
+                          <div
+                            title="Guest must accept the table call on their phone before a table can be assigned."
+                            className="w-full h-11 px-4 rounded-xl bg-slate-800/80 border border-white/10 text-slate-400 text-xs font-bold opacity-80 cursor-not-allowed flex items-center justify-center gap-1.5 select-none"
+                          >
+                            {anyEntry.call_response === 'DELAY_REQUESTED' ? (
+                              <>
+                                <span>⏱</span>
+                                <span>Guest Delayed (+{anyEntry.call_delay_minutes || 10}m)</span>
+                              </>
+                            ) : anyEntry.call_response === 'DECLINED' ? (
+                              <>
+                                <span className="text-rose-400">✕</span>
+                                <span className="text-rose-300">Guest Declined Table</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+                                <span>Awaiting Guest Acceptance</span>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    {/* Step 3: CALLED -> No-Show */}
+                    {/* Step 3: CALLED -> Remove / No-Show / Cancel */}
                     {isCalled && (
                       <div className="col-span-2 sm:col-span-1 flex items-center gap-1 relative">
                         {noShowMenuId === entry.id ? (
@@ -651,7 +684,8 @@ export function LiveQueueFeedClient({
                               onChange={(e) => setNoShowReason(e.target.value)}
                               className="flex-1 min-w-0 h-11 rounded-xl bg-[#1A2333] border border-white/10 text-slate-200 text-xs font-bold px-2"
                             >
-                              <option value="STAFF_MARKED_NO_SHOW">Staff marked</option>
+                              <option value="CUSTOMER_DECLINED">Customer Can&apos;t Come / Declined</option>
+                              <option value="STAFF_MARKED_NO_SHOW">Staff marked No-Show</option>
                               <option value="CUSTOMER_DID_NOT_RETURN">Did not return</option>
                               <option value="CUSTOMER_DID_NOT_RESPOND">No response</option>
                               <option value="OTHER">Other</option>
@@ -661,7 +695,7 @@ export function LiveQueueFeedClient({
                               onClick={() => handleNoShow(entry.id, noShowReason)}
                               className="px-3 h-11 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shrink-0 transition-colors cursor-pointer"
                             >
-                              Confirm
+                              Remove
                             </button>
                             <button
                               type="button"
@@ -671,13 +705,21 @@ export function LiveQueueFeedClient({
                               ✕
                             </button>
                           </div>
+                        ) : anyEntry.call_response === 'DECLINED' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleNoShow(entry.id, 'CUSTOMER_DECLINED')}
+                            className="w-full sm:w-auto px-4 h-11 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1"
+                          >
+                            <span>✕</span> Remove Declined Guest
+                          </button>
                         ) : (
                           <button
                             type="button"
                             onClick={() => setNoShowMenuId(entry.id)}
                             className="w-full sm:w-auto px-4 h-11 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold transition-colors cursor-pointer"
                           >
-                            No-Show
+                            Remove / No-Show
                           </button>
                         )}
                       </div>
