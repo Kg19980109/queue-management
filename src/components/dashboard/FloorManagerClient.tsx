@@ -479,7 +479,11 @@ export function FloorManagerClient({
                     selectedTable.status === 'CLEANING' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
                     'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                   }`}>
-                    {selectedTable.tableNumber.startsWith('T') ? selectedTable.tableNumber : `T${selectedTable.tableNumber}`}
+                    {(() => {
+                      const rawNum = String(selectedTable.tableNumber || '').trim();
+                      const numOnly = rawNum.replace(/^tables?\s*/i, '').trim();
+                      return numOnly.toUpperCase().startsWith('T') ? numOnly.toUpperCase() : `T${numOnly}`;
+                    })()}
                   </div>
                   <div className="flex flex-col">
                     <h3 className="text-lg font-black text-white leading-tight">Table Details</h3>
