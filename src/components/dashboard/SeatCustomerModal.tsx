@@ -44,12 +44,14 @@ export function SeatCustomerModal({
   const [actualGuests, setActualGuests] = useState<number>(partySize);
   const [isCustomCombine, setIsCustomCombine] = useState(false);
   const [customSelectedIds, setCustomSelectedIds] = useState<string[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     setActualGuests(partySize);
     setIsCustomCombine(false);
     setCustomSelectedIds([]);
+    setErrorMessage(null);
     
     recommendTablesAction(entryId)
       .then((recs) => {
@@ -62,10 +64,22 @@ export function SeatCustomerModal({
 
   const handleSeat = (tableId: string, additionalIds: string[] = []) => {
     setSelectedTableId(tableId);
+    setErrorMessage(null);
     startTransition(async () => {
-      await seatQueueEntryAction(entryId, tableId, userId, actualGuests, additionalIds);
-      onSeated?.(tableId, additionalIds);
-      setIsOpen(false);
+      try {
+        await seatQueueEntryAction(entryId, tableId, userId, actualGuests, additionalIds);
+        onSeated?.(tableId, additionalIds);
+        setIsOpen(false);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to seat customer. The table may have become unavailable.';
+        setErrorMessage(msg);
+        // Refresh recommendations so staff sees latest available tables
+        recommendTablesAction(entryId)
+          .then((recs) => {
+            setRecommended(recs.length > 0 ? (recs as unknown as SeatableTableItem[]) : seatableTables);
+          })
+          .catch(() => {});
+      }
     });
   };
 
@@ -114,6 +128,22 @@ export function SeatCustomerModal({
             </div>
 
             <div className="overflow-y-auto space-y-4 pr-1">
+              {errorMessage && (
+                <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between text-xs text-rose-300 animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-rose-400 text-base">error</span>
+                    <span>{errorMessage}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setErrorMessage(null)}
+                    className="text-rose-400 hover:text-white font-bold px-1.5 py-0.5 rounded cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
               {/* Actual headcount: how many guests REALLY came to eat */}
               <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3.5 shrink-0">
                 <div>
