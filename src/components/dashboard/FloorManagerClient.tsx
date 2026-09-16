@@ -143,20 +143,27 @@ export function FloorManagerClient({
       {/* 1. Command Bar & Quick Stats Ribbon */}
       <div className="p-4 border-b border-white/5 bg-[#0D121F] shrink-0 flex flex-col gap-4 z-20 shadow-md">
         {/* Top Header Row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-              <span className="material-symbols-outlined text-blue-400">table_restaurant</span>
-              Floor Manager
-            </h2>
-            <div className="hidden sm:flex items-center gap-1.5 bg-[#111827] border border-white/10 rounded-full px-3 py-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-xs text-slate-400 font-bold">{restaurantName}</span>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight flex items-center gap-1.5 sm:gap-2">
+                <span className="material-symbols-outlined text-blue-400 text-[20px] sm:text-[24px]">table_restaurant</span>
+                Floor Manager
+              </h2>
+              <div className="hidden sm:flex items-center gap-1.5 bg-[#111827] border border-white/10 rounded-full px-3 py-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-xs text-slate-400 font-bold">{restaurantName}</span>
+              </div>
+            </div>
+            
+            {/* Mobile Add Table */}
+            <div className="md:hidden shrink-0 ml-2">
+              <AddTableModal zones={zones} />
             </div>
           </div>
           
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 mr-2 overflow-x-auto hide-scrollbar">
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest hidden sm:inline">Filter Zone:</span>
               <button
                 type="button"
@@ -184,8 +191,13 @@ export function FloorManagerClient({
                 </button>
               ))}
             </div>
-            <div className="h-6 w-px bg-white/10 hidden sm:block mx-1"></div>
-            <AddTableModal zones={zones} />
+            
+            <div className="h-6 w-px bg-white/10 hidden md:block mx-1 shrink-0"></div>
+            
+            {/* Desktop Add Table */}
+            <div className="hidden md:block shrink-0">
+              <AddTableModal zones={zones} />
+            </div>
           </div>
         </div>
 
@@ -422,7 +434,7 @@ export function FloorManagerClient({
         <div className={`
           fixed lg:static inset-x-0 bottom-0 z-50 lg:z-20
           w-full lg:w-[380px] xl:w-[420px] 
-          h-[85vh] lg:h-full max-h-[85vh] lg:max-h-full 
+          h-auto max-h-[75vh] lg:h-full lg:max-h-full 
           bg-[#0D121F] lg:border-t-0 lg:border-l border-t border-white/10 rounded-t-3xl lg:rounded-none
           flex flex-col shrink-0 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] lg:shadow-none
           transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]
