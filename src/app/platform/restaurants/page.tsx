@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { PlatformService } from '@/lib/services/platform-service';
 import type { RestaurantStatus } from '@/types/database.types';
+import DeleteRestaurantForm from './DeleteRestaurantForm';
 
 export default async function RestaurantsListPage({
   searchParams,
@@ -121,12 +122,20 @@ export default async function RestaurantsListPage({
                       {new Date(restaurant.createdAt).toLocaleDateString()}
                     </td>
                     <td className="py-3.5 px-3 text-right">
-                      <Link
-                        href={`/platform/restaurants/${restaurant.id}`}
-                        className="rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-700"
-                      >
-                        Manage &rarr;
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/platform/restaurants/${restaurant.id}`}
+                          className="rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-700"
+                        >
+                          Manage &rarr;
+                        </Link>
+                        <DeleteRestaurantForm
+                          compact
+                          restaurantId={restaurant.id}
+                          slug={restaurant.slug}
+                          name={restaurant.name}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

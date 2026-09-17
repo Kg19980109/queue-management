@@ -39,7 +39,9 @@ export default async function AuditLogsPage({
           <option value="restaurant_activated">restaurant_activated</option>
           <option value="restaurant_suspended">restaurant_suspended</option>
           <option value="restaurant_archived">restaurant_archived</option>
+          <option value="restaurant_deleted">restaurant_deleted</option>
           <option value="restaurant_admin_assigned">restaurant_admin_assigned</option>
+          <option value="team_member_provisioned">team_member_provisioned</option>
         </select>
 
         <button

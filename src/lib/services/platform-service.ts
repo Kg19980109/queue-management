@@ -575,6 +575,345 @@ export class PlatformService {
   }
 
   // ---------------------------------------------------------------------------
+  // Hard delete (super admin only).
+  //
+  // Why this exists: the platform previously offered only ACTIVE <-> SUSPENDED
+  // -> ARCHIVED lifecycle transitions — there was no way to remove a test /
+  // duplicate / decommissioned tenant at all.
+  //
+  // Safety model:
+  // - Requires PLATFORM_RESTAURANTS_DELETE (super admin only).
+  // - Caller must supply the restaurant slug as confirmation (type-to-confirm
+  //   in the UI). ARCHIVED-only is NOT enforced — an ACTIVE restaurant with a
+  //   typo'd click is still protected by the slug check + dedicated button.
+  // - Child rows go through ON DELETE CASCADE; payments are pre-deleted
+  //   because payments.order_id is ON DELETE RESTRICT and would otherwise
+  //   block the cascade.
+  // - Auth accounts (auth.users / user_profiles) are deliberately KEPT — a
+  //   person may work at several restaurants. Only their membership to the
+  //   deleted restaurant is removed (via CASCADE).
+  // - A `restaurant_deleted` audit entry is written with restaurant_id NULL
+  //   (plus full snapshot in metadata) so the record survives the cascade.
+  // ---------------------------------------------------------------------------
+  static async deleteRestaurant(id: string, confirmSlug: string) {
+    const userContext = await AuthorizationService.requirePermission({
+      permission: PERMISSIONS.PLATFORM_RESTAURANTS_DELETE,
+    });
+
+    const normalizedConfirm = (confirmSlug || '').toLowerCase().trim();
+    if (!normalizedConfirm) {
+      throw new ValidationError('Type the restaurant slug to confirm deletion.');
+    }
+
+    const adminClient = createAdminClient();
+    const { data: restaurant } = await adminClient
+      .from('restaurants')
+      .select('id, name, slug, status')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!restaurant) {
+      throw new NotFoundError(`Restaurant ${id} not found`);
+    }
+    if (restaurant.slug.toLowerCase() !== normalizedConfirm) {
+      throw new ValidationError(
+        `Confirmation does not match. Type '${restaurant.slug}' to delete '${restaurant.name}'.`
+      );
+    }
+
+    // Pre-delete the only RESTRICT chain: payments -> orders.
+    // payment_events cascades from payments; everything else cascades from
+    // restaurants directly.
+    const { error: payErr } = await adminClient
+      .from('payments')
+      .delete()
+      .eq('restaurant_id', id);
+    if (payErr) {
+      throw new DomainError(`Failed to delete restaurant payments: ${payErr.message}`);
+    }
+
+    const { error: delErr } = await adminClient
+      .from('restaurants')
+      .delete()
+      .eq('id', id);
+    if (delErr) {
+      throw new DomainError(`Failed to delete restaurant: ${delErr.message}`);
+    }
+
+    await CacheService.invalidate(CacheKeys.publicRestaurant(restaurant.slug));
+
+    await this.logAuditAction(
+      'restaurant_deleted',
+      'restaurant',
+      id,
+      null,
+      userContext.userId,
+      { name: restaurant.name, slug: restaurant.slug, previousStatus: restaurant.status }
+    );
+
+    return { success: true, slug: restaurant.slug, name: restaurant.name };
+  }
+
+  /**
+   * Full team roster for a restaurant (admins + staff, every status).
+   * Powers the super-admin detail page so the platform operator can see at a
+   * glance who can access the tenant — previously invisible.
+   */
+  static async listRestaurantTeam(restaurantId: string) {
+    await AuthorizationService.requirePermission({
+      permission: PERMISSIONS.PLATFORM_RESTAURANTS_VIEW,
+    });
+    const adminClient = createAdminClient();
+
+    const { data, error } = await adminClient
+      .from('restaurant_memberships')
+      .select('id, user_id, role, status, created_at, invited_at, invitation_accepted_at, user_profiles(id, display_name, email, phone)')
+      .eq('restaurant_id', restaurantId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new DomainError(`Failed to fetch restaurant team: ${error.message}`);
+
+    return (data || []).map((m) => {
+      const profile = m.user_profiles as unknown as {
+        id: string;
+        display_name: string;
+        email: string;
+        phone: string | null;
+      } | null;
+      return {
+        membershipId: m.id,
+        userId: m.user_id,
+        role: m.role,
+        status: m.status,
+        createdAt: m.created_at,
+        invitedAt: m.invited_at,
+        invitationAcceptedAt: m.invitation_accepted_at,
+        name: profile?.display_name || '—',
+        email: profile?.email || '—',
+        phone: profile?.phone || null,
+      };
+    });
+  }
+
+  /**
+   * Recent audit trail scoped to one restaurant (for the detail page).
+   */
+  static async listRestaurantAudit(restaurantId: string, limit = 20) {
+    await AuthorizationService.requirePermission({
+      permission: PERMISSIONS.PLATFORM_AUDIT_VIEW,
+    });
+    const result = await this.listAuditLogs({
+      page: 1,
+      limit: Math.min(100, Math.max(1, limit)),
+      restaurantId,
+    });
+    return result.logs;
+  }
+
+  /**
+   * Seamless staff creation by the platform operator: creates the Auth user
+   * with the given password and activates the membership immediately.
+   *
+   * This is intentionally different from the restaurant-admin invite flow
+   * (email invitation + employee sets password). The super admin provisions
+   * credentials directly and hands them to the operator — no inbox round-trip.
+   */
+  static async createTeamMemberDirect(input: {
+    restaurantId: string;
+    email: string;
+    displayName: string;
+    password: string;
+    role: 'STAFF' | 'RESTAURANT_ADMIN';
+  }) {
+    const userContext = await AuthorizationService.requirePermission({
+      permission: PERMISSIONS.PLATFORM_RESTAURANTS_UPDATE,
+    });
+
+    const schema = z.object({
+      restaurantId: z.string().uuid('Invalid restaurant ID'),
+      email: z.string().email('Invalid email address'),
+      displayName: z.string().min(2, 'Display name must be at least 2 characters'),
+      password: z.string().min(6, 'Password must be at least 6 characters'),
+      role: z.enum(['STAFF', 'RESTAURANT_ADMIN']),
+    });
+    const parseResult = schema.safeParse(input);
+    if (!parseResult.success) {
+      throw new ValidationError('Invalid team member data', {
+        errors: parseResult.error.format(),
+      });
+    }
+    const { restaurantId, email, displayName, password, role } = parseResult.data;
+    const normalizedEmail = email.toLowerCase().trim();
+    const adminClient = createAdminClient();
+
+    const { data: restaurant } = await adminClient
+      .from('restaurants')
+      .select('id, name')
+      .eq('id', restaurantId)
+      .maybeSingle();
+    if (!restaurant) throw new NotFoundError(`Restaurant ${restaurantId} not found`);
+
+    // Reuse an existing Auth account when the email is already known.
+    const { data: existingProfile } = await adminClient
+      .from('user_profiles')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    let targetUserId: string;
+    if (existingProfile) {
+      targetUserId = existingProfile.id;
+      // Set / reset to the operator-supplied password so credentials are known.
+      const { error: pwErr } = await adminClient.auth.admin.updateUserById(targetUserId, {
+        password,
+        email_confirm: true,
+        user_metadata: { role, restaurant_id: restaurantId },
+      });
+      if (pwErr) {
+        throw new DomainError(`Failed to set password for ${normalizedEmail}: ${pwErr.message}`);
+      }
+    } else {
+      const { data: authUser, error: authErr } = await adminClient.auth.admin.createUser({
+        email: normalizedEmail,
+        password,
+        email_confirm: true,
+        user_metadata: { role, restaurant_id: restaurantId },
+      });
+      if (authErr || !authUser.user) {
+        throw new DomainError(`Failed to create login for ${normalizedEmail}: ${authErr?.message}`);
+      }
+      targetUserId = authUser.user.id;
+      await adminClient.from('user_profiles').upsert(
+        { id: targetUserId, display_name: displayName.trim(), email: normalizedEmail },
+        { onConflict: 'id' }
+      );
+    }
+
+    const { data: membership, error: mErr } = await adminClient
+      .from('restaurant_memberships')
+      .upsert(
+        {
+          user_id: targetUserId,
+          restaurant_id: restaurantId,
+          role,
+          status: 'ACTIVE',
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,restaurant_id,role' }
+      )
+      .select()
+      .single();
+
+    if (mErr || !membership) {
+      throw new DomainError(`Failed to activate team membership: ${mErr?.message}`);
+    }
+
+    await this.logAuditAction(
+      'team_member_provisioned',
+      'restaurant_membership',
+      membership.id,
+      restaurantId,
+      userContext.userId,
+      { assignedUserId: targetUserId, email: normalizedEmail, displayName, role }
+    );
+
+    return { success: true, targetUserId, membershipId: membership.id };
+  }
+
+  /**
+   * Remove one team membership (super admin). The Auth account itself is kept
+   * (shared identity); only access to this restaurant is revoked. INVITED
+   * rows are cancelled; ACTIVE rows are deactivated.
+   */
+  static async removeTeamMember(restaurantId: string, targetUserId: string) {
+    const userContext = await AuthorizationService.requirePermission({
+      permission: PERMISSIONS.PLATFORM_RESTAURANTS_UPDATE,
+    });
+    const adminClient = createAdminClient();
+
+    const { data: membership } = await adminClient
+      .from('restaurant_memberships')
+      .select('id, role, status')
+      .eq('restaurant_id', restaurantId)
+      .eq('user_id', targetUserId)
+      .neq('role', 'SUPER_ADMIN')
+      .maybeSingle();
+
+    if (!membership) {
+      throw new NotFoundError('Team membership not found for this restaurant');
+    }
+
+    const { error } = await adminClient
+      .from('restaurant_memberships')
+      .update({ status: 'INACTIVE', updated_at: new Date().toISOString() })
+      .eq('id', membership.id);
+    if (error) throw new DomainError(`Failed to remove team member: ${error.message}`);
+
+    await this.logAuditAction(
+      membership.status === 'INVITED' ? 'STAFF_INVITATION_CANCELLED' : 'staff_deactivated',
+      'restaurant_membership',
+      membership.id,
+      restaurantId,
+      userContext.userId,
+      { targetUserId, previousStatus: membership.status, removedBy: 'platform' }
+    );
+
+    return { success: true };
+  }
+
+  /**
+   * One-shot tenant onboarding: restaurant + admin login + N staff logins.
+   * Each step is best-effort atomic at its own level; failures roll the
+   * whole tenant back (delete the created restaurant, cascading children)
+   * so the platform never keeps a half-provisioned tenant.
+   */
+  static async createRestaurantWithTeam(input: {
+    restaurant: CreateRestaurantInput;
+    admin?: { email: string; displayName: string; password: string };
+    staff?: Array<{ email: string; displayName: string; password: string; role: 'STAFF' | 'RESTAURANT_ADMIN' }>;
+  }) {
+    const restaurant = await this.createRestaurant(input.restaurant);
+
+    const provisioned: Array<{ email: string; role: string }> = [];
+    try {
+      if (input.admin?.email) {
+        await this.createTeamMemberDirect({
+          restaurantId: restaurant.id,
+          email: input.admin.email,
+          displayName: input.admin.displayName,
+          password: input.admin.password,
+          role: 'RESTAURANT_ADMIN',
+        });
+        provisioned.push({ email: input.admin.email, role: 'RESTAURANT_ADMIN' });
+      }
+      for (const s of input.staff || []) {
+        if (!s.email) continue;
+        await this.createTeamMemberDirect({
+          restaurantId: restaurant.id,
+          email: s.email,
+          displayName: s.displayName,
+          password: s.password,
+          role: s.role,
+        });
+        provisioned.push({ email: s.email, role: s.role });
+      }
+    } catch (teamErr) {
+      // Roll back the tenant so a failed password / duplicate never leaves a
+      // restaurant without its operator team.
+      try {
+        const adminClient = createAdminClient();
+        await adminClient.from('payments').delete().eq('restaurant_id', restaurant.id);
+        await adminClient.from('restaurants').delete().eq('id', restaurant.id);
+      } catch {
+        // Best effort — surface the original provisioning error below.
+      }
+      throw teamErr;
+    }
+
+    return { restaurant, provisioned };
+  }
+
+  // ---------------------------------------------------------------------------
   // Platform footfall analytics (super admin): how many people came, per
   // restaurant per day / per month. "People" = guests actually seated
   // (actual_guests confirmed at seat time, falling back to expected

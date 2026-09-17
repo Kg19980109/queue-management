@@ -6,6 +6,7 @@ export const PERMISSIONS = {
   PLATFORM_RESTAURANTS_VIEW: 'platform.restaurants.view',
   PLATFORM_RESTAURANTS_CREATE: 'platform.restaurants.create',
   PLATFORM_RESTAURANTS_UPDATE: 'platform.restaurants.update',
+  PLATFORM_RESTAURANTS_DELETE: 'platform.restaurants.delete',
   PLATFORM_RESTAURANTS_LIFECYCLE: 'platform.restaurants.lifecycle',
   PLATFORM_AUDIT_VIEW: 'platform.audit.view',
   PLATFORM_SETTINGS_VIEW: 'platform.settings.view',

@@ -101,3 +101,100 @@ export async function assignAdminAction(restaurantId: string, _prevState: unknow
     };
   }
 }
+
+export async function deleteRestaurantAction(restaurantId: string, _prevState: unknown, formData: FormData) {
+  try {
+    const confirmSlug = formData.get('confirmSlug') as string;
+    await PlatformService.deleteRestaurant(restaurantId, confirmSlug);
+    redirect('/platform/restaurants');
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete restaurant.',
+    };
+  }
+}
+
+/**
+ * Seamless one-shot onboarding: restaurant + admin login (with password) +
+ * optional staff logins (with passwords). The staff payload arrives as a JSON
+ * array in the `staffJson` field: [{ email, displayName, password, role }].
+ */
+export async function createRestaurantWithTeamAction(_prevState: unknown, formData: FormData) {
+  try {
+    const get = (k: string) => ((formData.get(k) as string) || '').trim();
+    let staff: Array<{ email: string; displayName: string; password: string; role: 'STAFF' | 'RESTAURANT_ADMIN' }> = [];
+    try {
+      const raw = formData.get('staffJson');
+      if (typeof raw === 'string' && raw.trim()) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) staff = parsed;
+      }
+    } catch {
+      return { success: false, error: 'Staff list is malformed. Please re-add staff rows.' };
+    }
+
+    const adminEmail = get('adminEmail');
+    const result = await PlatformService.createRestaurantWithTeam({
+      restaurant: {
+        name: get('name'),
+        slug: get('slug'),
+        description: get('description') || undefined,
+        phone: get('phone') || undefined,
+        email: get('email') || undefined,
+        address: get('address') || undefined,
+        city: get('city') || undefined,
+        state: get('state') || undefined,
+        country: get('country') || undefined,
+        timezone: get('timezone') || 'UTC',
+        currency: get('currency') || 'USD',
+      },
+      admin: adminEmail
+        ? {
+            email: adminEmail,
+            displayName: get('adminName') || adminEmail.split('@')[0] || adminEmail,
+            password: (formData.get('adminPassword') as string) || '',
+          }
+        : undefined,
+      staff,
+    });
+    redirect(`/platform/restaurants/${result.restaurant.id}`);
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create restaurant.',
+    };
+  }
+}
+
+export async function createTeamMemberAction(restaurantId: string, _prevState: unknown, formData: FormData) {
+  try {
+    await PlatformService.createTeamMemberDirect({
+      restaurantId,
+      email: (formData.get('email') as string) || '',
+      displayName: (formData.get('displayName') as string) || '',
+      password: (formData.get('password') as string) || '',
+      role: ((formData.get('role') as string) === 'RESTAURANT_ADMIN' ? 'RESTAURANT_ADMIN' : 'STAFF'),
+    });
+    redirect(`/platform/restaurants/${restaurantId}`);
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'digest' in error && String((error as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
+      throw error;
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to add team member.',
+    };
+  }
+}
+
+export async function removeTeamMemberAction(restaurantId: string, targetUserId: string) {
+  await PlatformService.removeTeamMember(restaurantId, targetUserId);
+  redirect(`/platform/restaurants/${restaurantId}`);
+}
