@@ -40,6 +40,8 @@ interface SeatCustomerModalProps {
   userId: string;
   seatableTables: SeatableTableItem[];
   allAvailableTables?: SeatableTableItem[];
+  triggerLabel?: string;
+  triggerClassName?: string;
   onSeated?: (tableId: string, additionalIds?: string[]) => void;
 }
 
@@ -51,6 +53,8 @@ export function SeatCustomerModal({
   userId,
   seatableTables,
   allAvailableTables = [],
+  triggerLabel,
+  triggerClassName,
   onSeated,
 }: SeatCustomerModalProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -63,13 +67,8 @@ export function SeatCustomerModal({
   const [customSelectedIds, setCustomSelectedIds] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Auto-fetch intelligent server-ranked table recommendations on mount / modal open
   useEffect(() => {
-    if (!isOpen) return;
-    setActualGuests(partySize);
-    setIsCustomCombine(false);
-    setCustomSelectedIds([]);
-    setErrorMessage(null);
-    
     recommendTablesAction(entryId)
       .then((recs) => {
         setRecommended(recs.length > 0 ? (recs as unknown as SeatableTableItem[]) : seatableTables);
@@ -128,9 +127,12 @@ export function SeatCustomerModal({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="w-full sm:w-auto px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white text-sm font-bold shadow-md transition-all cursor-pointer active:scale-95"
+        className={
+          triggerClassName ||
+          'w-full sm:w-auto px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white text-sm font-bold shadow-md transition-all cursor-pointer active:scale-95'
+        }
       >
-        Assign Table & Seat
+        {triggerLabel || 'Assign Table & Seat'}
       </button>
 
       {isOpen && (

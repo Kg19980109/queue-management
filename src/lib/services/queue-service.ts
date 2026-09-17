@@ -679,6 +679,7 @@ export class QueueService {
     const entryIds = entries.map((e) => e.id);
     const lateMap = new Map<string, QueueLateInfo>();
     const chatMap = new Map<string, QueueChatMessage[]>();
+    const callResponseMap = new Map<string, { response: 'ACCEPTED' | 'DELAY_REQUESTED' | 'DECLINED'; delayMinutes?: number; respondedAt?: string }>();
 
     if (entryIds.length > 0) {
       try {
@@ -686,7 +687,7 @@ export class QueueService {
           .from('queue_events')
           .select('id, queue_entry_id, event_type, metadata, created_at')
           .in('queue_entry_id', entryIds)
-          .in('event_type', ['CUSTOMER_LATE', 'CHAT_MESSAGE', 'TABLE_PASSED_TO_NEXT'])
+          .in('event_type', ['CUSTOMER_LATE', 'CHAT_MESSAGE', 'TABLE_PASSED_TO_NEXT', 'QUEUE_CALL_ACCEPTED', 'QUEUE_CALL_DELAY_REQUESTED'])
           .order('created_at', { ascending: true });
 
         if (events) {
@@ -711,6 +712,17 @@ export class QueueService {
                   reportedAt: ev.created_at,
                 });
               }
+            } else if (ev.event_type === 'QUEUE_CALL_ACCEPTED') {
+              callResponseMap.set(ev.queue_entry_id, {
+                response: 'ACCEPTED',
+                respondedAt: ev.created_at,
+              });
+            } else if (ev.event_type === 'QUEUE_CALL_DELAY_REQUESTED') {
+              callResponseMap.set(ev.queue_entry_id, {
+                response: 'DELAY_REQUESTED',
+                delayMinutes: Number(meta.delayMinutes) || 10,
+                respondedAt: ev.created_at,
+              });
             } else if (ev.event_type === 'CHAT_MESSAGE') {
               const list = chatMap.get(ev.queue_entry_id) || [];
               list.push({
@@ -729,8 +741,48 @@ export class QueueService {
       }
     }
 
+    // Merge entries with database columns and event fallbacks
+    const enriched = entries.map((entry) => {
+      const eventCall = callResponseMap.get(entry.id);
+      const rowCall = (entry as unknown as { call_response?: string | null }).call_response;
+      const rowRespondedAt = (entry as unknown as { call_responded_at?: string | null }).call_responded_at;
+      const rowDelayMins = (entry as unknown as { call_delay_minutes?: number | null }).call_delay_minutes;
+
+      const callResponse = rowCall || eventCall?.response || null;
+      const callRespondedAt = rowRespondedAt || eventCall?.respondedAt || null;
+      const callDelayMinutes = rowDelayMins ?? eventCall?.delayMinutes ?? null;
+
+      return {
+        ...entry,
+        call_response: callResponse,
+        call_responded_at: callRespondedAt,
+        call_delay_minutes: callDelayMinutes,
+        lateInfo: lateMap.get(entry.id) || null,
+        chatMessages: chatMap.get(entry.id) || [],
+      };
+    });
+
+    // Authoritative sort:
+    // 0: CALLED (ACCEPTED) - Confirmed on the way, top priority
+    // 1: CALLED (AWAITING) - Waiting for guest response
+    // 2: NOTIFIED
+    // 3: WAITING
+    // 4: DELAY_REQUESTED / LATE - Moved below waiting guests
+    enriched.sort((a, b) => {
+      const isDelayedA = a.call_response === 'DELAY_REQUESTED' || a.lateInfo?.isLate;
+      const isDelayedB = b.call_response === 'DELAY_REQUESTED' || b.lateInfo?.isLate;
+      const isAcceptedA = a.status === 'CALLED' && a.call_response === 'ACCEPTED';
+      const isAcceptedB = b.status === 'CALLED' && b.call_response === 'ACCEPTED';
+
+      const pa = isDelayedA ? 4 : isAcceptedA ? 0 : (priority[a.status] ?? 9);
+      const pb = isDelayedB ? 4 : isAcceptedB ? 0 : (priority[b.status] ?? 9);
+
+      if (pa !== pb) return pa - pb;
+      return new Date(a.joined_at || a.created_at).getTime() - new Date(b.joined_at || b.created_at).getTime();
+    });
+
     let activeCount = 0;
-    const formatted = entries.map((entry) => {
+    const formatted = enriched.map((entry) => {
       let position: number | null = null;
       let peopleAhead: number | null = null;
 
@@ -744,8 +796,6 @@ export class QueueService {
         ...entry,
         position,
         peopleAhead,
-        lateInfo: lateMap.get(entry.id) || null,
-        chatMessages: chatMap.get(entry.id) || [],
       };
     });
 

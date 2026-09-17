@@ -627,7 +627,7 @@ export function LiveQueueFeedClient({
 
                     {/* Step 3: CALLED -> Assign Table & Seat (Gated on guest acceptance) */}
                     {isCalled && (
-                      <div className="col-span-2 sm:col-span-1">
+                      <div className="col-span-2 sm:col-span-1 flex flex-col gap-1">
                         {anyEntry.call_response === 'ACCEPTED' ? (
                           <SeatCustomerModal
                             entryId={entry.id}
@@ -637,6 +637,8 @@ export function LiveQueueFeedClient({
                             userId={userId || ''}
                             seatableTables={seatableForParty}
                             allAvailableTables={availableTables}
+                            triggerLabel="Assign Table & Seat"
+                            triggerClassName="w-full h-11 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-950/40 transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
                             onSeated={async (tableId, additionalIds) => {
                               chimeEngine.playSeatChime();
                               setEntries((prev) => prev.filter((e) => e.id !== entry.id));
@@ -649,27 +651,52 @@ export function LiveQueueFeedClient({
                             }}
                           />
                         ) : (
-                          <div
-                            title="Guest must accept the table call on their phone before a table can be assigned."
-                            className="w-full h-11 px-4 rounded-xl bg-slate-800/80 border border-white/10 text-slate-400 text-xs font-bold opacity-80 cursor-not-allowed flex items-center justify-center gap-1.5 select-none"
-                          >
-                            {anyEntry.call_response === 'DELAY_REQUESTED' ? (
-                              <>
-                                <span>⏱</span>
-                                <span>Guest Delayed (+{anyEntry.call_delay_minutes || 10}m)</span>
-                              </>
-                            ) : anyEntry.call_response === 'DECLINED' ? (
-                              <>
-                                <span className="text-rose-400">✕</span>
-                                <span className="text-rose-300">Guest Declined Table</span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
-                                <span>Awaiting Guest Acceptance</span>
-                              </>
+                          <>
+                            <div
+                              title="Guest must accept the table call on their phone before a table can be assigned."
+                              className="w-full h-11 px-3 rounded-xl bg-slate-800/80 border border-white/10 text-slate-400 text-xs font-bold opacity-80 cursor-not-allowed flex items-center justify-center gap-1.5 select-none"
+                            >
+                              {anyEntry.call_response === 'DELAY_REQUESTED' ? (
+                                <>
+                                  <span>⏱</span>
+                                  <span>Guest Delayed (+{anyEntry.call_delay_minutes || 10}m)</span>
+                                </>
+                              ) : anyEntry.call_response === 'DECLINED' ? (
+                                <>
+                                  <span className="text-rose-400">✕</span>
+                                  <span className="text-rose-300">Guest Declined Table</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+                                  <span>Awaiting Guest Acceptance</span>
+                                </>
+                              )}
+                            </div>
+                            {anyEntry.call_response !== 'DECLINED' && (
+                              <SeatCustomerModal
+                                entryId={entry.id}
+                                customerName={entry.customer_name}
+                                displayNumber={entry.display_number}
+                                partySize={entry.party_size}
+                                userId={userId || ''}
+                                seatableTables={seatableForParty}
+                                allAvailableTables={availableTables}
+                                triggerLabel="⚡ Seat in Person (Override)"
+                                triggerClassName="text-[10px] text-slate-400 hover:text-emerald-300 font-semibold text-center transition-colors cursor-pointer block w-full py-0.5"
+                                onSeated={async (tableId, additionalIds) => {
+                                  chimeEngine.playSeatChime();
+                                  setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+                                  const allIds = [tableId, ...(additionalIds || [])];
+                                  setTables((prev) =>
+                                    prev.map((t) => (allIds.includes(t.id) ? { ...t, status: 'OCCUPIED' } : t))
+                                  );
+                                  await broadcastCustomerQueueUpdate(entry.id);
+                                  router.refresh();
+                                }}
+                              />
                             )}
-                          </div>
+                          </>
                         )}
                       </div>
                     )}
